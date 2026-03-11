@@ -1,44 +1,39 @@
 # Essay AI Platform
 
-AI-powered IELTS essay scoring platform for Vietnamese students.
+Essay AI is a full-stack platform designed to provide automated, AI-driven band scoring and feedback for IELTS Task 1 and Task 2 essays.
 
-## Monorepo Structure
+It features a robust Node.js backend utilizing Mistral-7B via Together AI for high-quality grading, with comprehensive history tracking, teacher dashboards, vocabulary/grammar improvements, and payment processing for premium subscriptions through Sepay. The mobile client is built using React Native / Expo, providing an intuitive, polished interface.
 
-```
-essay-ai-platform/
-├── backend-api/     # Node.js + Express + TypeScript
-├── mobile-app/      # React Native + Expo
-└── docs/            # Architecture & planning docs
-```
+## Project Structure
 
-## Quick Start
+- `/backend-api` - Node.js Express server, MongoDB models, Sepay webhook integration, and Together AI communication layer. Built with strictly-typed TypeScript.
+- `/mobile-app` - React Native mobile application, utilizing Expo Router with deep-linking, animated UI elements, and a centralized `api.ts` client.
+- `/docs` - System architecture, architecture, and deployment documentation.
 
-### Backend
+## Running Locally
+
+### 1. Start the Backend
 ```bash
 cd backend-api
-cp .env.example .env   # fill in your credentials
 npm install
-npm run dev            # starts on port 5000
+# Ensure you have .env configured with MONGODB_URI, TOGETHER_API_KEY, etc.
+npm run dev
 ```
 
-### Mobile App
+### 2. Start the Mobile Client
 ```bash
 cd mobile-app
-npx create-expo-app .
-npm install axios
-npx expo start
+npm install
+npm start
+# Press 'a' to open in Android Emulator, 'i' for iOS Simulator
 ```
 
-## Tech Stack
+## Features
 
-| Layer | Technology |
-|-------|-----------|
-| Mobile | React Native + Expo |
-| Backend | Node.js + Express + TypeScript |
-| Database | MongoDB Atlas |
-| AI | Together AI (Mistral-7B) |
-| Files | Cloudinary |
-| Payments | Sepay |
+*   **Accurate IELTS Scoring:** Leverages Mistral Instruct 7B, locked to JSON schema output, mapping to official IELTS rubrics.
+*   **Teacher & Center Management:** Admin and Teacher roles, with views tracking student progress over time.
+*   **Deep Improvement Insights:** AI-driven text rewriting, vocabulary enhancement, and grammatical rule explanation.
+*   **Production-Ready:** Configured with Docker, Render, CI/CD, and Expo Application Services (EAS).
 
-## Docs
-- [Architecture](./docs/ARCHITECTURE.md)
+## Deployment
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for detailed guidelines.
