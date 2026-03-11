@@ -1,10 +1,10 @@
-import React from "react"
-import { View, Text, StyleSheet } from "react-native"
-import { GrammarError } from "../types"
-import { Colors, Radius, Shadow, Spacing, Typography } from "@/constants/theme"
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { GrammarError } from "../types";
+import { Colors, Radius, Shadow, Spacing, Typography } from "@/constants/theme";
 
 interface Props {
-  errors: GrammarError[]
+  errors: GrammarError[];
 }
 
 export const GrammarErrorCard: React.FC<Props> = ({ errors }) => {
@@ -15,17 +15,20 @@ export const GrammarErrorCard: React.FC<Props> = ({ errors }) => {
         <Text style={styles.empty}>No grammar issues detected.</Text>
       ) : (
         errors.map((e, i) => (
-          <View key={`${e.original}-${i}`} style={[styles.item, i < errors.length - 1 && styles.divider]}>
+          <View
+            key={`${e.original}-${i}`}
+            style={[styles.item, i < errors.length - 1 && styles.divider]}
+          >
             <Text style={styles.original}>Original: {e.original}</Text>
-            <Text style={styles.correction}>Correction: {e.correction}</Text>
+            <Text style={styles.correction}>Correction: {e.corrected}</Text>
             <Text style={styles.explanation}>{e.explanation}</Text>
             {e.tip ? <Text style={styles.tip}>Tip: {e.tip}</Text> : null}
           </View>
         ))
       )}
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   card: {
@@ -71,5 +74,4 @@ const styles = StyleSheet.create({
     color: Colors.warning,
     marginTop: Spacing.xs,
   },
-})
-
+});

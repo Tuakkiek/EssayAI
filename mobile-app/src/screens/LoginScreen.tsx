@@ -34,7 +34,7 @@ export default function LoginScreen() {
       if (result.user.role === "teacher" || result.user.role === "admin") {
         router.replace("/teacher/dashboard")
       } else {
-        router.replace("/(tabs)")
+        router.replace("/")
       }
     } catch (err) {
       Alert.alert("Error", err instanceof Error ? err.message : "Something went wrong")
@@ -122,7 +122,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {/* Guest mode */}
-          <TouchableOpacity style={styles.guestBtn} onPress={() => router.replace("/(tabs)")}>
+          <TouchableOpacity style={styles.guestBtn} onPress={() => router.replace("/")}>
             <Text style={styles.guestText}>Continue as Guest</Text>
           </TouchableOpacity>
         </View>

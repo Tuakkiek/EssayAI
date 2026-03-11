@@ -61,7 +61,7 @@ export default function HistoryScreen() {
     try {
       const result = await essayApi.getHistory(TEMP_USER_ID, { page: p, limit: 15 })
       setEssays((prev) => p === 1 ? result.essays : [...prev, ...result.essays])
-      setHasMore(result.pagination.hasNextPage)
+      setHasMore(result.hasNextPage)
       setPage(p)
       setError(null)
     } catch (err) {

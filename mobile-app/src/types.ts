@@ -23,15 +23,15 @@ export interface ScoreBreakdown {
 
 export interface GrammarError {
   original: string;
-  correction: string;
+  corrected: string;
   explanation: string;
-  ruleFull?: string;
+  position?: number;
   tip?: string;
 }
 
 export interface Suggestion {
-  category: "structure" | "vocabulary" | "tone" | "other" | string;
-  point: string;
+  category: "vocabulary" | "structure" | "coherence" | "argument" | "general";
+  text: string;
   example?: string;
 }
 
@@ -56,7 +56,7 @@ export interface Essay {
   essayText: string;
   wordCount: number;
   taskType: "task1" | "task2";
-  status: "pending" | "scoring" | "completed" | "error";
+  status: "pending" | "scoring" | "scored" | "error";
   score?: number;
   scoreBreakdown?: ScoreBreakdown;
   grammarErrors?: GrammarError[];
@@ -77,4 +77,19 @@ export interface PaginatedHistory {
   totalPages: number;
   hasNextPage: boolean;
   hasPrevPage: boolean;
+}
+
+/** Lightweight essay summary used in the History list. */
+export interface HistoryItem {
+  _id: string;
+  userId: string;
+  centerId?: string;
+  prompt: string;
+  essayText: string;
+  wordCount: number;
+  taskType: "task1" | "task2";
+  status: "pending" | "scoring" | "scored" | "error";
+  score?: number;
+  createdAt: string;
+  updatedAt: string;
 }

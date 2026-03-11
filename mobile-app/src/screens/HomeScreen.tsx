@@ -61,7 +61,6 @@ export default function HomeScreen() {
           onPress={() => router.push("/essay/input")}
           activeOpacity={0.85}
         >
-          <Text style={styles.ctaIcon}>📝</Text>
           <View style={styles.ctaText}>
             <Text style={styles.ctaTitle}>Score My Essay</Text>
             <Text style={styles.ctaSubtitle}>

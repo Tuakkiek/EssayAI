@@ -75,7 +75,7 @@ export default function ResultScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: Colors.border }]}>
-        <TouchableOpacity onPress={() => router.push("/(tabs)")} style={styles.doneBtn}>
+        <TouchableOpacity onPress={() => router.push("/")} style={styles.doneBtn}>
           <Text style={styles.doneBtnText}>← Home</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Your Results</Text>

@@ -63,6 +63,9 @@ export default function EssayInputScreen() {
 
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Write Essay</Text>
         <View style={{ width: 60 }} />
       </View>
@@ -181,4 +184,3 @@ const styles = StyleSheet.create({
   submitText:      { fontSize: 16, fontWeight: "700", color: Colors.surface },
   hint:            { ...Typography.caption, textAlign: "center", marginTop: Spacing.xs, color: Colors.textMuted },
 })
-

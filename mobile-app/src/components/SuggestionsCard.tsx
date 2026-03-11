@@ -1,10 +1,10 @@
-import React from "react"
-import { View, Text, StyleSheet } from "react-native"
-import { Suggestion } from "../types"
-import { Colors, Radius, Shadow, Spacing, Typography } from "@/constants/theme"
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { Suggestion } from "../types";
+import { Colors, Radius, Shadow, Spacing, Typography } from "@/constants/theme";
 
 interface Props {
-  suggestions: Suggestion[]
+  suggestions: Suggestion[];
 }
 
 export const SuggestionsCard: React.FC<Props> = ({ suggestions }) => {
@@ -15,16 +15,21 @@ export const SuggestionsCard: React.FC<Props> = ({ suggestions }) => {
         <Text style={styles.empty}>No suggestions available.</Text>
       ) : (
         suggestions.map((s, i) => (
-          <View key={`${s.category}-${i}`} style={[styles.item, i < suggestions.length - 1 && styles.divider]}>
+          <View
+            key={`${s.category}-${i}`}
+            style={[styles.item, i < suggestions.length - 1 && styles.divider]}
+          >
             <Text style={styles.category}>{s.category.toUpperCase()}</Text>
-            <Text style={styles.point}>{s.point}</Text>
-            {s.example ? <Text style={styles.example}>Example: {s.example}</Text> : null}
+            <Text style={styles.point}>{s.text}</Text>
+            {s.example ? (
+              <Text style={styles.example}>Example: {s.example}</Text>
+            ) : null}
           </View>
         ))
       )}
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   card: {
@@ -66,5 +71,4 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     marginTop: Spacing.xs,
   },
-})
-
+});
