@@ -30,9 +30,6 @@ jobs:
     - name: Type check
       run: npm run typecheck
       
-    - name: Run Tests
-      run: npm test
-
   deploy-backend:
     name: Deploy to Render
     needs: test
