@@ -8,7 +8,7 @@ It features a robust Node.js backend utilizing Mistral-7B via Together AI for hi
 
 - `/backend-api` - Node.js Express server, MongoDB models, Sepay webhook integration, and Together AI communication layer. Built with strictly-typed TypeScript.
 - `/mobile-app` - React Native mobile application, utilizing Expo Router with deep-linking, animated UI elements, and a centralized `api.ts` client.
-- `/docs` - System architecture, architecture, and deployment documentation.
+- `/docs` - System architecture documentation.
 
 ## Running Locally
 
@@ -33,7 +33,3 @@ npm start
 *   **Accurate IELTS Scoring:** Leverages Mistral Instruct 7B, locked to JSON schema output, mapping to official IELTS rubrics.
 *   **Teacher & Center Management:** Admin and Teacher roles, with views tracking student progress over time.
 *   **Deep Improvement Insights:** AI-driven text rewriting, vocabulary enhancement, and grammatical rule explanation.
-*   **Production-Ready:** Configured with Docker, Render, CI/CD, and Expo Application Services (EAS).
-
-## Deployment
-See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for detailed guidelines.
