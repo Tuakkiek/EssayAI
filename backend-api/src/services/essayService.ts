@@ -182,7 +182,7 @@ export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
   });
 
   // Trigger async grading (fire-and-forget)
-  gradeEssayAsync(essay._id.toString()).catch((err) => {
+  startEssayGrading(essay._id.toString()).catch((err: unknown) => {
     logger.error("[submitEssay] Unhandled grading error:", err);
   });
 
@@ -336,7 +336,7 @@ export interface GradeEssayResult {
 }
 
 import { logger } from "../utils/logger";
-import { gradeEssayAsync } from "./gradingService";
+import { startEssayGrading } from "./gradingService";
 
 export const saveGradingResult = async (
   essayId: string,

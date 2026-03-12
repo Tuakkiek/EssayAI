@@ -56,12 +56,14 @@ export interface Essay {
   essayText: string;
   wordCount: number;
   taskType: "task1" | "task2";
-  status: "pending" | "scoring" | "scored" | "error";
+  status: "pending" | "scoring" | "scored" | "graded" | "error";
   score?: number;
+  overallScore?: number;
   scoreBreakdown?: ScoreBreakdown;
   grammarErrors?: GrammarError[];
   suggestions?: Suggestion[];
   aiFeedback?: string;
+  feedback?: string;
   aiModel?: string;
   processingTimeMs?: number;
   errorMessage?: string;

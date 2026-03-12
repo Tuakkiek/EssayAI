@@ -87,7 +87,7 @@ const callGemini = async (
     contents: [{ role: "user", parts: [{ text: userPrompt }] }],
     generationConfig: {
       temperature: 0.2, // low = consistent scoring
-      maxOutputTokens: 2048,
+      maxOutputTokens: 8192,
       topP: 0.9,
     },
   };
@@ -103,9 +103,18 @@ const callGemini = async (
     const text = response.data.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!text) throw new Error("Gemini returned empty content");
 
+    const usage = response.data.usageMetadata;
+    if (usage) {
+      logger.info("[Gemini] Token usage for message", {
+        promptTokens: usage.promptTokenCount,
+        completionTokens: usage.candidatesTokenCount,
+        totalTokens: usage.totalTokenCount,
+      });
+    }
+
     logger.debug("Gemini response received", {
       finishReason: response.data.candidates[0].finishReason,
-      tokens: response.data.usageMetadata?.totalTokenCount,
+      tokens: usage?.totalTokenCount,
     });
 
     return text;

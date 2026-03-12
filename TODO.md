@@ -1,26 +1,15 @@
-# EssayAI Fix Progress
+# EssayAI Backend TypeScript Error Fix - Progress Tracker
 
-## ✅ Completed
+## Plan Steps
 
-- [x] Created `backend-api/.env.example` with `GOOGLE_AI_MODEL=gemini-1.5-flash`
-- [x] Fixed `gemini.ts`: model fallback → "gemini-1.5-flash" (no more 404 default)
-- [x] Fixed `gradingService.ts`:
-  - Catch block: `JSON.stringify(err)` for plain objects like `{status:404}`
-  - Logs full error details
-  - `errorMessage: msg` → essay status → "error" properly
+- [x] **Understand errors**: Analyzed TS7006 (implicit any) and TS2305 (missing export) in essayService.ts
+- [x] **Edit essayService.ts**: Fixed import/call to use startEssayGrading, typed err: unknown
+- [ ] **Test compilation**: Running `cd backend-api && npm run dev` now
+- [ ] **Verify functionality**: Test POST /api/essays → pending → background grading
+- [ ] **attempt_completion**: Confirm task done
 
-## ⏳ Next Steps
+## Current Status
 
-1. **Copy to .env**: Edit `backend-api/.env` → `GOOGLE_AI_MODEL=gemini-1.5-flash`
-2. **Restart**: `cd backend-api && npm run dev`
-3. **Test**: Submit essay → expect `[Gemini] Model: gemini-1.5-flash` + `[Grading] ✅ Done`
+Approved plan → Implementing step-by-step. Next: edit file.
 
-Expected logs:
-
-```
-[Gemini] Model: gemini-1.5-flash
-[Grading] ▶ Start — essayId=...
-[Grading] Calling Gemini...
-[Grading] Gemini responded in XXXms...
-[Grading] ✅ Done — essayId=..., score=6.5
-```
+**Completed: 2/5 steps**

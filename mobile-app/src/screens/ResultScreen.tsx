@@ -42,11 +42,21 @@ export default function ResultScreen() {
         // Guard: 304 Not Modified returns empty body — skip and retry
         // res.data can be "", null, or {} depending on axios version
         const raw = res.data;
-        const data: Essay | null = raw?.data?._id
-          ? raw.data // { success, data: { _id, ... } }
-          : raw?._id
-            ? raw // { _id, ... } (flat)
-            : null; // empty / 304 / unexpected shape
+        const data: Essay | null = raw?.data?.essay
+          ? raw.data.essay
+          : raw?.data?._id
+            ? raw.data
+            : raw?.essay
+              ? raw.essay
+              : raw?._id
+                ? raw
+                : null; // empty / 304 / unexpected shape
+
+        if (data) {
+          console.log("[ResultScreen] Extracted essay data:", JSON.stringify(data, null, 2));
+        } else {
+          console.log("[ResultScreen] Could not extract essay. Raw response:", JSON.stringify(raw, null, 2));
+        }
 
         if (!data) {
           // Empty body — essay likely hasn't changed yet, poll again
@@ -104,9 +114,10 @@ export default function ResultScreen() {
   }, [fetchEssay]);
 
   const handleShare = async () => {
-    if (!essay?.score) return;
+    const finalScore = essay?.score ?? essay?.overallScore;
+    if (!finalScore) return;
     await Share.share({
-      message: `I just scored ${essay.score.toFixed(1)} on my IELTS essay using Essay AI! 🎯`,
+      message: `I just scored ${finalScore.toFixed(1)} on my IELTS essay using Essay AI! 🎯`,
     });
   };
 
@@ -232,10 +243,11 @@ export default function ResultScreen() {
     );
   }
 
-  const scoreColor = essay.score
-    ? essay.score >= 7
+  const finalScore = essay.score ?? essay.overallScore;
+  const scoreColor = finalScore != null
+    ? finalScore >= 7
       ? Colors.success
-      : essay.score >= 6
+      : finalScore >= 6
         ? Colors.warning
         : Colors.error
     : Colors.textMuted;
@@ -267,8 +279,8 @@ export default function ResultScreen() {
           ]}
         >
           <Text style={styles.heroLabel}>IELTS Band Score</Text>
-          {essay.score != null ? (
-            <ScoreBadge score={essay.score} size="lg" />
+          {finalScore != null ? (
+            <ScoreBadge score={finalScore} size="lg" />
           ) : (
             <Text style={[Typography.body, { color: Colors.textMuted }]}>
               Score not available
@@ -289,24 +301,24 @@ export default function ResultScreen() {
           </View>
         </View>
 
-        {essay.aiFeedback && (
+        {(essay.aiFeedback || essay.feedback) && (
           <View style={styles.feedbackCard}>
             <Text style={styles.feedbackTitle}>📋 Examiner Feedback</Text>
-            <Text style={styles.feedbackText}>{essay.aiFeedback}</Text>
+            <Text style={styles.feedbackText}>{essay.aiFeedback ?? essay.feedback}</Text>
           </View>
         )}
 
-        {essay.scoreBreakdown && essay.score != null && (
+        {essay.scoreBreakdown && finalScore != null && (
           <ScoreBreakdownCard
             breakdown={essay.scoreBreakdown}
-            overallBand={essay.score}
+            overallBand={finalScore}
           />
         )}
 
         <GrammarErrorCard errors={essay.grammarErrors ?? []} />
         <SuggestionsCard suggestions={essay.suggestions ?? []} />
 
-        {essay.score != null && (
+        {finalScore != null && (
           <TouchableOpacity
             style={styles.improveBtn}
             onPress={() =>
