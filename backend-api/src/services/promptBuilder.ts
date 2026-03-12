@@ -48,6 +48,7 @@ ${input.essayText}
 """
 
 Analyze this essay thoroughly and respond with ONLY a valid JSON object. No extra text, no markdown, no explanation outside the JSON.
+IMPORTANT: All explanations, suggestions, and feedback (aiFeedback, explanation, text) MUST be written in Vietnamese.
 
 JSON format:
 {
