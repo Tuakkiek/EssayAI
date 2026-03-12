@@ -8,11 +8,14 @@ import teacherRoutes from "./teacher.routes";
 import improvementRoutes from "./improvement.routes";
 import studentRoutes from "./student.routes";
 import classRoutes from "./class.routes";
+import centerRoutes from "./center.routes";
 
 const router = Router();
 
 router.use("/health", healthRoutes);
 router.use("/auth", authRoutes);
+router.use("/centers", centerRoutes);
+
 // Support both singular and plural base paths for essays.
 router.use("/essay", essayRoutes);
 router.use("/essays", essayRoutes);

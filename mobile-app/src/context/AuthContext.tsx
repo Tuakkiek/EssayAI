@@ -11,13 +11,23 @@ import { authApi } from "../services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type UserRole = "student" | "teacher" | "center_admin";
+export type UserRole =
+  | "super_admin"
+  | "center_admin"
+  | "teacher"
+  | "student"
+  | "individual_user";
 
 export interface User {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
+  phone: string;
   role: UserRole;
+  accountType?: "CENTER_STUDENT" | "INDIVIDUAL_USER" | "CENTER_STAFF";
+  centerId?: string | null;
+  mustChangePassword?: boolean;
+  avatarUrl?: string | null;
 }
 
 interface AuthState {
@@ -25,6 +35,8 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  accountType?: "CENTER_STUDENT" | "INDIVIDUAL_USER" | "CENTER_STAFF";
+  centerId?: string | null;
 }
 
 interface AuthContextValue extends AuthState {
@@ -97,11 +109,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthenticated: true,
     });
 
-    // Redirect based on role
-    if (user.role === "teacher" || user.role === "center_admin") {
-      router.replace("/teacher/dashboard" as any);
-    } else {
-      router.replace("/");
+    // Role-based navigation for dual models
+    switch (user.role) {
+      case "center_admin":
+        router.replace("/teacher/create-center");
+        break;
+      case "teacher":
+        router.replace("/teacher/dashboard");
+        break;
+      case "individual_user":
+        router.replace("/subscription"); // Check plan first
+        break;
+      default: // student
+        router.replace("/");
     }
   }, []);
 
@@ -124,7 +144,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       router.replace("/");
     },
-    []
+    [],
   );
 
   const logout = useCallback(async () => {
@@ -154,7 +174,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ ...state, login, register, logout, getToken }}>
+    <AuthContext.Provider
+      value={{ ...state, login, register, logout, getToken }}
+    >
       {children}
     </AuthContext.Provider>
   );
