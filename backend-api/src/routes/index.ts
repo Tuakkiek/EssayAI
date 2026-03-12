@@ -13,7 +13,9 @@ const router = Router();
 
 router.use("/health", healthRoutes);
 router.use("/auth", authRoutes);
+// Support both singular and plural base paths for essays.
 router.use("/essay", essayRoutes);
+router.use("/essays", essayRoutes);
 router.use("/user", userRoutes);
 router.use("/teacher", teacherRoutes);
 router.use("/upload", updateRoutes);
