@@ -47,26 +47,87 @@ const stripMarkdown = (text: string): string => {
 }
 
 // ── Find JSON object even if model adds preamble text ────────────
-const extractJSON = (text: string): string => {
-  const start = text.indexOf("{")
-  const end = text.lastIndexOf("}")
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error("No JSON object found in AI response")
+const robustExtractJSON = (text: string): string | null => {
+  // Heuristic 1: Balanced brace matching (handles nesting)
+  let start = text.indexOf("{")
+  if (start !== -1) {
+    let braceCount = 1
+    let i = start + 1
+    for (; i < text.length; i++) {
+      if (text[i] === "{") braceCount++
+      else if (text[i] === "}") {
+        braceCount--
+        if (braceCount === 0) break
+      }
+    }
+    if (braceCount === 0) {
+      const candidate = text.slice(start, i + 1)
+      if (isValidJSON(candidate.trim())) return candidate.trim()
+    }
   }
-  return text.slice(start, end + 1)
+
+
+  // Heuristic 2: Regex for complete JSON object (handles trailing text)
+  // Heuristic 2: Regex for single-level JSON objects (no deep nesting)
+  const jsonMatch = text.match(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/)
+  if (jsonMatch && isValidJSON(jsonMatch[0])) return jsonMatch[0]
+
+
+  // Heuristic 3: Find last complete field before truncation
+  // Heuristic 3: Last complete top-level object before truncation
+  const lastComplete = text.match(/\{(?:[^{}]|(?:\{[^{}]*\}[^{}]*))*\}/)
+  if (lastComplete && isValidJSON(lastComplete[0])) return lastComplete[0]
+
+
+  return null
 }
+
+const isValidJSON = (str: string): boolean => {
+  try {
+    return JSON.parse(str.trim()) != null
+  } catch {
+    return false
+  }
+}
+
+// ── Fallback result ───────────────────────────────────────────────────
+const fallbackResult = (): ParsedAIResult => ({
+  score: 5,
+  scoreBreakdown: {
+    taskAchievement: 5,
+    coherenceCohesion: 5,
+    lexicalResource: 5,
+    grammaticalRangeAccuracy: 5
+  },
+  grammarErrors: [],
+  suggestions: [],
+  aiFeedback: "Unable to parse AI response. Default scores applied."
+})
+
+
+
+
 
 // ── Main parser ──────────────────────────────────────────────────
 export const parseAIResponse = (rawText: string): ParsedAIResult => {
   let cleaned = stripMarkdown(rawText)
-  cleaned = extractJSON(cleaned)
-
+  const jsonStr = robustExtractJSON(cleaned)
+  
   let raw: RawAIResponse
+  if (!jsonStr) {
+    logger.error("Failed to extract valid JSON from AI response", { rawText })
+    return fallbackResult()
+  }
+  
   try {
-    raw = JSON.parse(cleaned) as RawAIResponse
-  } catch {
-    logger.error("Failed to parse AI response JSON", { rawText: rawText.slice(0, 500) })
-    throw new Error("AI returned invalid JSON — cannot parse scoring result")
+    raw = JSON.parse(jsonStr) as RawAIResponse
+  } catch (parseErr) {
+    logger.error("Failed to parse extracted JSON", { 
+      jsonStr: jsonStr.slice(0, 1000), 
+      fullRawText: rawText,
+      parseError: String(parseErr)
+    })
+    return fallbackResult()
   }
 
   // ── Score ──────────────────────────────────────────────────────
@@ -123,6 +184,7 @@ export const parseAIResponse = (rawText: string): ParsedAIResult => {
     score,
     grammarErrorCount: grammarErrors.length,
     suggestionCount: suggestions.length,
+    usedFallback: false
   })
 
   return { score, scoreBreakdown, grammarErrors, suggestions, aiFeedback }

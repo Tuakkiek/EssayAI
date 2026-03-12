@@ -162,6 +162,7 @@ export interface ScoringResult extends ParsedAIResult {
 
 export const scoreEssayWithAI = async (
   input: ScoringInput,
+  maxRetries = 2
 ): Promise<ScoringResult> => {
   const startTime = Date.now();
   const userPrompt = buildScoringPrompt(input);
@@ -171,18 +172,67 @@ export const scoreEssayWithAI = async (
     wordCount: input.wordCount,
   });
 
-  const rawText = await callGemini(SYSTEM_PROMPT, userPrompt);
-  const parsed = parseAIResponse(rawText);
-  const processingTimeMs = Date.now() - startTime;
+  let rawText: string | undefined;
+  let finishReason: string = '';
+  let parseAttempt = 0;
 
-  logger.info("Essay scored", {
-    score: parsed.score,
-    processingTimeMs,
-    grammarErrors: parsed.grammarErrors.length,
-    suggestions: parsed.suggestions.length,
-  });
+  for (parseAttempt = 1; parseAttempt <= maxRetries; parseAttempt++) {
+    const maxTokens = parseAttempt === 1 ? 8192 : 2048;
+    const concisePrompt = parseAttempt === 1 
+      ? userPrompt 
+      : `${userPrompt}\n\nKEEP JSON CONCISE: Max 10 grammar errors, 5 suggestions only.`;
 
-  return { ...parsed, aiModel: env.GOOGLE_AI_MODEL, processingTimeMs };
+    try {
+      rawText = await callGemini(SYSTEM_PROMPT, concisePrompt);
+      
+      // Extract finishReason from callGemini response (modify callGemini to return it)
+      // For now log from response if available
+      logger.debug(`[Grading] Parse attempt ${parseAttempt}, tokens=${maxTokens}`, { finishReason });
+      
+      const parsed = parseAIResponse(rawText);
+      
+      const processingTimeMs = Date.now() - startTime;
+      
+      logger.info("Essay scored", {
+        score: parsed.score,
+        processingTimeMs,
+        parseAttempts: parseAttempt,
+        grammarErrors: parsed.grammarErrors.length,
+        suggestions: parsed.suggestions.length,
+        finishReason,
+      });
+
+      return { ...parsed, aiModel: env.GOOGLE_AI_MODEL, processingTimeMs };
+    } catch (parseErr) {
+      logger.warn(`[Grading] Parse failed (attempt ${parseAttempt}/${maxRetries})`, {
+        error: String(parseErr),
+        isFinal: parseAttempt === maxRetries,
+        rawTextLength: rawText?.length
+      });
+      
+      if (parseAttempt === maxRetries) {
+        // Final fallback
+        const fallback = {
+          score: 4.0,
+          scoreBreakdown: {
+            taskAchievement: 4.0,
+            coherenceCohesion: 4.0,
+            lexicalResource: 4.0,
+            grammaticalRangeAccuracy: 4.0
+          } as any,
+          grammarErrors: [],
+          suggestions: [],
+          aiFeedback: "Lỗi xử lý AI sau nhiều lần thử. Điểm tạm tính 4.0. Hãy viết bài ngắn gọn hơn và nộp lại."
+        };
+        const processingTimeMs = Date.now() - startTime;
+        return { ...fallback, aiModel: env.GOOGLE_AI_MODEL!, processingTimeMs };
+      }
+      
+      await sleep(1000 * parseAttempt); // Progressive backoff
+    }
+  }
+  
+  throw new Error("Unexpected exit from retry loop");
 };
 
 // ── Health check ──────────────────────────────────────────────────

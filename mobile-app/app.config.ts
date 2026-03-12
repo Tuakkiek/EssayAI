@@ -4,7 +4,7 @@ const IS_PRODUCTION = process.env.APP_ENV === "production";
 const DEV_API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   process.env.API_BASE_URL ||
-  "http://10.0.2.2:5000/api";
+  "http://10.0.2.2:5001/api";
 const PROD_API_URL =
   process.env.EXPO_PUBLIC_API_URL_PROD ||
   process.env.API_BASE_URL_PROD ||
@@ -27,6 +27,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.essayai.app",
+    scheme: "essayai",
   },
   android: {
     adaptiveIcon: {
@@ -34,6 +35,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       backgroundColor: "#E6F4FE",
     },
     package: "com.essayai.app",
+    scheme: "essayai",
   },
   web: {
     favicon: "./assets/images/favicon.png",

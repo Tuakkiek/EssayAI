@@ -53,6 +53,8 @@ BÀI VIẾT CỦA HỌC VIÊN (${input.wordCount} từ):
 ${input.essayText}
 """
 
+**KEEP JSON SHORT TO AVOID TRUNCATION: Limit grammarErrors to TOP 10 CRITICAL only. Limit suggestions to TOP 5. Focus on score accuracy first.**
+
 Analyze this essay thoroughly and respond with ONLY a valid JSON object. No extra text, no markdown, no explanation outside the JSON.
 IMPORTANT: All explanations, suggestions, and feedback (aiFeedback, explanation, text) MUST be written in Vietnamese, applying the strict, straightforward, and "salt-rubbing" examiner persona requested.
 
@@ -78,7 +80,7 @@ JSON Format Requirements:
       "text": "<Lời khuyên 'xát muối': Những điều tối kỵ trong bài mà người viết đã mắc phải và cách khắc phục>"
     }
   ],
-  "aiFeedback": "<Nhận xét tổng quát: Đánh giá nghiêm túc về tư duy và độ hoàn thiện. Phê bình thẳng thắn, không khen ngợi sáo rỗng.>"
+  "aiFeedback": "<Nhận xét tổng quát: Đánh giá nghiêm túc về tư duy và độ hoàn thiện. Phê bình thẳng thắn, không khen ngợi sáo rỗng. SHORT VERSION ONLY.>"
 }`
 }
 
