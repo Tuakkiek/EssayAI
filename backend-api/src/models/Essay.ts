@@ -1,181 +1,159 @@
 import mongoose, { Document, Schema, Model } from "mongoose"
 
-// ── Types ────────────────────────────────────────────────────────────
-export type EssayStatus = "pending" | "scoring" | "scored" | "error"
+// ── Types ─────────────────────────────────────────────────────────────
+export type EssayStatus   = "pending" | "grading" | "graded" | "error"
 export type EssayTaskType = "task1" | "task2"
 
 export interface IGrammarError {
-  original: string
-  corrected: string
-  explanation: string
-  position?: number
+  offset?:     number   // character index in originalText
+  length?:     number   // span length
+  message?:    string   // human-readable description
+  type?:       "grammar" | "spelling" | "punctuation" | "style"
+  suggestions?: string[] // replacement options
+
+  // From legacy AI format
+  original?:    string
+  corrected?:   string
+  explanation?: string
 }
 
 export interface ISuggestion {
-  category: "vocabulary" | "structure" | "coherence" | "argument" | "general"
-  text: string
+  type?:       "vocabulary" | "coherence" | "structure" | "task_achievement"
+  original?:   string
+  improved?:   string
+  explanation?: string
+
+  // From legacy AI format
+  category?:   string
+  text?:       string
 }
 
 export interface IScoreBreakdown {
-  taskAchievement: number      // 0–9
-  coherenceCohesion: number    // 0–9
-  lexicalResource: number      // 0–9
-  grammaticalRange: number     // 0–9
+  // IELTS Task 2 (4 criteria)
+  taskAchievement?:       number  // TA
+  coherenceCohesion?:     number  // CC
+  lexicalResource?:       number  // LR
+  grammaticalRangeAccuracy?: number  // GRA
+
+  // IELTS Task 1 (same 4, TA replaced by Task Response)
+  taskResponse?:          number
+
+  // Each criterion is 0–9 band, can be 0.5 increments
 }
 
-export interface ITeacherComment {
-  teacherId: mongoose.Types.ObjectId
-  teacherName: string
-  comment: string
-  createdAt: Date
-  updatedAt: Date
-}
-
+// ── Interface ─────────────────────────────────────────────────────────
 export interface IEssay extends Document {
-  userId: mongoose.Types.ObjectId
-  centerId?: mongoose.Types.ObjectId
-  prompt: string
-  essayText: string
-  wordCount: number
-  taskType: EssayTaskType
-  status: EssayStatus
-  score?: number                     // 0–9 overall band
+  // ── Tenancy & ownership ─────────────────────────────────────────────
+  centerId:      mongoose.Types.ObjectId  // from JWT — NEVER from request body
+  studentId:     mongoose.Types.ObjectId
+
+  // ── Assignment link (Phase 5) ────────────────────────────────────────
+  assignmentId?: mongoose.Types.ObjectId  // null = free-write (no assignment)
+  classId?:      mongoose.Types.ObjectId  // denormalised from assignment for fast queries
+
+  // ── Submission ────────────────────────────────────────────────────────
+  taskType:      EssayTaskType
+  originalText:  string
+  wordCount:     number
+  attemptNumber: number  // 1-based, bounded by assignment.maxAttempts
+
+  // ── Grading (populated by AI worker) ─────────────────────────────────
+  status:         EssayStatus
+  overallScore?:  number            // 0–9 IELTS band
   scoreBreakdown?: IScoreBreakdown
-  grammarErrors: IGrammarError[]
-  suggestions: ISuggestion[]
-  aiFeedback?: string                // full AI narrative
-  aiModel?: string                   // which model produced this
-  processingTimeMs?: number
-  errorMessage?: string
-  isReviewedByTeacher?: boolean
-  teacherComment?: ITeacherComment
+  feedback?:      string            // AI-generated paragraph feedback
+  grammarErrors?: IGrammarError[]
+  suggestions?:   ISuggestion[]
+  gradedAt?:      Date
+  errorMessage?:  string            // set when status === "error"
+
+  // ── Teacher review ────────────────────────────────────────────────────
+  isReviewedByTeacher: boolean
+  teacherNote?:        string       // optional comment added by teacher
+  reviewedAt?:         Date
+  reviewedBy?:         mongoose.Types.ObjectId
+
   createdAt: Date
   updatedAt: Date
 }
 
-// ── Sub-schemas ──────────────────────────────────────────────────────
-const GrammarErrorSchema = new Schema<IGrammarError>(
-  {
-    original: { type: String, required: true },
-    corrected: { type: String, required: true },
-    explanation: { type: String, required: true },
-    position: { type: Number, default: null },
-  },
-  { _id: false }
-)
-
-const SuggestionSchema = new Schema<ISuggestion>(
-  {
-    category: {
-      type: String,
-      enum: ["vocabulary", "structure", "coherence", "argument", "general"],
-      default: "general",
-    },
-    text: { type: String, required: true },
-  },
-  { _id: false }
-)
-
-const ScoreBreakdownSchema = new Schema<IScoreBreakdown>(
-  {
-    taskAchievement: { type: Number, min: 0, max: 9 },
-    coherenceCohesion: { type: Number, min: 0, max: 9 },
-    lexicalResource: { type: Number, min: 0, max: 9 },
-    grammaticalRange: { type: Number, min: 0, max: 9 },
-  },
-  { _id: false }
-)
-
-const TeacherCommentSchema = new Schema<ITeacherComment>(
-  {
-    teacherId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    teacherName: { type: String, required: true },
-    comment: { type: String, required: true },
-  },
-  { timestamps: true, _id: false }
-)
-
-// ── Main Schema ──────────────────────────────────────────────────────
+// ── Schema ────────────────────────────────────────────────────────────
 const EssaySchema = new Schema<IEssay>(
   {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: [true, "User ID is required"],
-    },
+    // ── Tenancy ─────────────────────────────────────────────────────────
     centerId: {
-      type: Schema.Types.ObjectId,
-      ref: "Center",
+      type:     Schema.Types.ObjectId,
+      ref:      "Center",
+      required: [true, "centerId is required"],
+    },
+    studentId: {
+      type:     Schema.Types.ObjectId,
+      ref:      "User",
+      required: [true, "studentId is required"],
+    },
+    assignmentId: {
+      type:    Schema.Types.ObjectId,
+      ref:     "Assignment",
       default: null,
     },
-    prompt: {
-      type: String,
-      required: [true, "Essay prompt is required"],
-      trim: true,
-      maxlength: [1000, "Prompt must be at most 1000 characters"],
+    classId: {
+      type:    Schema.Types.ObjectId,
+      ref:     "Class",
+      default: null,
     },
-    essayText: {
-      type: String,
-      required: [true, "Essay text is required"],
-      trim: true,
-      minlength: [50, "Essay must be at least 50 characters"],
-      maxlength: [10000, "Essay must be at most 10000 characters"],
+
+    // ── Submission ────────────────────────────────────────────────────
+    taskType: {
+      type:     String,
+      enum:     ["task1", "task2"],
+      required: [true, "taskType is required"],
+    },
+    originalText: {
+      type:      String,
+      required:  [true, "Essay text is required"],
+      minlength: [50,   "Essay must be at least 50 characters"],
+      maxlength: [20000,"Essay must be at most 20000 characters"],
     },
     wordCount: {
-      type: Number,
-      default: 0,
-      min: 0,
+      type:    Number,
+      required:true,
+      min:     1,
     },
-    taskType: {
-      type: String,
-      enum: ["task1", "task2"],
-      default: "task2",
+    attemptNumber: {
+      type:    Number,
+      default: 1,
+      min:     1,
     },
+
+    // ── Grading ───────────────────────────────────────────────────────
     status: {
-      type: String,
-      enum: ["pending", "scoring", "scored", "error"],
+      type:    String,
+      enum:    ["pending", "grading", "graded", "error"],
       default: "pending",
     },
-    score: {
-      type: Number,
-      min: 0,
-      max: 9,
-      default: null,
+    overallScore: {
+      type: Number, min: 0, max: 9, default: null,
     },
     scoreBreakdown: {
-      type: ScoreBreakdownSchema,
-      default: null,
+      taskAchievement:          { type: Number, min: 0, max: 9, default: null },
+      coherenceCohesion:         { type: Number, min: 0, max: 9, default: null },
+      lexicalResource:           { type: Number, min: 0, max: 9, default: null },
+      grammaticalRangeAccuracy:  { type: Number, min: 0, max: 9, default: null },
+      taskResponse:              { type: Number, min: 0, max: 9, default: null },
     },
-    grammarErrors: {
-      type: [GrammarErrorSchema],
-      default: [],
-    },
-    suggestions: {
-      type: [SuggestionSchema],
-      default: [],
-    },
-    aiFeedback: {
-      type: String,
-      default: null,
-    },
-    aiModel: {
-      type: String,
-      default: null,
-    },
-    processingTimeMs: {
-      type: Number,
-      default: null,
-    },
-    errorMessage: {
-      type: String,
-      default: null,
-    },
-    isReviewedByTeacher: {
-      type: Boolean,
-      default: false,
-    },
-    teacherComment: {
-      type: TeacherCommentSchema,
+    feedback:     { type: String, default: null },
+    grammarErrors:{ type: [Schema.Types.Mixed], default: [] },
+    suggestions:  { type: [Schema.Types.Mixed], default: [] },
+    gradedAt:     { type: Date,   default: null },
+    errorMessage: { type: String, default: null },
+
+    // ── Teacher review ────────────────────────────────────────────────
+    isReviewedByTeacher: { type: Boolean, default: false },
+    teacherNote:         { type: String,  default: null  },
+    reviewedAt:          { type: Date,    default: null  },
+    reviewedBy: {
+      type:    Schema.Types.ObjectId,
+      ref:     "User",
       default: null,
     },
   },
@@ -191,17 +169,19 @@ const EssaySchema = new Schema<IEssay>(
   }
 )
 
-// ── Virtual: word count helper ────────────────────────────────────────
-// Utility: count words in essay text (called by controller before saving)
-EssaySchema.virtual("computedWordCount").get(function (this: IEssay) {
-  return this.essayText ? this.essayText.trim().split(/\s+/).filter(Boolean).length : 0
-})
-
-// ── Indexes ──────────────────────────────────────────────────────────
-EssaySchema.index({ userId: 1, createdAt: -1 })
-EssaySchema.index({ centerId: 1 })
-EssaySchema.index({ status: 1 })
-EssaySchema.index({ score: 1 })
+// ── Indexes ───────────────────────────────────────────────────────────
+// Primary student query: "my essays"
+EssaySchema.index({ centerId: 1, studentId: 1, createdAt: -1 })
+// Teacher dashboard: "essays for my class/assignment"
+EssaySchema.index({ centerId: 1, assignmentId: 1, status: 1 })
+EssaySchema.index({ centerId: 1, classId: 1, status: 1 })
+// Unreviewed essays queue for teacher
+EssaySchema.index({ centerId: 1, isReviewedByTeacher: 1, status: 1 })
+// Uniqueness: one essay per student per assignment per attempt
+EssaySchema.index(
+  { studentId: 1, assignmentId: 1, attemptNumber: 1 },
+  { unique: true, sparse: true }   // sparse: null assignmentId (free-writes) excluded
+)
 
 // ── Model ─────────────────────────────────────────────────────────────
 const Essay: Model<IEssay> = mongoose.model<IEssay>("Essay", EssaySchema)

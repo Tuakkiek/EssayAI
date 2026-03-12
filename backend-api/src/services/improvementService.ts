@@ -24,9 +24,9 @@ export const rewriteEssay = async (
   essayId: string,
   userId:  string
 ): Promise<RewriteResult> => {
-  const essay = await Essay.findOne({ _id: essayId, userId: new mongoose.Types.ObjectId(userId) })
+  const essay = await Essay.findOne({ _id: essayId, studentId: new mongoose.Types.ObjectId(userId) })
   if (!essay) throw new AppError("Essay not found", 404)
-  if (essay.status !== "scored") throw new AppError("Essay must be scored before rewriting", 400)
+  if (essay.status !== "graded") throw new AppError("Essay must be scored before rewriting", 400)
 
   const systemPrompt = `You are an expert IELTS writing coach. You rewrite student essays to demonstrate band 7.5+ quality. 
 You make targeted, realistic improvements — not a complete rewrite — so the student can see exactly what changed and why.
@@ -34,14 +34,14 @@ Always respond with valid JSON only. No markdown, no preamble.`
 
   const userPrompt = `Improve this IELTS ${essay.taskType === "task2" ? "Task 2 essay" : "Task 1 description"} to demonstrate band 7.5+ writing.
 
-Original score: ${essay.score}/9
+Original score: ${essay.overallScore}/9
 
 ESSAY PROMPT:
-"${essay.prompt}"
+""
 
 ORIGINAL ESSAY:
 """
-${essay.essayText}
+${essay.originalText}
 """
 
 Respond ONLY with this exact JSON:
@@ -59,7 +59,7 @@ Respond ONLY with this exact JSON:
   "keyImprovements": ["<3-5 concise bullet-point summaries of the main changes made>"]
 }`
 
-  logger.info("Rewriting essay", { essayId, score: essay.score })
+  logger.info("Rewriting essay", { essayId, score: essay.overallScore })
   const startTime = Date.now()
   const raw = await callAI(systemPrompt, userPrompt)
 
@@ -97,7 +97,7 @@ export const enhanceVocabulary = async (
   essayId: string,
   userId:  string
 ): Promise<VocabEnhancementResult> => {
-  const essay = await Essay.findOne({ _id: essayId, userId: new mongoose.Types.ObjectId(userId) })
+  const essay = await Essay.findOne({ _id: essayId, studentId: new mongoose.Types.ObjectId(userId) })
   if (!essay) throw new AppError("Essay not found", 404)
 
   const systemPrompt = `You are an IELTS vocabulary specialist. You identify basic or overused words in student essays 
@@ -108,7 +108,7 @@ Always respond with valid JSON only. No markdown, no preamble.`
 
 ESSAY TEXT:
 """
-${essay.essayText}
+${essay.originalText}
 """
 
 Find 5-8 words or phrases that are basic, overused, or weak for IELTS academic writing.
@@ -163,8 +163,8 @@ export const explainGrammar = async (
   essayId: string,
   userId:  string
 ): Promise<GrammarDeepDiveResult> => {
-  const essay = await Essay.findOne({ _id: essayId, userId: new mongoose.Types.ObjectId(userId) })
-    .select("essayText grammarErrors taskType")
+  const essay = await Essay.findOne({ _id: essayId, studentId: new mongoose.Types.ObjectId(userId) })
+    .select("originalText grammarErrors taskType")
   if (!essay) throw new AppError("Essay not found", 404)
   if (!essay.grammarErrors?.length) {
     return {
@@ -254,16 +254,16 @@ export const getProgressData = async (
   limit   = 30
 ): Promise<ProgressData> => {
   const essays = await Essay.find({
-    userId: new mongoose.Types.ObjectId(userId),
-    status: "scored",
-    score:  { $ne: null },
+    studentId: new mongoose.Types.ObjectId(userId),
+    status: "graded",
+    overallScore:  { $ne: null },
   })
     .sort({ createdAt: 1 })
     .limit(limit)
-    .select("score scoreBreakdown taskType createdAt")
+    .select("overallScore scoreBreakdown taskType createdAt")
     .lean()
 
-  const total   = await Essay.countDocuments({ userId: new mongoose.Types.ObjectId(userId) })
+  const total   = await Essay.countDocuments({ studentId: new mongoose.Types.ObjectId(userId) })
   const scored  = essays.length
 
   if (scored === 0) {
@@ -276,12 +276,12 @@ export const getProgressData = async (
 
   const timeline = essays.map((e) => ({
     date:     (e.createdAt as Date).toISOString(),
-    score:    e.score!,
+    score:    e.overallScore!,
     taskType: e.taskType,
     essayId:  e._id.toString(),
   }))
 
-  const scores      = essays.map((e) => e.score!)
+  const scores      = essays.map((e) => e.overallScore!)
   const firstScore  = scores[0]
   const latestScore = scores[scores.length - 1]
   const delta       = Math.round((latestScore - firstScore) * 10) / 10
@@ -308,7 +308,7 @@ export const getProgressData = async (
     { key: "taskAchievement",   label: "Task Achievement" },
     { key: "coherenceCohesion", label: "Coherence & Cohesion" },
     { key: "lexicalResource",   label: "Lexical Resource" },
-    { key: "grammaticalRange",  label: "Grammatical Range" },
+    { key: "grammaticalRangeAccuracy",  label: "Grammatical Range" },
   ]
 
   if (withBreakdown.length >= 2) {

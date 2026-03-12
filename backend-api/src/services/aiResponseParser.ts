@@ -78,7 +78,7 @@ export const parseAIResponse = (rawText: string): ParsedAIResult => {
     taskAchievement: clampBand(bd.taskAchievement, score),
     coherenceCohesion: clampBand(bd.coherenceCohesion, score),
     lexicalResource: clampBand(bd.lexicalResource, score),
-    grammaticalRange: clampBand(bd.grammaticalRange, score),
+    grammaticalRangeAccuracy: clampBand(bd.grammaticalRange, score),
   }
 
   // ── Grammar errors ─────────────────────────────────────────────
@@ -91,7 +91,7 @@ export const parseAIResponse = (rawText: string): ParsedAIResult => {
       const corrected = cleanString(e["corrected"])
       const explanation = cleanString(e["explanation"])
       if (original && corrected && explanation) {
-        grammarErrors.push({ original, corrected, explanation })
+        grammarErrors.push({ original, corrected, explanation } as IGrammarError)
       }
     }
   }
@@ -108,7 +108,7 @@ export const parseAIResponse = (rawText: string): ParsedAIResult => {
         ? (rawCat as ISuggestion["category"])
         : "general"
       if (text) {
-        suggestions.push({ category, text })
+        suggestions.push({ category, text } as ISuggestion)
       }
     }
   }

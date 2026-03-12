@@ -39,6 +39,7 @@ export const env = {
   SEPAY_ACCOUNT_NAME:       process.env.SEPAY_ACCOUNT_NAME       || "",   // e.g. NGUYEN TUAN KIET
   SEPAY_QR_BASE_URL:        process.env.SEPAY_QR_BASE_URL        || "https://qr.sepay.vn/img",
   SEPAY_PAYMENT_TTL_MINUTES:parseInt(process.env.SEPAY_PAYMENT_TTL_MINUTES || "15", 10),
+  SEPAY_WEBHOOK_SECRET:     process.env.SEPAY_WEBHOOK_SECRET     || "change_me",
 
   // JWT (for auth — Phase 8)
   JWT_SECRET:      process.env.JWT_SECRET      || "change_me_in_production",

@@ -1,4 +1,4 @@
-import { SubscriptionPlan } from "../models/User"
+import { SubscriptionPlan } from "../models/Center"
 
 export interface PlanConfig {
   id:             SubscriptionPlan

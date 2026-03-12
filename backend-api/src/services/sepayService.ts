@@ -1,7 +1,7 @@
 import crypto from "crypto"
 import { env } from "../config/env"
 import { logger } from "../utils/logger"
-import { SubscriptionPlan } from "../models/User"
+import { SubscriptionPlan } from "../models/Center"
 import { PLANS } from "../constants/plans"
 
 // ── Reference code generator ──────────────────────────────────────

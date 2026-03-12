@@ -1,270 +1,454 @@
-import { User, PaymentTransaction } from "../models/index"
-import { SubscriptionPlan, IUser } from "../models/User"
-import { IPaymentTransaction, PaymentStatus } from "../models/PaymentTransaction"
-import { PLANS, getPlanConfig } from "../constants/plans"
-import { generateReferenceCode, createTransferInstructions, SepayWebhookPayload, BankTransferInstructions } from "./sepayService"
-import { logger } from "../utils/logger"
-import { AppError } from "../middlewares/errorHandler"
+/**
+ * subscriptionService.ts  (Phase 6)
+ *
+ * Responsibilities:
+ *  1. Enforce plan limits (students, teachers, essays-per-month) before
+ *     any write operation that consumes quota.
+ *  2. Handle Sepay webhook — idempotent, signature-verified.
+ *  3. Allow super-admin to manually grant/upgrade plans.
+ *  4. Provide a checkLimit() helper consumed by essayService before AI grading.
+ *
+ * Subscription lives on Center — never on User.
+ */
+
 import mongoose from "mongoose"
+import crypto   from "crypto"
+import Center   from "../models/Center"
+import PaymentTransaction from "../models/PaymentTransaction"
+import { IPaymentTransaction, PLAN_META, SubscriptionPlan, withinLimit } from "../models/PaymentTransaction"
+import { User, Essay } from "../models/index"
+import { AppError } from "../middlewares/errorHandler"
+import { logger } from "../utils/logger"
 
-// ── Initiate a new payment ────────────────────────────────────────
-export interface InitiatePaymentResult {
-  transactionId:    string
-  referenceCode:    string
-  plan:             SubscriptionPlan
-  amountVND:        number
-  bankInstructions: BankTransferInstructions
+// ── Plan limit enforcement ────────────────────────────────────────────
+
+export type LimitType = "students" | "teachers" | "essays_month"
+
+export interface LimitCheckResult {
+  allowed: boolean
+  reason?: string
+  used:    number
+  limit:   number
 }
 
-export const initiatePayment = async (
-  userId: string,
-  plan:   SubscriptionPlan
-): Promise<InitiatePaymentResult> => {
-  const planConfig = getPlanConfig(plan)
+/**
+ * Check whether a center (or individual user) is within plan limits.
+ *
+ * @param centerId  - null nếu là student tự đăng ký
+ * @param limitType - loại quota cần kiểm tra
+ * @param userId    - bắt buộc nếu centerId = null (dùng để tra selfSubscription)
+ */
+export const checkLimit = async (
+  centerId:  string | null,
+  limitType: LimitType,
+  userId?:   string
+): Promise<LimitCheckResult> => {
+  // ── Self-registered student (no center) ─────────────────────────────
+  if (!centerId) {
+    if (!userId) throw new AppError("userId required for individual quota check", 500)
 
-  if (planConfig.priceVND === 0) {
-    throw new AppError("This plan cannot be purchased — contact sales for Enterprise.", 400)
+    const user = await User.findById(userId).select("selfSubscription stats")
+    if (!user) throw new AppError("User not found", 404)
+
+    const plan = (user.selfSubscription?.plan ?? "individual_free") as SubscriptionPlan
+    const meta = PLAN_META[plan]
+
+    // Subscription expired?
+    const effectiveMeta =
+      plan !== "individual_free" &&
+      user.selfSubscription?.endDate &&
+      user.selfSubscription.endDate < new Date()
+        ? PLAN_META["individual_free"]
+        : meta
+
+    if (limitType === "essays_month") {
+      const start = new Date(); start.setDate(1); start.setHours(0, 0, 0, 0)
+      const used = await Essay.countDocuments({
+        studentId: new (await import("mongoose")).default.Types.ObjectId(userId),
+        centerId:  null,
+        createdAt: { $gte: start },
+        status:    { $ne: "error" },
+      })
+      const limit = effectiveMeta.maxEssaysPerMonth
+      return {
+        allowed: withinLimit(used, limit),
+        used,
+        limit,
+        reason: withinLimit(used, limit)
+          ? undefined
+          : `Gói miễn phí cho phép ${limit} bài/tháng. Nâng cấp lên Pro để không giới hạn.`,
+      }
+    }
+
+    // students/teachers: self-registered users are always within individual limits
+    return { allowed: true, used: 1, limit: 1 }
   }
 
-  const user = await User.findById(userId)
-  if (!user) throw new AppError("User not found", 404)
+  // ── Center-based subscription ────────────────────────────────────────
+  const center = await Center.findById(centerId).select("subscription studentCount teacherCount")
+  if (!center) throw new AppError("Center not found", 404)
 
-  // Cancel any existing pending transactions for same user+plan
-  await PaymentTransaction.updateMany(
-    { userId: new mongoose.Types.ObjectId(userId), status: "pending" },
-    { $set: { status: "cancelled", failureReason: "Superseded by new payment request" } }
-  )
+  const plan = center.subscription.plan as SubscriptionPlan
+  const meta = PLAN_META[plan]
 
-  const referenceCode  = generateReferenceCode(plan, userId)
-  const bankInstructions = createTransferInstructions(plan, userId, referenceCode)
-
-  const tx = await PaymentTransaction.create({
-    userId:        new mongoose.Types.ObjectId(userId),
-    plan,
-    amountVND:     planConfig.priceVND,
-    status:        "pending",
-    gateway:       "sepay",
-    referenceCode,
-  })
-
-  logger.info("Payment initiated", { userId, plan, referenceCode, txId: tx._id })
-
-  return {
-    transactionId:    (tx._id as mongoose.Types.ObjectId).toString(),
-    referenceCode,
-    plan,
-    amountVND:        planConfig.priceVND,
-    bankInstructions,
+  // Subscription expired?
+  if (plan !== "free" && center.subscription.endDate && center.subscription.endDate < new Date()) {
+    return checkAgainstMeta(centerId, limitType, PLAN_META["free"], center)
   }
+
+  return checkAgainstMeta(centerId, limitType, meta, center)
 }
 
-// ── Confirm payment from Sepay webhook ────────────────────────────
-export interface WebhookResult {
-  processed:   boolean
-  action:      "subscription_activated" | "duplicate" | "amount_mismatch" | "not_found" | "already_processed"
-  userId?:     string
-  plan?:       SubscriptionPlan
-  message:     string
-}
-
-export const processWebhook = async (
-  payload: SepayWebhookPayload
-): Promise<WebhookResult> => {
-  const { content, transferAmount, referenceCode: webhookRef, transactionDate } = payload
-
-  // Extract our reference code from description (may be anywhere in memo)
-  const refCode = webhookRef || content
-
-  if (!refCode) {
-    return { processed: false, action: "not_found", message: "No reference code in transfer description" }
-  }
-
-  const tx = await PaymentTransaction.findOne({ referenceCode: refCode.toUpperCase() })
-  if (!tx) {
-    logger.warn("Webhook: no transaction found", { refCode })
-    return { processed: false, action: "not_found", message: `Transaction not found for ref: ${refCode}` }
-  }
-
-  if (tx.status === "completed") {
-    logger.info("Webhook: duplicate payment notification", { refCode })
-    return { processed: true, action: "already_processed", message: "Transaction already completed" }
-  }
-
-  // Verify amount
-  if (transferAmount < tx.amountVND) {
-    logger.warn("Webhook: amount mismatch", { received: transferAmount, expected: tx.amountVND, refCode })
-    await PaymentTransaction.findByIdAndUpdate(tx._id, {
-      $set: { status: "failed", failureReason: `Amount mismatch: received ${transferAmount}, expected ${tx.amountVND}` },
-    })
+const checkAgainstMeta = async (
+  centerId:  string,
+  limitType: LimitType,
+  meta:      typeof PLAN_META[SubscriptionPlan],
+  center:    any
+) => {
+  if (limitType === "students") {
+    const used  = center!.studentCount
+    const limit = meta.maxStudents
     return {
-      processed: false,
-      action:    "amount_mismatch",
-      message:   `Insufficient amount. Received ${transferAmount.toLocaleString()} VND, expected ${tx.amountVND.toLocaleString()} VND`,
+      allowed: withinLimit(used, limit),
+      used,
+      limit,
+      reason: withinLimit(used, limit)
+        ? undefined
+        : `Your plan allows ${limit} students. Upgrade to add more.`,
     }
   }
 
-  // Activate subscription
-  const planConfig = getPlanConfig(tx.plan)
-  const now        = new Date()
-  const endDate    = new Date(now.getTime() + planConfig.durationDays * 24 * 60 * 60 * 1000)
+  if (limitType === "teachers") {
+    const used  = center!.teacherCount
+    const limit = meta.maxTeachers
+    return {
+      allowed: withinLimit(used, limit),
+      used,
+      limit,
+      reason: withinLimit(used, limit)
+        ? undefined
+        : `Your plan allows ${limit} teachers. Upgrade to add more.`,
+    }
+  }
 
-  // Store Sepay raw data for audit
-  await PaymentTransaction.findByIdAndUpdate(tx._id, {
-    $set: {
-      status:            "completed",
-      subscriptionStart: now,
-      subscriptionEnd:   endDate,
-      sepayData: {
-        transactionId:  String(payload.id),
-        bankCode:       payload.gateway,
-        accountNumber:  payload.accountNumber,
-        transferAmount: payload.transferAmount,
-        description:    payload.content,
-        transferAt:     payload.transactionDate,
-        referenceCode:  refCode,
-      },
-    },
+  // essays_month — count essays submitted this calendar month
+  const start = new Date()
+  start.setDate(1); start.setHours(0, 0, 0, 0)
+  const used = await Essay.countDocuments({
+    centerId: new mongoose.Types.ObjectId(centerId),
+    createdAt: { $gte: start },
+    status:    { $ne: "error" },
   })
+  const limit = meta.maxEssaysPerMonth
+  return {
+    allowed: withinLimit(used, limit),
+    used,
+    limit,
+    reason: withinLimit(used, limit)
+      ? undefined
+      : `Your plan allows ${limit} AI gradings per month. Upgrade for unlimited.`,
+  }
+}
 
-  // Update user subscription
-  await User.findByIdAndUpdate(tx.userId, {
-    $set: {
-      "subscription.plan":      tx.plan,
-      "subscription.startDate": now,
-      "subscription.endDate":   endDate,
-      "subscription.isActive":  true,
-    },
-  })
+// ── Get center subscription details ──────────────────────────────────
 
-  logger.info("Subscription activated", { userId: tx.userId, plan: tx.plan, endDate })
+export const getSubscription = async (centerId: string) => {
+  const center = await Center.findById(centerId)
+    .select("name subscription studentCount teacherCount")
+  if (!center) throw new AppError("Center not found", 404)
+
+  const plan = center.subscription.plan as SubscriptionPlan
+  const meta = PLAN_META[plan]
+
+  const isExpired = plan !== "free"
+    && center.subscription.endDate != null
+    && center.subscription.endDate < new Date()
 
   return {
-    processed: true,
-    action:    "subscription_activated",
-    userId:    tx.userId.toString(),
-    plan:      tx.plan,
-    message:   `${planConfig.name} subscription activated until ${endDate.toLocaleDateString()}`,
+    center: {
+      id:   center._id,
+      name: center.name,
+    },
+    subscription: {
+      ...(center.subscription as any),
+      isExpired,
+      effectivePlan: isExpired ? "free" : plan,
+    },
+    planMeta: isExpired ? PLAN_META["free"] : meta,
+    usage: {
+      students: center.studentCount,
+      teachers: center.teacherCount,
+    },
   }
 }
 
-// ── Check subscription status ─────────────────────────────────────
-export interface SubscriptionStatus {
-  plan:          SubscriptionPlan
-  isActive:      boolean
-  isExpired:     boolean
-  daysRemaining: number | null
-  endDate:       Date | null
-  essaysPerMonth: number
-  canScore:      boolean
+// ── Create payment intent (initiate Sepay payment) ────────────────────
+
+export interface CreatePaymentInput {
+  centerId: string
+  plan:     SubscriptionPlan
 }
 
-export const getSubscriptionStatus = async (userId: string): Promise<SubscriptionStatus> => {
-  const user = await User.findById(userId).select("subscription")
-  if (!user) throw new AppError("User not found", 404)
+export const createPaymentIntent = async (
+  input: CreatePaymentInput
+): Promise<IPaymentTransaction> => {
+  const { centerId, plan } = input
 
-  const { plan, endDate, isActive } = user.subscription
-  const config = getPlanConfig(plan)
-  const now    = new Date()
+  if (plan === "free") {
+    throw new AppError("Cannot create a payment for the free plan", 400)
+  }
 
-  const isExpired = plan !== "free" && !!endDate && endDate < now
+  const meta = PLAN_META[plan]
+  const orderCode = `CTR-${centerId.slice(-6).toUpperCase()}-${Date.now()}`
 
-  // Auto-downgrade if expired
-  if (isExpired) {
-    await User.findByIdAndUpdate(userId, {
-      $set: {
-        "subscription.plan":     "free",
-        "subscription.isActive": false,
-      },
+  const tx = await PaymentTransaction.create({
+    centerId:       new mongoose.Types.ObjectId(centerId),
+    plan,
+    amountVnd:      meta.priceVnd,
+    gateway:        "sepay",
+    status:         "pending",
+    sepayOrderCode: orderCode,
+  })
+
+  logger.info("Payment intent created", { txId: tx._id, centerId, plan, amountVnd: meta.priceVnd })
+  return tx
+}
+
+// ── Sepay webhook handler ─────────────────────────────────────────────
+
+export interface SepayWebhookPayload {
+  id:              number
+  gateway:         string
+  transactionDate: string
+  accountNumber:   string
+  subAccount:      string | null
+  code:            string          // = sepayOrderCode
+  content:         string
+  transferType:    "in" | "out"
+  description:     string
+  transferAmount:  number
+  referenceCode:   string
+  accumulated:     number
+  body?:           Record<string, unknown>
+}
+
+/**
+ * Idempotent — safe to call multiple times for the same event.
+ * Verifies the webhook signature using HMAC-SHA256.
+ */
+export const handleSepayWebhook = async (
+  payload:   SepayWebhookPayload,
+  signature: string,
+  secret:    string
+): Promise<{ processed: boolean; reason?: string }> => {
+  // 1. Signature verification
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(JSON.stringify(payload))
+    .digest("hex")
+
+  if (expected !== signature) {
+    logger.warn("Sepay webhook signature mismatch", { code: payload.code })
+    throw new AppError("Invalid webhook signature", 401)
+  }
+
+  // 2. Only process "in" transfers
+  if (payload.transferType !== "in") {
+    return { processed: false, reason: "Not an inbound transfer" }
+  }
+
+  // 3. Find the pending transaction by order code
+  const tx = await PaymentTransaction.findOne({
+    sepayOrderCode: payload.code,
+    status:         "pending",
+  })
+  if (!tx) {
+    // Could be a duplicate delivery — check if already completed
+    const completed = await PaymentTransaction.findOne({ sepayOrderCode: payload.code, status: "completed" })
+    if (completed) return { processed: false, reason: "Already processed" }
+    logger.warn("Sepay webhook: order code not found", { code: payload.code })
+    return { processed: false, reason: "Order not found" }
+  }
+
+  // 4. Idempotency guard on Sepay transaction ID
+  if (payload.id) {
+    const duplicate = await PaymentTransaction.findOne({
+      sepayTransactionId: String(payload.id),
     })
+    if (duplicate) return { processed: false, reason: "Duplicate event" }
   }
 
-  const effectivePlan = isExpired ? "free" : plan
-  const effectiveConfig = getPlanConfig(effectivePlan)
+  // 5. Amount check (allow within ±1000 VND rounding tolerance)
+  const diff = Math.abs(payload.transferAmount - tx.amountVnd)
+  if (diff > 1000) {
+    logger.warn("Sepay webhook: amount mismatch", {
+      expected: tx.amountVnd,
+      received: payload.transferAmount,
+      code:     payload.code,
+    })
+    await PaymentTransaction.findByIdAndUpdate(tx._id, {
+      status:          "failed",
+      note:            `Amount mismatch: expected ${tx.amountVnd}, got ${payload.transferAmount}`,
+      sepayRawPayload: payload,
+    })
+    return { processed: false, reason: "Amount mismatch" }
+  }
 
-  const daysRemaining = endDate && !isExpired
-    ? Math.max(0, Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+  // 6. Mark transaction complete
+  const meta        = PLAN_META[tx.plan]
+  const periodStart = new Date()
+  const periodEnd   = meta.durationDays > 0
+    ? new Date(Date.now() + meta.durationDays * 86_400_000)
     : null
 
-  return {
-    plan:          effectivePlan,
-    isActive:      isActive && !isExpired,
-    isExpired,
-    daysRemaining,
-    endDate:       endDate ?? null,
-    essaysPerMonth: effectiveConfig.essaysPerMonth,
-    canScore:      true,   // Limit checking at usage time
-  }
+  await PaymentTransaction.findByIdAndUpdate(tx._id, {
+    status:             "completed",
+    sepayTransactionId: String(payload.id),
+    sepayRawPayload:    payload,
+    paidAt:             new Date(),
+    periodStart,
+    periodEnd,
+  })
+
+  // 7. Activate subscription on Center
+  await Center.findByIdAndUpdate(tx.centerId, {
+    "subscription.plan":      tx.plan,
+    "subscription.startDate": periodStart,
+    "subscription.endDate":   periodEnd,
+    "subscription.isActive":  true,
+  })
+
+  logger.info("Subscription activated", {
+    centerId: tx.centerId,
+    plan:     tx.plan,
+    periodEnd,
+  })
+
+  return { processed: true }
 }
 
-// ── Get payment history for a user ───────────────────────────────
-export const getPaymentHistory = async (
-  userId: string,
-  page   = 1,
-  limit  = 10
-): Promise<{ transactions: IPaymentTransaction[]; total: number }> => {
+// ── Super-admin: manual plan grant ────────────────────────────────────
+
+export interface ManualGrantInput {
+  centerId:     string
+  plan:         SubscriptionPlan
+  durationDays: number   // 0 = permanent (used for enterprise)
+  note?:        string
+  grantedBy:    string   // super_admin userId
+}
+
+export const manualGrantPlan = async (
+  input: ManualGrantInput
+): Promise<IPaymentTransaction> => {
+  const { centerId, plan, durationDays, note, grantedBy } = input
+
+  const center = await Center.findById(centerId)
+  if (!center) throw new AppError("Center not found", 404)
+
+  const periodStart = new Date()
+  const periodEnd   = durationDays > 0
+    ? new Date(Date.now() + durationDays * 86_400_000)
+    : null
+
+  // Record the manual transaction
+  const tx = await PaymentTransaction.create({
+    centerId:    new mongoose.Types.ObjectId(centerId),
+    plan,
+    amountVnd:   0,      // free grant
+    gateway:     "manual",
+    status:      "completed",
+    paidAt:      periodStart,
+    periodStart,
+    periodEnd,
+    processedBy: new mongoose.Types.ObjectId(grantedBy),
+    note,
+  })
+
+  // Activate on Center
+  await Center.findByIdAndUpdate(centerId, {
+    "subscription.plan":      plan,
+    "subscription.startDate": periodStart,
+    "subscription.endDate":   periodEnd,
+    "subscription.isActive":  true,
+  })
+
+  logger.info("Manual plan granted", { centerId, plan, grantedBy, periodEnd })
+  return tx
+}
+
+// ── List payment history for a center ────────────────────────────────
+
+export const listPayments = async (
+  centerId: string,
+  page  = 1,
+  limit = 20
+) => {
+  const query = { centerId: new mongoose.Types.ObjectId(centerId) }
   const skip  = (page - 1) * limit
-  const query = { userId: new mongoose.Types.ObjectId(userId) }
 
   const [transactions, total] = await Promise.all([
     PaymentTransaction.find(query)
-      .sort({ createdAt: -1 })
+      .select("-sepayRawPayload")
       .skip(skip)
       .limit(limit)
-      .lean(),
+      .sort({ createdAt: -1 }),
     PaymentTransaction.countDocuments(query),
   ])
 
-  return { transactions: transactions as unknown as IPaymentTransaction[], total }
+  return {
+    transactions,
+    pagination: { total, page, limit, pages: Math.ceil(total / limit) },
+  }
 }
 
-// ── Cancel subscription (downgrade to free immediately) ──────────
-export const cancelSubscription = async (userId: string): Promise<void> => {
-  const user = await User.findById(userId).select("subscription")
-  if (!user) throw new AppError("User not found", 404)
-  if (user.subscription.plan === "free") throw new AppError("No active subscription to cancel", 400)
+// ── Self-student quota enforcement ───────────────────────────────────
+/**
+ * Limits cho sinh viên tự đăng ký (không thuộc trung tâm).
+ *
+ * individual_free:  50 bài AI chấm/tháng
+ * individual_pro:  không giới hạn (sau này tích hợp thanh toán cá nhân)
+ */
+const SELF_STUDENT_LIMITS = {
+  individual_free: { essaysPerMonth: 50 },
+  individual_pro:  { essaysPerMonth: -1 },   // -1 = unlimited
+} as const
 
-  await User.findByIdAndUpdate(userId, {
-    $set: {
-      "subscription.plan":     "free",
-      "subscription.isActive": false,
-    },
+export const checkSelfStudentLimit = async (
+  studentId: string
+): Promise<{ allowed: boolean; reason?: string; used: number; limit: number }> => {
+  const student = await User.findById(studentId)
+    .select("selfSubscription stats")
+  if (!student) throw new AppError("User not found", 404)
+
+  const plan = (student.selfSubscription?.plan ?? "individual_free") as
+    keyof typeof SELF_STUDENT_LIMITS
+
+  // Subscription expired?
+  const endDate = student.selfSubscription?.endDate
+  const effectivePlan =
+    endDate && endDate < new Date() ? "individual_free" : plan
+
+  const limit = SELF_STUDENT_LIMITS[effectivePlan]?.essaysPerMonth ?? 50
+
+  // Count essays this calendar month
+  const monthStart = new Date()
+  monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0)
+
+  const used = await Essay.countDocuments({
+    studentId: new mongoose.Types.ObjectId(studentId),
+    centerId:  null,   // self-student essays have no centerId
+    createdAt: { $gte: monthStart },
+    status:    { $ne: "error" },
   })
 
-  logger.info("Subscription cancelled", { userId })
-}
+  const allowed = limit === -1 || used < limit
 
-// ── Admin: manually grant subscription ───────────────────────────
-export const grantSubscription = async (
-  userId:      string,
-  plan:        SubscriptionPlan,
-  durationDays: number,
-  note?:       string
-): Promise<void> => {
-  const planConfig = getPlanConfig(plan)
-  const now        = new Date()
-  const endDate    = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000)
-
-  await User.findByIdAndUpdate(userId, {
-    $set: {
-      "subscription.plan":      plan,
-      "subscription.startDate": now,
-      "subscription.endDate":   endDate,
-      "subscription.isActive":  true,
-    },
-  })
-
-  const refCode = `MANUAL${Date.now()}`
-  await PaymentTransaction.create({
-    userId: new mongoose.Types.ObjectId(userId),
-    plan,
-    amountVND:         0,
-    status:            "completed",
-    gateway:           "manual",
-    referenceCode:     refCode,
-    subscriptionStart: now,
-    subscriptionEnd:   endDate,
-    note:              note ?? `Manual grant by admin`,
-  })
-
-  logger.info("Subscription manually granted", { userId, plan, durationDays, endDate })
+  return {
+    allowed,
+    used,
+    limit,
+    reason: allowed
+      ? undefined
+      : `Bạn đã sử dụng hết ${limit} lượt chấm điểm miễn phí tháng này. Nâng cấp để tiếp tục.`,
+  }
 }

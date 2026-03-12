@@ -1,322 +1,379 @@
+/**
+ * essayService.ts  (Phase 5)
+ *
+ * Key invariants enforced here:
+ *  1. centerId ALWAYS comes from req.centerFilter (JWT) — never from req.body.
+ *  2. Students can only read/act on their own essays.
+ *  3. Teachers can read all essays in their centerId scope.
+ *  4. Before submitting to an assignment the service validates:
+ *       a. Assignment exists and belongs to same centerId.
+ *       b. Assignment status === "published".
+ *       c. Student is enrolled in the assignment's class.
+ *       d. Student has not exceeded maxAttempts for this assignment.
+ *       e. Assignment is not past its dueDate.
+ *  5. After creating an essay the Assignment.stats counters are updated async.
+ */
+
 import mongoose from "mongoose"
-import { Essay, User, IEssay, EssayStatus, EssayTaskType } from "../models/index"
-import { ScoringResult } from "./aiService"
-import { logger } from "../utils/logger"
+import Essay from "../models/Essay"
+import { IEssay } from "../models/Essay"
+import Assignment from "../models/Assignment"
+import { User } from "../models/index"
+import { AppError } from "../middlewares/errorHandler"
 
-// ── Types ─────────────────────────────────────────────────────────
-export interface CreateEssayInput {
-  userId: string
-  centerId?: string
-  prompt: string
-  essayText: string
-  taskType?: EssayTaskType
-  status?: EssayStatus
+// ── Helpers ───────────────────────────────────────────────────────────
+
+/** Counts words in an essay string */
+const countWords = (text: string): number =>
+  text.trim().split(/\s+/).filter(Boolean).length
+
+// ── Submit essay ──────────────────────────────────────────────────────
+
+export interface SubmitEssayInput {
+  studentId:    string
+  centerId:     string | null   // null for self-registered students (no training center)
+  text:         string
+  taskType:     "task1" | "task2"
+  assignmentId?: string         // undefined = free-write
 }
 
-export interface HistoryQuery {
-  userId: string
-  page?: number
-  limit?: number
-  status?: EssayStatus
-  taskType?: EssayTaskType
-  sortBy?: "createdAt" | "score"
-  sortOrder?: "asc" | "desc"
-  fromDate?: string
-  toDate?: string
-}
+export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
+  const { studentId, centerId, text, taskType, assignmentId } = input
 
-export interface HistoryResult {
-  essays: Partial<IEssay>[]
-  pagination: {
-    total: number
-    page: number
-    limit: number
-    totalPages: number
-    hasNextPage: boolean
-    hasPrevPage: boolean
+  if (!text || text.trim().length < 50) {
+    throw new AppError("Essay must be at least 50 characters long", 400)
   }
-}
 
-export interface UserEssayStats {
-  totalEssays: number
-  scoredEssays: number
-  averageScore: number
-  highestScore: number
-  lowestScore: number
-  averageWordCount: number
-  scoresByMonth: { month: string; avgScore: number; count: number }[]
-  scoreDistribution: { band: string; count: number }[]
-  taskTypeBreakdown: { taskType: string; count: number; avgScore: number }[]
-  recentActivity: { date: string; score: number | null; status: EssayStatus }[]
-  improvement: number | null   // score delta between first and most recent scored essay
-}
+  const wordCount = countWords(text)
 
-// ── Create essay (pending — no AI yet) ────────────────────────────
-export const createEssay = async (input: CreateEssayInput): Promise<IEssay> => {
-  const wordCount = input.essayText.trim().split(/\s+/).filter(Boolean).length
+  let attemptNumber = 1
+  let classId: mongoose.Types.ObjectId | undefined
 
-  const essay = new Essay({
-    userId: new mongoose.Types.ObjectId(input.userId),
-    centerId: input.centerId ? new mongoose.Types.ObjectId(input.centerId) : undefined,
-    prompt: input.prompt,
-    essayText: input.essayText,
-    taskType: input.taskType ?? "task2",
-    wordCount,
-    status: input.status ?? "pending",
-  })
+  // ── Quota check for self-registered students ──────────────────────
+  if (!centerId) {
+    const { checkSelfStudentLimit } = await import("./subscriptionService")
+    const quota = await checkSelfStudentLimit(studentId)
+    if (!quota.allowed) {
+      throw new AppError(quota.reason ?? "Monthly essay limit reached", 429)
+    }
+  }
 
-  await essay.save()
-  logger.info("Essay created", { essayId: essay._id, wordCount })
-  return essay
-}
+  // ── Assignment validation ─────────────────────────────────────────
+  if (assignmentId) {
+    // Self-registered students (centerId=null) cannot submit to center assignments
+    if (!centerId) {
+      throw new AppError("Bài tập do trung tâm tạo — bạn cần tài khoản trung tâm để nộp bài", 403)
+    }
+    const assignment = await Assignment.findOne({
+      _id:      new mongoose.Types.ObjectId(assignmentId),
+      centerId: new mongoose.Types.ObjectId(centerId),   // tenant isolation
+    })
 
-// ── Persist AI scoring result onto an existing essay ─────────────
-export const applyAIScore = async (
-  essayId: mongoose.Types.ObjectId,
-  result: ScoringResult
-): Promise<IEssay> => {
-  const essay = await Essay.findById(essayId)
-  if (!essay) throw new Error(`Essay ${essayId} not found`)
+    if (!assignment) {
+      throw new AppError("Assignment not found", 404)
+    }
+    if (assignment.status !== "published") {
+      throw new AppError("This assignment is not accepting submissions", 400)
+    }
 
-  essay.status = "scored"
-  essay.score = result.score
-  essay.scoreBreakdown = result.scoreBreakdown
-  essay.grammarErrors = result.grammarErrors
-  essay.suggestions = result.suggestions
-  essay.aiFeedback = result.aiFeedback
-  essay.aiModel = result.aiModel
-  essay.processingTimeMs = result.processingTimeMs
+    // Due date check
+    if (assignment.dueDate && new Date() > assignment.dueDate) {
+      throw new AppError("The submission deadline for this assignment has passed", 400)
+    }
 
-  await essay.save()
+    // taskType must match
+    if (assignment.taskType !== taskType) {
+      throw new AppError(
+        `This assignment requires Task ${assignment.taskType.replace("task", "")}`,
+        400
+      )
+    }
 
-  // Update user stats asynchronously (don't block the response)
-  syncUserStats(essay.userId.toString()).catch((err) =>
-    logger.error("Failed to sync user stats", { userId: essay.userId, err })
-  )
+    // Student must be enrolled in the assignment's class
+    const student = await User.findOne({
+      _id:      new mongoose.Types.ObjectId(studentId),
+      centerId: new mongoose.Types.ObjectId(centerId),
+      classIds: assignment.classId,
+    })
+    if (!student) {
+      throw new AppError("You are not enrolled in the class for this assignment", 403)
+    }
 
-  logger.info("AI results saved to essay", { essayId, score: result.score })
-  return essay
-}
+    // Count existing attempts
+    const previousAttempts = await Essay.countDocuments({
+      studentId:    new mongoose.Types.ObjectId(studentId),
+      assignmentId: new mongoose.Types.ObjectId(assignmentId),
+    })
+    if (previousAttempts >= assignment.maxAttempts) {
+      throw new AppError(
+        `You have used all ${assignment.maxAttempts} attempt(s) for this assignment`,
+        400
+      )
+    }
 
-// ── Mark essay as error ───────────────────────────────────────────
-export const markEssayError = async (
-  essayId: mongoose.Types.ObjectId,
-  errorMessage: string
-): Promise<void> => {
-  await Essay.findByIdAndUpdate(essayId, {
-    status: "error",
-    errorMessage,
-  })
-  logger.warn("Essay marked as error", { essayId, errorMessage })
-}
+    // Min words check (if set)
+    if (assignment.gradingCriteria.minWords && wordCount < assignment.gradingCriteria.minWords) {
+      throw new AppError(
+        `Your essay has ${wordCount} words. This assignment requires at least ${assignment.gradingCriteria.minWords} words.`,
+        400
+      )
+    }
 
-// ── Get paginated history with filters ────────────────────────────
-export const getHistory = async (query: HistoryQuery): Promise<HistoryResult> => {
-  const {
-    userId,
-    page = 1,
-    limit = 10,
-    status,
+    attemptNumber = previousAttempts + 1
+    classId       = assignment.classId
+  }
+
+  // ── Create essay document ─────────────────────────────────────────
+  const essay = await Essay.create({
+    centerId:      centerId ? new mongoose.Types.ObjectId(centerId) : null,
+    studentId:     new mongoose.Types.ObjectId(studentId),
+    assignmentId:  assignmentId ? new mongoose.Types.ObjectId(assignmentId) : null,
+    classId:       classId ?? null,
     taskType,
-    sortBy = "createdAt",
-    sortOrder = "desc",
-    fromDate,
-    toDate,
-  } = query
+    originalText:  text.trim(),
+    wordCount,
+    attemptNumber,
+    status:        "pending",
+    isReviewedByTeacher: false,
+  })
 
-  const pageNum = Math.max(1, page)
-  const limitNum = Math.min(50, Math.max(1, limit))
-  const skip = (pageNum - 1) * limitNum
-
-  // Build filter
-  const filter: Record<string, unknown> = { userId }
-  if (status) filter["status"] = status
-  if (taskType) filter["taskType"] = taskType
-  if (fromDate || toDate) {
-    const dateFilter: Record<string, Date> = {}
-    if (fromDate) dateFilter["$gte"] = new Date(fromDate)
-    if (toDate) dateFilter["$lte"] = new Date(toDate)
-    filter["createdAt"] = dateFilter
+  // ── Async: bump Assignment.stats.submissionCount ─────────────────
+  if (assignmentId) {
+    Assignment.findByIdAndUpdate(assignmentId, {
+      $inc: { "stats.submissionCount": 1 },
+    }).catch(() => { /* non-critical, don't fail the request */ })
   }
 
-  const sortDir = sortOrder === "asc" ? 1 : -1
-  const sort: Record<string, 1 | -1> = { [sortBy]: sortDir }
-  // Secondary sort for stability
-  if (sortBy !== "createdAt") sort["createdAt"] = -1
+  // ── Async: bump User.stats.essaysSubmitted ────────────────────────
+  User.findByIdAndUpdate(studentId, {
+    $inc: { "stats.essaysSubmitted": 1 },
+    $set: { "stats.lastActiveAt":    new Date() },
+  }).catch(() => { /* non-critical */ })
 
+  return essay
+}
+
+// ── List essays (students see own; teachers see all in center) ────────
+
+export interface EssayListFilter {
+  centerId:      string | null
+  requesterId:   string
+  requesterRole: string
+  assignmentId?: string
+  classId?:      string
+  status?:       string
+  isReviewed?:   boolean
+  page?:         number
+  limit?:        number
+}
+
+export const listEssays = async (filter: EssayListFilter) => {
+  const {
+    centerId, requesterId, requesterRole,
+    assignmentId, classId, status, isReviewed,
+    page = 1, limit = 20,
+  } = filter
+
+  const query: Record<string, unknown> = {}
+
+  // Self-registered students have centerId=null — scope by studentId only
+  if (centerId) {
+    query.centerId = new mongoose.Types.ObjectId(centerId)
+  } else {
+    // Must scope by studentId when there is no centerId
+    query.studentId = new mongoose.Types.ObjectId(requesterId)
+    query.centerId  = null
+  }
+
+  // Center-based students also only see their own essays
+  if (requesterRole === "student" && centerId) {
+    query.studentId = new mongoose.Types.ObjectId(requesterId)
+  }
+
+  if (assignmentId) query.assignmentId = new mongoose.Types.ObjectId(assignmentId)
+  if (classId)      query.classId      = new mongoose.Types.ObjectId(classId)
+  if (status)       query.status       = status
+  if (isReviewed !== undefined) query.isReviewedByTeacher = isReviewed
+
+  const skip = (page - 1) * limit
   const [essays, total] = await Promise.all([
-    Essay.find(filter)
-      .sort(sort)
+    Essay.find(query)
+      .populate("studentId",    "name phone")
+      .populate("assignmentId", "title taskType")
+      .select("-originalText")   // omit full text from list view (expensive payload)
       .skip(skip)
-      .limit(limitNum)
-      .select("-grammarErrors -suggestions -aiFeedback -essayText"),
-    Essay.countDocuments(filter),
+      .limit(limit)
+      .sort({ createdAt: -1 }),
+    Essay.countDocuments(query),
   ])
-
-  const totalPages = Math.ceil(total / limitNum)
 
   return {
     essays,
-    pagination: {
-      total,
-      page: pageNum,
-      limit: limitNum,
-      totalPages,
-      hasNextPage: pageNum < totalPages,
-      hasPrevPage: pageNum > 1,
-    },
+    pagination: { total, page, limit, pages: Math.ceil(total / limit) },
   }
 }
 
-// ── Get single essay by ID ─────────────────────────────────────────
-export const getEssayById = async (
-  id: string,
-  userId?: string
-): Promise<IEssay | null> => {
-  if (!mongoose.Types.ObjectId.isValid(id)) return null
+// ── Get single essay ──────────────────────────────────────────────────
 
-  const filter: Record<string, unknown> = { _id: id }
-  // Optionally scope to the requesting user (authorization)
-  if (userId) filter["userId"] = userId
-
-  return Essay.findOne(filter)
-}
-
-// ── Delete essay ──────────────────────────────────────────────────
-export const deleteEssay = async (
-  id: string,
-  userId: string
-): Promise<boolean> => {
-  if (!mongoose.Types.ObjectId.isValid(id)) return false
-
-  const result = await Essay.findOneAndDelete({ _id: id, userId })
-  if (!result) return false
-
-  // Re-sync user stats after deletion
-  syncUserStats(userId).catch((err) =>
-    logger.error("Failed to sync user stats after delete", { userId, err })
-  )
-
-  logger.info("Essay deleted", { essayId: id, userId })
-  return true
-}
-
-// ── Compute and persist user essay stats ─────────────────────────
-export const syncUserStats = async (userId: string): Promise<void> => {
-  const scoredEssays = await Essay.find({
-    userId,
-    status: "scored",
-    score: { $ne: null },
-  })
-    .sort({ createdAt: 1 })
-    .select("score wordCount createdAt")
-
-  if (scoredEssays.length === 0) return
-
-  const scores = scoredEssays.map((e) => e.score as number)
-  const avgScore = scores.reduce((a, b) => a + b, 0) / scores.length
-
-  await User.findByIdAndUpdate(userId, {
-    "stats.essaysSubmitted": await Essay.countDocuments({ userId }),
-    "stats.averageScore": Math.round(avgScore * 10) / 10,
-    "stats.lastActiveAt": new Date(),
-  })
-}
-
-// ── Full analytics stats for a user ──────────────────────────────
-export const getUserStats = async (userId: string): Promise<UserEssayStats> => {
-  const [allEssays, scoredEssays] = await Promise.all([
-    Essay.find({ userId }).select("status taskType wordCount score createdAt"),
-    Essay.find({ userId, status: "scored", score: { $ne: null } })
-      .sort({ createdAt: 1 })
-      .select("score taskType wordCount createdAt"),
-  ])
-
-  const scores = scoredEssays.map((e) => e.score as number)
-  const wordCounts = allEssays.map((e) => e.wordCount).filter((w) => w > 0)
-
-  // Score distribution by IELTS band
-  const bandBuckets: Record<string, number> = {
-    "4.0-4.5": 0, "5.0-5.5": 0, "6.0-6.5": 0,
-    "7.0-7.5": 0, "8.0-8.5": 0, "9.0": 0,
+export const getEssay = async (
+  essayId:       string,
+  requesterId:   string,
+  requesterRole: string,
+  centerId:      string | null
+): Promise<IEssay> => {
+  const query: Record<string, unknown> = {
+    _id: new mongoose.Types.ObjectId(essayId),
   }
-  for (const s of scores) {
-    if (s >= 9) bandBuckets["9.0"]++
-    else if (s >= 8) bandBuckets["8.0-8.5"]++
-    else if (s >= 7) bandBuckets["7.0-7.5"]++
-    else if (s >= 6) bandBuckets["6.0-6.5"]++
-    else if (s >= 5) bandBuckets["5.0-5.5"]++
-    else bandBuckets["4.0-4.5"]++
+  if (centerId) {
+    query.centerId = new mongoose.Types.ObjectId(centerId)
+  } else {
+    query.centerId = null  // self-registered student scope
   }
 
-  // Monthly averages (last 6 months)
-  const sixMonthsAgo = new Date()
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6)
-  const recentScored = scoredEssays.filter((e) => e.createdAt >= sixMonthsAgo)
+  // Students can only fetch their own
+  if (requesterRole === "student") {
+    query.studentId = new mongoose.Types.ObjectId(requesterId)
+  }
 
-  const monthMap = new Map<string, { total: number; count: number }>()
-  for (const e of recentScored) {
-    const key = e.createdAt.toISOString().slice(0, 7) // "YYYY-MM"
-    const existing = monthMap.get(key) ?? { total: 0, count: 0 }
-    monthMap.set(key, {
-      total: existing.total + (e.score as number),
-      count: existing.count + 1,
+  const essay = await Essay.findOne(query)
+    .populate("studentId",    "name phone")
+    .populate("assignmentId", "title taskType instructions gradingCriteria")
+    .populate("reviewedBy",   "name")
+
+  if (!essay) throw new AppError("Essay not found", 404)
+  return essay
+}
+
+// ── Teacher: add review note ──────────────────────────────────────────
+
+export const reviewEssay = async (
+  essayId:    string,
+  centerId:   string,
+  teacherId:  string,
+  note?:      string
+): Promise<IEssay> => {
+  const essayQuery: Record<string, unknown> = {
+    _id: new mongoose.Types.ObjectId(essayId),
+  }
+  if (centerId) {
+    essayQuery.centerId = new mongoose.Types.ObjectId(centerId)
+  }
+  const essay = await Essay.findOne(essayQuery)
+  if (!essay) throw new AppError("Essay not found", 404)
+
+  essay.isReviewedByTeacher = true
+  essay.reviewedAt          = new Date()
+  essay.reviewedBy          = new mongoose.Types.ObjectId(teacherId)
+  if (note !== undefined) essay.teacherNote = note.trim() || undefined
+
+  await essay.save()
+
+  // Bump Assignment graded count (non-critical)
+  if (essay.assignmentId) {
+    Assignment.findByIdAndUpdate(essay.assignmentId, {
+      $inc: { "stats.gradedCount": 1 },
+    }).catch(() => {})
+  }
+
+  return essay
+}
+
+// ── Internal: AI worker callback — saves grading results ─────────────
+/**
+ * Called by the background grading worker (not by any HTTP handler directly).
+ * Updates the essay with AI-generated scores and feedback.
+ * If the AI fails, sets status = "error" with errorMessage.
+ */
+export interface GradeEssayResult {
+  overallScore:    number
+  scoreBreakdown:  IEssay["scoreBreakdown"]
+  feedback:        string
+  grammarErrors:   IEssay["grammarErrors"]
+  suggestions:     IEssay["suggestions"]
+}
+
+export const saveGradingResult = async (
+  essayId: string,
+  result:  GradeEssayResult | { error: string }
+): Promise<void> => {
+  if ("error" in result) {
+    await Essay.findByIdAndUpdate(essayId, {
+      status:       "error",
+      errorMessage: result.error,
     })
-  }
-  const scoresByMonth = Array.from(monthMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, { total, count }]) => ({
-      month,
-      avgScore: Math.round((total / count) * 10) / 10,
-      count,
-    }))
-
-  // Task type breakdown
-  const taskMap = new Map<string, { total: number; count: number }>()
-  for (const e of scoredEssays) {
-    const t = e.taskType
-    const existing = taskMap.get(t) ?? { total: 0, count: 0 }
-    taskMap.set(t, { total: existing.total + (e.score as number), count: existing.count + 1 })
-  }
-  const taskTypeBreakdown = Array.from(taskMap.entries()).map(([taskType, { total, count }]) => ({
-    taskType,
-    count,
-    avgScore: Math.round((total / count) * 10) / 10,
-  }))
-
-  // Improvement: delta between oldest and newest scored essay
-  let improvement: number | null = null
-  if (scoredEssays.length >= 2) {
-    const first = scoredEssays[0].score as number
-    const last = scoredEssays[scoredEssays.length - 1].score as number
-    improvement = Math.round((last - first) * 10) / 10
+    return
   }
 
-  // Recent activity (last 10 essays)
-  const recent = allEssays
-    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-    .slice(0, 10)
-  const recentActivity = recent.map((e) => ({
-    date: e.createdAt.toISOString(),
-    score: e.score ?? null,
-    status: e.status,
-  }))
+  const { overallScore, scoreBreakdown, feedback, grammarErrors, suggestions } = result
 
-  return {
-    totalEssays: allEssays.length,
-    scoredEssays: scoredEssays.length,
-    averageScore: scores.length
-      ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 10) / 10
-      : 0,
-    highestScore: scores.length ? Math.max(...scores) : 0,
-    lowestScore: scores.length ? Math.min(...scores) : 0,
-    averageWordCount: wordCounts.length
-      ? Math.round(wordCounts.reduce((a, b) => a + b, 0) / wordCounts.length)
-      : 0,
-    scoresByMonth,
-    scoreDistribution: Object.entries(bandBuckets).map(([band, count]) => ({ band, count })),
-    taskTypeBreakdown,
-    recentActivity,
-    improvement,
+  await Essay.findByIdAndUpdate(essayId, {
+    status:         "graded",
+    overallScore,
+    scoreBreakdown,
+    feedback,
+    grammarErrors,
+    suggestions,
+    gradedAt:       new Date(),
+    errorMessage:   null,
+  })
+
+  // Recompute student averageScore (async, non-blocking)
+  const essay = await Essay.findById(essayId).select("studentId centerId")
+  if (essay) {
+    const agg = await Essay.aggregate([
+      {
+        $match: {
+          studentId: essay.studentId,
+          status:    "graded",
+        },
+      },
+      {
+        $group: {
+          _id:          "$studentId",
+          avgScore:     { $avg: "$overallScore" },
+        },
+      },
+    ])
+    const avg = agg[0]?.avgScore ?? 0
+    User.findByIdAndUpdate(essay.studentId, {
+      "stats.averageScore": Math.round(avg * 10) / 10,  // round to 1dp
+    }).catch(() => {})
   }
+}
+
+// ── Student: delete own pending essay ─────────────────────────────────
+/**
+ * Students may retract an essay only while it is still "pending" (not yet graded).
+ */
+export const deleteEssay = async (
+  essayId:   string,
+  studentId: string,
+  centerId:  string | null
+): Promise<void> => {
+  const deleteQuery: Record<string, unknown> = {
+    _id:       new mongoose.Types.ObjectId(essayId),
+    studentId: new mongoose.Types.ObjectId(studentId),
+  }
+  if (centerId) {
+    deleteQuery.centerId = new mongoose.Types.ObjectId(centerId)
+  } else {
+    deleteQuery.centerId = null
+  }
+  const essay = await Essay.findOne(deleteQuery)
+  if (!essay) throw new AppError("Essay not found", 404)
+  if (essay.status !== "pending") {
+    throw new AppError("Only pending essays can be retracted", 400)
+  }
+
+  await Essay.findByIdAndDelete(essayId)
+
+  // Undo submission counter
+  if (essay.assignmentId) {
+    Assignment.findByIdAndUpdate(essay.assignmentId, {
+      $inc: { "stats.submissionCount": -1 },
+    }).catch(() => {})
+  }
+  User.findByIdAndUpdate(studentId, {
+    $inc: { "stats.essaysSubmitted": -1 },
+  }).catch(() => {})
 }

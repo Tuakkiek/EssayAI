@@ -1,222 +1,115 @@
+/**
+ * essay.controller.ts  (Phase 5 + self-student update)
+ *
+ * centerId is ALWAYS taken from req.centerFilter — never from req.body.
+ * req.centerFilter is undefined for self-registered students (centerId=null).
+ * Services handle null centerId correctly.
+ */
+
 import { Request, Response, NextFunction } from "express"
-import mongoose from "mongoose"
-import { sendSuccess, sendCreated, sendError, sendNotFound } from "../utils/response"
-import { logger } from "../utils/logger"
-import { scoreEssayWithAI } from "../services/aiService"
-import { EssayTaskType } from "../models/Essay"
+import { sendSuccess, sendCreated, sendBadRequest } from "../utils/response"
 import {
-  createEssay,
-  applyAIScore,
-  markEssayError,
-  getHistory,
-  getEssayById,
+  submitEssay,
+  listEssays,
+  getEssay,
+  reviewEssay,
   deleteEssay,
-  getUserStats,
 } from "../services/essayService"
 
-// ── POST /api/essay/score ──────────────────────────────────────────
-export const scoreEssay = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  const {
-    essayText,
-    prompt,
-    taskType = "task2",
-    userId,
-    centerId,
-  } = req.body as {
-    essayText: string
-    prompt?: string
-    taskType?: EssayTaskType
-    userId?: string
-    centerId?: string
-  }
-
-  const resolvedUserId = userId ?? new mongoose.Types.ObjectId().toString()
-  const wordCount = essayText.trim().split(/\s+/).filter(Boolean).length
-
-  // Step 1 — Persist essay immediately with status "scoring"
-  let essay
-  try {
-    essay = await createEssay({
-      userId: resolvedUserId,
-      centerId,
-      prompt: prompt || "No prompt provided",
-      essayText,
-      taskType,
-      status: "scoring",
-    })
-    logger.info("Essay created, starting AI scoring", { essayId: essay._id })
-  } catch (err) {
-    next(err)
-    return
-  }
-
-  // Step 2 — Call Together AI
-  try {
-    const result = await scoreEssayWithAI({
-      essayText,
-      prompt: prompt || "Write an IELTS essay on the given topic.",
-      taskType,
-      wordCount,
-    })
-
-    // Step 3 — Persist AI results and sync user stats
-    const scored = await applyAIScore(essay._id as mongoose.Types.ObjectId, result)
-
-    sendSuccess(
-      res,
-      {
-        essayId: scored._id,
-        score: scored.score,
-        scoreBreakdown: scored.scoreBreakdown,
-        grammarErrors: scored.grammarErrors,
-        suggestions: scored.suggestions,
-        aiFeedback: scored.aiFeedback,
-        wordCount: scored.wordCount,
-        taskType: scored.taskType,
-        processingTimeMs: scored.processingTimeMs,
-        createdAt: scored.createdAt,
-      },
-      "Essay scored successfully"
-    )
-  } catch (err) {
-    // Step 4 — Persist error state so the client can see what happened
-    const errorMessage = err instanceof Error ? err.message : "Unknown AI error"
-    await markEssayError(essay._id as mongoose.Types.ObjectId, errorMessage)
-    next(err)
-  }
-}
-
-// ── POST /api/essay ────────────────────────────────────────────────
-export const createEssayHandler = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+// ── POST /api/essays ───────────────────────────────────────────────────
+export const submitEssayHandler = async (
+  req: Request, res: Response, next: NextFunction
 ): Promise<void> => {
   try {
-    const { prompt, essayText, taskType, userId, centerId } = req.body as {
-      prompt: string
-      essayText: string
-      taskType?: EssayTaskType
-      userId: string
-      centerId?: string
+    const { text, taskType, assignmentId } = req.body
+
+    if (!text || !taskType) {
+      sendBadRequest(res, "Missing required fields: text, taskType")
+      return
     }
-
-    const essay = await createEssay({ prompt, essayText, taskType, userId, centerId })
-    sendCreated(res, essay, "Essay saved successfully")
-  } catch (error) {
-    next(error)
-  }
-}
-
-// ── GET /api/essay/history ─────────────────────────────────────────
-export const getEssayHistory = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
-  try {
-    const q = req.query as Record<string, string>
-
-    if (!q["userId"]) {
-      sendError(res, "userId query param is required", 400)
+    if (!["task1", "task2"].includes(taskType)) {
+      sendBadRequest(res, "taskType must be 'task1' or 'task2'")
       return
     }
 
-    const result = await getHistory({
-      userId: q["userId"],
-      page: q["page"] ? parseInt(q["page"], 10) : 1,
-      limit: q["limit"] ? parseInt(q["limit"], 10) : 10,
-      status: q["status"] as import("../models/Essay").EssayStatus | undefined,
-      taskType: q["taskType"] as EssayTaskType | undefined,
-      sortBy: (q["sortBy"] as "createdAt" | "score") || "createdAt",
-      sortOrder: (q["sortOrder"] as "asc" | "desc") || "desc",
-      fromDate: q["fromDate"],
-      toDate: q["toDate"],
+    const essay = await submitEssay({
+      studentId:    req.user!.userId,
+      centerId:     req.centerFilter?.centerId ?? null,  // ← from JWT, not body
+      text,
+      taskType,
+      assignmentId: assignmentId ?? undefined,
+    })
+
+    sendCreated(res, { essay }, "Essay submitted — grading in progress")
+  } catch (err) { next(err) }
+}
+
+// ── GET /api/essays ────────────────────────────────────────────────────
+export const listEssaysHandler = async (
+  req: Request, res: Response, next: NextFunction
+): Promise<void> => {
+  try {
+    const { assignmentId, classId, status, isReviewed, page, limit } = req.query
+
+    const result = await listEssays({
+      centerId:      req.centerFilter?.centerId ?? null,
+      requesterId:   req.user!.userId,
+      requesterRole: req.user!.role,
+      assignmentId:  assignmentId as string | undefined,
+      classId:       classId     as string | undefined,
+      status:        status      as string | undefined,
+      isReviewed:    isReviewed === "true"  ? true
+                   : isReviewed === "false" ? false
+                   : undefined,
+      page:          page  ? parseInt(page  as string, 10) : undefined,
+      limit:         limit ? parseInt(limit as string, 10) : undefined,
     })
 
     sendSuccess(res, result)
-  } catch (error) {
-    next(error)
-  }
+  } catch (err) { next(err) }
 }
 
-// ── GET /api/essay/stats ───────────────────────────────────────────
-export const getEssayStats = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+// ── GET /api/essays/:id ────────────────────────────────────────────────
+export const getEssayHandler = async (
+  req: Request, res: Response, next: NextFunction
 ): Promise<void> => {
   try {
-    const userId = req.query["userId"] as string | undefined
-
-    if (!userId) {
-      sendError(res, "userId query param is required", 400)
-      return
-    }
-
-    const stats = await getUserStats(userId)
-    sendSuccess(res, stats)
-  } catch (error) {
-    next(error)
-  }
+    const essay = await getEssay(
+      req.params.id as string,
+      req.user!.userId,
+      req.user!.role,
+      req.centerFilter?.centerId ?? null
+    )
+    sendSuccess(res, { essay })
+  } catch (err) { next(err) }
 }
 
-// ── GET /api/essay/:id ─────────────────────────────────────────────
-export const getEssayByIdHandler = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+// ── POST /api/essays/:id/review ────────────────────────────────────────
+export const reviewEssayHandler = async (
+  req: Request, res: Response, next: NextFunction
 ): Promise<void> => {
   try {
-    const id = req.params["id"] as string
-    const userId = req.query["userId"] as string | undefined
-
-    const essay = await getEssayById(id, userId)
-
-    if (!essay) {
-      // Could be not found OR invalid ID — getEssayById returns null for both
-      if (!mongoose.Types.ObjectId.isValid(id)) {
-        sendError(res, "Invalid essay ID", 400)
-      } else {
-        sendNotFound(res, "Essay not found")
-      }
-      return
-    }
-
-    sendSuccess(res, essay)
-  } catch (error) {
-    next(error)
-  }
+    const { note } = req.body
+    const essay = await reviewEssay(
+      req.params.id as string,
+      req.centerFilter!.centerId,
+      req.user!.userId,
+      note
+    )
+    sendSuccess(res, { essay }, "Essay marked as reviewed")
+  } catch (err) { next(err) }
 }
 
-// ── DELETE /api/essay/:id ──────────────────────────────────────────
+// ── DELETE /api/essays/:id ─────────────────────────────────────────────
 export const deleteEssayHandler = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
+  req: Request, res: Response, next: NextFunction
 ): Promise<void> => {
   try {
-    const id = req.params["id"] as string
-    const userId = req.query["userId"] as string | undefined
-
-    if (!userId) {
-      sendError(res, "userId query param is required", 400)
-      return
-    }
-
-    const deleted = await deleteEssay(id, userId)
-
-    if (!deleted) {
-      sendNotFound(res, "Essay not found or not owned by this user")
-      return
-    }
-
-    sendSuccess(res, { deleted: true, essayId: id }, "Essay deleted successfully")
-  } catch (error) {
-    next(error)
-  }
+    await deleteEssay(
+      req.params.id as string,
+      req.user!.userId,
+      req.centerFilter?.centerId ?? null
+    )
+    sendSuccess(res, null, "Essay retracted successfully")
+  } catch (err) { next(err) }
 }

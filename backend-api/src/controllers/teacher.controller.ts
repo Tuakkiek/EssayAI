@@ -5,7 +5,7 @@ import { getProfile } from "../services/authService"
 
 // Helper to get centerId
 const getCenterId = async (req: Request): Promise<string> => {
-  // If the user is a teacher, fetch their centerId
+  if (req.user?.centerId) return req.user.centerId
   const profile = await getProfile(req.user!.userId)
   if (!profile.centerId) {
     throw new Error("Teacher does not belong to any center")
