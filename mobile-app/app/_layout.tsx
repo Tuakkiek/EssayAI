@@ -117,6 +117,7 @@ export default function RootLayout() {
       .then((res) => {
         if (res.ok) {
           console.info(`[Startup] Network OK (${res.status})`, { url: healthUrl });
+          console.log("hello from backend");
         } else {
           console.warn(`[Startup] Network check failed (${res.status})`, { url: healthUrl });
         }

@@ -44,7 +44,7 @@ export interface IScoreBreakdown {
 // ── Interface ─────────────────────────────────────────────────────────
 export interface IEssay extends Document {
   // ── Tenancy & ownership ─────────────────────────────────────────────
-  centerId:      mongoose.Types.ObjectId  // from JWT — NEVER from request body
+  centerId:      mongoose.Types.ObjectId | null  // null for self-registered students
   studentId:     mongoose.Types.ObjectId
 
   // ── Assignment link (Phase 5) ────────────────────────────────────────
@@ -84,7 +84,7 @@ const EssaySchema = new Schema<IEssay>(
     centerId: {
       type:     Schema.Types.ObjectId,
       ref:      "Center",
-      required: [true, "centerId is required"],
+      default:  null,
     },
     studentId: {
       type:     Schema.Types.ObjectId,
