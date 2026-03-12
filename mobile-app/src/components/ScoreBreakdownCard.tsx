@@ -1,82 +1,111 @@
-import React from "react"
-import { View, Text, StyleSheet } from "react-native"
-import { ScoreBreakdown } from "../types"
-import { getBandColor } from "@/utils/bandColor"
-import { Colors, Radius, Shadow, Spacing, Typography } from "@/constants/theme"
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
 
-interface Props {
-  breakdown: ScoreBreakdown
+interface ScoreBreakdown {
+  taskAchievement: number;
+  coherenceCohesion: number;
+  lexicalResource: number;
+  // FIX #6: was "grammaticalRange" — backend returns "grammaticalRangeAccuracy"
+  grammaticalRangeAccuracy: number;
 }
 
-const CRITERIA: { key: keyof ScoreBreakdown; label: string }[] = [
-  { key: "taskAchievement", label: "Task Achievement" },
-  { key: "coherenceCohesion", label: "Coherence & Cohesion" },
-  { key: "lexicalResource", label: "Lexical Resource" },
-  { key: "grammaticalRange", label: "Grammar Range" },
-]
+interface ScoreBreakdownCardProps {
+  breakdown: ScoreBreakdown;
+  overallBand: number;
+}
 
-export const ScoreBreakdownCard: React.FC<Props> = ({ breakdown }) => {
+const CRITERIA = [
+  { key: "taskAchievement",         label: "Task Achievement",              color: "#6366F1" },
+  { key: "coherenceCohesion",       label: "Coherence & Cohesion",          color: "#8B5CF6" },
+  { key: "lexicalResource",         label: "Lexical Resource",              color: "#EC4899" },
+  // FIX: key updated to match backend response field
+  { key: "grammaticalRangeAccuracy", label: "Grammatical Range & Accuracy", color: "#F59E0B" },
+] as const;
+
+function ScoreBar({ score, color }: { score: number; color: string }) {
+  const pct = (score / 9) * 100;
+  return (
+    <View style={styles.barTrack}>
+      <View style={[styles.barFill, { width: `${pct}%` as any, backgroundColor: color }]} />
+    </View>
+  );
+}
+
+export default function ScoreBreakdownCard({
+  breakdown,
+  overallBand,
+}: ScoreBreakdownCardProps) {
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Score Breakdown</Text>
-      {CRITERIA.map((c) => {
-        const value = breakdown[c.key]
-        const color = getBandColor(value)
-        const pct = Math.max(0, Math.min(100, (value / 9) * 100))
+      {/* Overall */}
+      <View style={styles.overallRow}>
+        <Text style={styles.overallLabel}>Overall Band</Text>
+        <View style={styles.overallBadge}>
+          <Text style={styles.overallScore}>{overallBand.toFixed(1)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.divider} />
+
+      {/* Criteria */}
+      {CRITERIA.map(({ key, label, color }) => {
+        // FIX: directly access correct key — no more undefined
+        const score: number = breakdown[key] ?? 0;
         return (
-          <View key={c.key} style={styles.row}>
-            <View style={styles.rowTop}>
-              <Text style={styles.label}>{c.label}</Text>
-              <Text style={[styles.value, { color }]}>{value.toFixed(1)}</Text>
+          <View key={key} style={styles.criteriaRow}>
+            <View style={styles.criteriaHeader}>
+              <Text style={styles.criteriaLabel}>{label}</Text>
+              <Text style={[styles.criteriaScore, { color }]}>
+                {score.toFixed(1)}
+              </Text>
             </View>
-            <View style={styles.barBg}>
-              <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: color }]} />
-            </View>
+            <ScoreBar score={score} color={color} />
           </View>
-        )
+        );
       })}
     </View>
-  )
+  );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    padding: Spacing.xl,
-    marginBottom: Spacing.lg,
-    ...Shadow.sm,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 20,
+    gap: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  title: {
-    ...Typography.heading3,
-    marginBottom: Spacing.md,
-  },
-  row: {
-    marginBottom: Spacing.md,
-  },
-  rowTop: {
+  overallRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: Spacing.xs,
   },
-  label: {
-    ...Typography.bodySmall,
-    color: Colors.textSecondary,
+  overallLabel: { fontSize: 16, fontWeight: "700", color: "#111827" },
+  overallBadge: {
+    backgroundColor: "#EEF2FF",
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
-  value: {
-    fontSize: 14,
-    fontWeight: "700",
+  overallScore: { fontSize: 22, fontWeight: "800", color: "#4F46E5" },
+  divider: { height: 1, backgroundColor: "#F3F4F6" },
+  criteriaRow: { gap: 6 },
+  criteriaHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  barBg: {
+  criteriaLabel: { fontSize: 13, color: "#374151", fontWeight: "500" },
+  criteriaScore: { fontSize: 15, fontWeight: "700" },
+  barTrack: {
     height: 6,
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: Radius.full,
+    backgroundColor: "#F3F4F6",
+    borderRadius: 3,
     overflow: "hidden",
   },
-  barFill: {
-    height: "100%",
-    borderRadius: Radius.full,
-  },
-})
-
+  barFill: { height: "100%", borderRadius: 3 },
+});

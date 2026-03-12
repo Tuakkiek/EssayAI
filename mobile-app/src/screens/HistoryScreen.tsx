@@ -10,8 +10,7 @@ import { essayApi, getErrorMessage } from "../services/api"
 import { HistoryItem } from "../types"
 import { formatDate } from "@/utils/bandColor"
 
-// Temp userId — replace with auth context in Phase 7+
-const TEMP_USER_ID = "507f1f77bcf86cd799439011"
+
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   scored:  { label: "Scored",   color: Colors.success },
@@ -32,7 +31,7 @@ function EssayCard({ item, onPress }: { item: HistoryItem; onPress: () => void }
         </View>
         {item.score != null && <ScoreBadge score={item.score} size="sm" />}
       </View>
-      <Text style={styles.prompt} numberOfLines={2}>{item.prompt}</Text>
+      <Text style={styles.prompt} numberOfLines={2}>{item.text || item.originalText}</Text>
       <View style={styles.cardMeta}>
         <Text style={styles.metaText}>📅 {formatDate(item.createdAt)}</Text>
         <Text style={styles.metaText}>📝 {item.wordCount} words</Text>
@@ -59,10 +58,10 @@ export default function HistoryScreen() {
     else setLoadingMore(true)
 
     try {
-      const result = await essayApi.getHistory(TEMP_USER_ID, { page: p, limit: 15 })
-      setEssays((prev) => p === 1 ? result.essays : [...prev, ...result.essays])
-      setHasMore(result.hasNextPage)
-      setPage(p)
+      const result = (await essayApi.getHistory()).data
+      setEssays(result.data?.essays ?? result.data ?? [])
+      setHasMore(false)
+      setPage(1)
       setError(null)
     } catch (err) {
       setError(getErrorMessage(err))

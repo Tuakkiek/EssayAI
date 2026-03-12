@@ -42,8 +42,9 @@ export default function EssayInputScreen() {
 
     setLoading(true)
     try {
-      const result = await essayApi.score({ essayText, prompt, taskType })
-      router.replace({ pathname: "/essay/result", params: { essayId: result.essayId, score: String(result.score) } })
+      const res = await essayApi.submit(essayText, taskType)
+      const data = res.data?.data ?? res.data
+      router.replace({ pathname: "/essay/result", params: { essayId: data.essayId || data._id, score: String(data.score) } })
     } catch (err) {
       Alert.alert("Scoring Failed", getErrorMessage(err), [{ text: "OK" }])
     } finally {

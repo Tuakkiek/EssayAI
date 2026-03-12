@@ -6,7 +6,7 @@ import {
 import { useRouter } from "expo-router"
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme"
 import { getBandColor } from "@/utils/bandColor"
-import { API_BASE_URL } from "../config/api"
+import api from "../services/api"
 
 // ── Types ─────────────────────────────────────────────────────────
 interface CenterAnalytics {
@@ -39,18 +39,17 @@ export default function TeacherDashboardScreen() {
   const [analytics, setAnalytics] = useState<CenterAnalytics | null>(null)
   const [loading,   setLoading]   = useState(true)
   const [refreshing,setRefreshing]= useState(false)
-  // Stub token — replace with auth context
-  const token = "YOUR_TEACHER_JWT_TOKEN"
+
 
   const load = useCallback(async (refresh = false) => {
     if (refresh) setRefreshing(true)
     else setLoading(true)
     try {
-      const res  = await fetch(`${API_BASE_URL}/teacher/center/analytics`, {
-        headers: { Authorization: `Bearer ${token}`, "x-center-id": "dummy" },
+      const res = await api.get("/api/teacher/center/analytics", {
+        headers: { "x-center-id": "dummy" },
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.message ?? "Failed to load dashboard")
+      const data = res.data
+      if (!data.success) throw new Error(data.message ?? "Failed to load dashboard")
       setAnalytics(data.data)
     } catch (err) {
       Alert.alert("Error", err instanceof Error ? err.message : "Network error")

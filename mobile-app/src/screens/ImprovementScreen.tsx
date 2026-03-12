@@ -5,7 +5,7 @@ import {
 } from "react-native"
 import { useRouter, useLocalSearchParams } from "expo-router"
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme"
-import { API_BASE_URL } from "../config/api"
+import api from "../services/api"
 
 // ── Types ─────────────────────────────────────────────────────────
 type Tool = "rewrite" | "vocabulary" | "grammar"
@@ -39,18 +39,11 @@ interface GrammarResult {
 }
 
 // ── API helpers ───────────────────────────────────────────────────
-const callImprovement = async (tool: Tool, essayId: string, token: string | null): Promise<unknown> => {
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
-  if (token) headers["Authorization"] = `Bearer ${token}`
-
-  const res  = await fetch(`${API_BASE_URL}/improvement/${tool}`, {
-    method:  "POST",
-    headers,
-    body:    JSON.stringify({ essayId }),
-  })
-  const data = await res.json()
-  if (!data.success) throw new Error(data.message ?? "AI request failed")
-  return data.data
+const callImprovement = async (tool: Tool, essayId: string): Promise<unknown> => {
+  const res = await api.post(`/improvement/${tool}`, { essayId })
+  const data = res.data
+  if (!data.success && !data.data) throw new Error(data.message ?? "AI request failed")
+  return data.data || data
 }
 
 // ── Tool Button ───────────────────────────────────────────────────
@@ -238,11 +231,7 @@ export default function ImprovementScreen() {
     setLoadingTool(tool)
     setActiveTool(tool)
     try {
-      // In a real app we'd get token from Auth Context
-      const { getToken } = await import("../services/authApi")
-      const token = await getToken()
-      
-      const data = await callImprovement(tool, essayId, token)
+      const data = await callImprovement(tool, essayId)
       setResults((prev) => ({ ...prev, [tool]: data }))
     } catch (err) {
       Alert.alert("AI Error", err instanceof Error ? err.message : "Request failed")

@@ -4,7 +4,7 @@ import {
   ActivityIndicator, Alert, Linking, Modal
 } from "react-native"
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme"
-import { API_BASE_URL } from "../config/api"
+import { subscriptionApi } from "../services/api"
 
 // ── Types (mirrors backend) ───────────────────────────────────────
 interface PlanConfig {
@@ -41,23 +41,17 @@ interface PaymentInstructions {
   }
 }
 
-// ── Inline API calls (keeps screen self-contained) ────────────────
-const TEMP_USER_ID = "507f1f77bcf86cd799439011"  // Replace with auth context
-
 const fetchPlans = (): Promise<PlanConfig[]> =>
-  fetch(`${API_BASE_URL}/payment/plans`).then((r) => r.json()).then((d) => d.data?.plans ?? [])
+  subscriptionApi.getPlans().then((res) => res.data?.data?.plans ?? [])
 
 const fetchStatus = (): Promise<SubscriptionStatus> =>
-  fetch(`${API_BASE_URL}/payment/status?userId=${TEMP_USER_ID}`).then((r) => r.json()).then((d) => d.data)
+  subscriptionApi.getStatus().then((res) => res.data?.data)
 
 const initiatePayment = (plan: string): Promise<PaymentInstructions> =>
-  fetch(`${API_BASE_URL}/payment/initiate`, {
-    method:  "POST",
-    headers: { "Content-Type": "application/json" },
-    body:    JSON.stringify({ userId: TEMP_USER_ID, plan }),
-  }).then((r) => r.json()).then((d) => {
-    if (!d.success) throw new Error(d.message ?? "Payment initiation failed")
-    return d.data
+  subscriptionApi.checkout(plan, "").then((res) => {
+    const d = res.data
+    if (!d.success && !d.data) throw new Error(d.message ?? "Payment initiation failed")
+    return d.data || d
   })
 
 // ── Format helpers ────────────────────────────────────────────────

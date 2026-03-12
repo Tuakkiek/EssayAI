@@ -5,7 +5,7 @@ import {
 } from "react-native"
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme"
 import { getBandColor } from "@/utils/bandColor"
-import { API_BASE_URL } from "../config/api"
+import { improvementApi } from "../services/api"
 
 const { width: SCREEN_W } = Dimensions.get("window")
 const CHART_W = SCREEN_W - Spacing.lg * 2 - Spacing.xl * 2
@@ -24,17 +24,9 @@ interface ProgressData {
 }
 
 const fetchProgress = async (): Promise<ProgressData> => {
-  const { getToken } = await import("../services/authApi")
-  const token = await getToken()
-  const headers: Record<string, string> = {}
-  if (token) headers["Authorization"] = `Bearer ${token}`
-
-  return fetch(`${API_BASE_URL}/improvement/progress`, { headers })
-    .then((r) => r.json())
-    .then((d) => {
-      if (!d.success) throw new Error(d.message)
-      return d.data
-    })
+  const { data } = await improvementApi.getProgress()
+  if (!data?.success && data?.message) throw new Error(data.message)
+  return data?.data || data
 }
 
 // ── Mini bar chart ────────────────────────────────────────────────

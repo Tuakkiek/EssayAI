@@ -18,7 +18,7 @@ export interface ScoreBreakdown {
   taskAchievement: number;
   coherenceCohesion: number;
   lexicalResource: number;
-  grammaticalRange: number;
+  grammaticalRangeAccuracy: number;
 }
 
 export interface GrammarError {
@@ -84,8 +84,8 @@ export interface HistoryItem {
   _id: string;
   userId: string;
   centerId?: string;
-  prompt: string;
-  essayText: string;
+  text?: string;
+  originalText?: string;
   wordCount: number;
   taskType: "task1" | "task2";
   status: "pending" | "scoring" | "scored" | "error";

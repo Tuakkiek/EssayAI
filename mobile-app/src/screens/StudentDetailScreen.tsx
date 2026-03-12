@@ -11,9 +11,9 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { getBandColor } from "@/utils/bandColor";
-import { API_BASE_URL } from "../config/api";
+import api from "../services/api";
 
-const MOCK_TOKEN = "YOUR_TEACHER_JWT_TOKEN";
+
 
 interface StudentDetailData {
   student: {
@@ -49,14 +49,13 @@ export default function StudentDetailScreen() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}/teacher/students/${id}`, {
+      const res = await api.get(`/api/teacher/students/${id}`, {
         headers: {
-          Authorization: `Bearer ${MOCK_TOKEN}`,
           "x-center-id": "dummy",
         },
       });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.message || "Failed to load student");
+      const body = res.data;
+      if (!body.success) throw new Error(body.message || "Failed to load student");
       setData(body.data);
     } catch (err) {
       Alert.alert("Error", err instanceof Error ? err.message : "Load failed");

@@ -1,76 +1,91 @@
-import axios, { AxiosError, AxiosInstance } from "axios"
-import { ApiResponse, ScoreRequest, ScoreResponse, PaginatedHistory, Essay } from "../types"
-import { API_BASE_URL } from "../config/api"
+import axios, { AxiosError } from "axios";
+import * as SecureStore from "expo-secure-store";
+import { ApiResponse } from "../types";
 
-// ── Client ────────────────────────────────────────────────────────
-export const client: AxiosInstance = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 90_000,   // AI scoring can take up to ~60s
-  headers: { "Content-Type": "application/json" },
-})
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
 
-// ── Error helper ──────────────────────────────────────────────────
-const getErrorMessage = (error: unknown): string => {
-  if (error instanceof AxiosError) {
-    const data = error.response?.data as ApiResponse<unknown> | undefined
-    return data?.message ?? error.message ?? "Network error"
+const api = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+// Attach token automatically to every request
+api.interceptors.request.use(async (config) => {
+  const token = await SecureStore.getItemAsync("authToken");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-  if (error instanceof Error) return error.message
-  return "Unknown error"
-}
+  return config;
+});
 
-// ── Essay API ─────────────────────────────────────────────────────
+// ─── Error helper ───────────────────────────────────────────────────────
+
+export const getErrorMessage = (error: unknown): string => {
+  if (error instanceof AxiosError) {
+    const data = error.response?.data as ApiResponse<unknown> | undefined;
+    return data?.message ?? error.message ?? "Network error";
+  }
+  if (error instanceof Error) return error.message;
+  return "Unknown error";
+};
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    api.post("/auth/login", { email, password }),
+
+  register: (name: string, email: string, password: string) =>
+    api.post("/auth/register/student", { name, email, password }),
+
+  logout: () => api.post("/auth/logout"),
+};
+
+// ─── Essays ───────────────────────────────────────────────────────────────────
+
 export const essayApi = {
-  /** Submit essay for AI scoring — returns full score result */
-  score: async (payload: ScoreRequest): Promise<ScoreResponse> => {
-    const res = await client.post<ApiResponse<ScoreResponse>>("/essay/score", payload)
-    if (!res.data.success || !res.data.data) {
-      throw new Error(res.data.message ?? "Scoring failed")
-    }
-    return res.data.data
-  },
+  submit: (text: string, taskType: "task1" | "task2", assignmentId?: string) =>
+    api.post("/api/essays", {
+      text,
+      taskType,
+      assignmentId,
+    }),
 
-  /** Get paginated essay history for a user */
-  getHistory: async (
-    userId: string,
-    params?: { page?: number; limit?: number; status?: string; sortBy?: string }
-  ): Promise<PaginatedHistory> => {
-    const res = await client.get<ApiResponse<PaginatedHistory>>("/essay/history", {
-      params: { userId, ...params },
-    })
-    if (!res.data.success || !res.data.data) {
-      throw new Error(res.data.message ?? "Failed to load history")
-    }
-    return res.data.data
-  },
+  getHistory: () => api.get("/api/essays"),
 
-  /** Get full essay detail by ID */
-  getById: async (essayId: string, userId?: string): Promise<Essay> => {
-    const res = await client.get<ApiResponse<Essay>>(`/essay/${essayId}`, {
-      params: userId ? { userId } : undefined,
-    })
-    if (!res.data.success || !res.data.data) {
-      throw new Error(res.data.message ?? "Essay not found")
-    }
-    return res.data.data
-  },
+  getById: (id: string) => api.get(`/api/essays/${id}`),
+};
 
-  /** Delete an essay */
-  delete: async (essayId: string, userId: string): Promise<void> => {
-    await client.delete(`/essay/${essayId}`, { params: { userId } })
-  },
-}
+// ─── Subscription ─────────────────────────────────────────────────────────────
 
-// ── Health check ──────────────────────────────────────────────────
-export const healthApi = {
-  check: async (): Promise<boolean> => {
-    try {
-      const res = await client.get("/health", { timeout: 5000 })
-      return res.data?.status === "ok"
-    } catch {
-      return false
-    }
-  },
-}
+export const subscriptionApi = {
+  getPlans: () => api.get("/api/subscription/plans"),
 
-export { getErrorMessage }
+  checkout: (planId: string, userId: string) =>
+    api.post("/api/subscription/checkout", { planId, userId }),
+
+  getStatus: () => api.get("/api/subscription"),
+};
+
+// ─── Improvement / Progress ───────────────────────────────────────────────────
+
+export const improvementApi = {
+  getProgress: () => api.get("/improvement/progress"),
+  getVocabulary: () => api.get("/improvement/vocabulary"),
+  getGrammar: () => api.get("/improvement/grammar"),
+  getPhrases: () => api.get("/improvement/phrases"),
+};
+
+// ─── Teacher ──────────────────────────────────────────────────────────────────
+
+export const teacherApi = {
+  getStudents: () => api.get("/api/teacher/students"),
+  getStudentById: (id: string) => api.get(`/api/teacher/students/${id}`),
+  getEssays: () => api.get("/api/teacher/essays"),
+  createCenter: (data: Record<string, unknown>) =>
+    api.post("/api/teacher/center", data),
+};
+
+export default api;

@@ -5,12 +5,13 @@ import {
 } from "react-native"
 import { useRouter } from "expo-router"
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme"
-import { authApi, saveToken } from "../services/authApi"
+import { useAuth } from "../context/AuthContext"
 
 type Mode = "login" | "register"
 
 export default function LoginScreen() {
   const router = useRouter()
+  const { login, register } = useAuth()
   const [mode,     setMode]     = useState<Mode>("login")
   const [name,     setName]     = useState("")
   const [email,    setEmail]    = useState("")
@@ -24,18 +25,12 @@ export default function LoginScreen() {
     }
     setLoading(true)
     try {
-      const result = mode === "login"
-        ? await authApi.login(email.trim(), password)
-        : await authApi.register(name.trim(), email.trim(), password)
-
-      await saveToken(result.token)
-
-      // Route teacher to teacher dashboard, others to tabs
-      if (result.user.role === "teacher" || result.user.role === "admin") {
-        router.replace("/teacher/dashboard")
+      if (mode === "login") {
+        await login(email.trim(), password)
       } else {
-        router.replace("/")
+        await register(name.trim(), email.trim(), password)
       }
+      // Note: Navigation is handled inside login/register functions in AuthContext
     } catch (err) {
       Alert.alert("Error", err instanceof Error ? err.message : "Something went wrong")
     } finally {

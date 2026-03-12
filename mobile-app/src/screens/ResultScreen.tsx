@@ -6,7 +6,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router"
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme"
 import { ScoreBadge } from "../components/ScoreBadge"
-import { ScoreBreakdownCard } from "../components/ScoreBreakdownCard"
+import ScoreBreakdownCard from "../components/ScoreBreakdownCard";
 import { GrammarErrorCard } from "../components/GrammarErrorCard"
 import { SuggestionsCard } from "../components/SuggestionsCard"
 import { essayApi, getErrorMessage } from "../services/api"
@@ -23,8 +23,8 @@ export default function ResultScreen() {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await essayApi.getById(essayId)
-        setEssay(data)
+        const res = await essayApi.getById(essayId)
+        setEssay(res.data?.data ?? res.data)
       } catch (err) {
         setError(getErrorMessage(err))
       } finally {
@@ -112,7 +112,7 @@ export default function ResultScreen() {
         )}
 
         {/* Score breakdown */}
-        {essay.scoreBreakdown && <ScoreBreakdownCard breakdown={essay.scoreBreakdown} />}
+        {essay.scoreBreakdown && essay.score != null && <ScoreBreakdownCard breakdown={essay.scoreBreakdown} overallBand={essay.score} />}
 
         {/* Grammar errors */}
         <GrammarErrorCard errors={essay.grammarErrors ?? []} />
