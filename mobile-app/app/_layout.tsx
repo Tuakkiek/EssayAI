@@ -91,6 +91,15 @@ function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "Account",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-circle-outline" size={size} color={color} />
+          ),
+        }}
+      />
       {/* Hide these screens from the tab bar */}
       <Tabs.Screen name="home" options={{ href: null }} />
       <Tabs.Screen name="login" options={{ href: null }} />

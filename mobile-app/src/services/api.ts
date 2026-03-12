@@ -94,4 +94,13 @@ export const teacherApi = {
     api.post("/api/teacher/center", data),
 };
 
+// ─── User ─────────────────────────────────────────────────────────────────────
+export const userApi = {
+  updateProfile: (data: { name?: string; avatarUrl?: string }) =>
+    api.patch("/api/user/profile", data),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api.post("/api/user/change-password", { currentPassword, newPassword }),
+  getProfile: () => api.get("/api/user/profile"),
+};
+
 export default api;
