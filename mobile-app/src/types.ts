@@ -6,13 +6,8 @@ export interface ApiResponse<T> {
 
 export type EssayTaskType = "task1" | "task2";
 
-export interface ScoreRequest {
-  essayText: string;
-  prompt?: string;
-  taskType?: "task1" | "task2";
-  userId?: string;
-  centerId?: string;
-}
+// Essay status — add "graded" to match backend, keep "scored" for compatibility
+export type EssayStatus = "pending" | "scoring" | "graded" | "scored" | "error";
 
 export interface ScoreBreakdown {
   taskAchievement: number;
@@ -35,41 +30,108 @@ export interface Suggestion {
   example?: string;
 }
 
-export interface ScoreResponse {
-  essayId: string;
-  score: number;
-  scoreBreakdown: ScoreBreakdown;
-  grammarErrors: GrammarError[];
-  suggestions: Suggestion[];
-  aiFeedback: string;
-  wordCount: number;
-  taskType: "task1" | "task2";
-  processingTimeMs: number;
-  createdAt: string;
-}
-
 export interface Essay {
   _id: string;
   userId: string;
-  centerId?: string;
-  prompt: string;
-  essayText: string;
+  centerId?: string | null;
+
+  // Backend may return either "text" or "originalText"
+  text?: string;
+  originalText?: string;
+
+  prompt?: string;
   wordCount: number;
-  taskType: "task1" | "task2";
-  status: "pending" | "scoring" | "scored" | "graded" | "error";
+  taskType: EssayTaskType;
+  status: EssayStatus;
+
+  // Backend may return "overallBand", "score", or "overallScore"
   score?: number;
   overallScore?: number;
+  overallBand?: number;
+
   scoreBreakdown?: ScoreBreakdown;
   grammarErrors?: GrammarError[];
   suggestions?: Suggestion[];
+
+  // Backend may return "aiFeedback" or "feedback"
   aiFeedback?: string;
   feedback?: string;
+
   aiModel?: string;
   processingTimeMs?: number;
   errorMessage?: string;
+  isReviewedByTeacher?: boolean;
+
   createdAt: string;
   updatedAt: string;
 }
+
+export type UserRole = "admin" | "teacher" | "center_student" | "free_student";
+
+export interface Class {
+  _id: string;
+  name: string;
+  code: string;
+  teacherId: string;
+  studentIds: string[];
+  description?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface RequiredVocabulary {
+  word: string;
+  synonyms: string[];
+  importance: "required" | "recommended";
+}
+
+export interface BandDescriptor {
+  band: number;
+  descriptor: string;
+}
+
+export interface GradingCriteria {
+  overview?: string;
+  requiredVocabulary?: RequiredVocabulary[];
+  bandDescriptors?: BandDescriptor[];
+  structureRequirements?: string;
+  penaltyNotes?: string;
+  additionalNotes?: string;
+}
+
+export interface Assignment {
+  _id: string;
+  title: string;
+  description?: string;
+  taskType: EssayTaskType;
+  prompt: string;
+  gradingCriteria?: GradingCriteria;
+  classId: string;
+  className?: string;
+  teacherId: string;
+  startDate?: string;
+  dueDate: string;
+  status: "draft" | "published" | "closed";
+  maxAttempts: number;
+  submissionCount?: number;
+  mySubmission?: Essay | null;
+  createdAt: string;
+}
+
+export interface ClassAnalytics {
+  classId: string;
+  className: string;
+  totalStudents: number;
+  totalSubmissions: number;
+  averageScore: number;
+  submissionRate: number;
+  scoreDistribution: { band: string; count: number }[];
+  topStudents: { name: string; averageScore: number }[];
+  recentSubmissions: { studentName: string; score: number; createdAt: string }[];
+}
+
+/** Used in History list */
+export interface HistoryItem extends Essay {}
 
 export interface PaginatedHistory {
   essays: Essay[];
@@ -81,17 +143,23 @@ export interface PaginatedHistory {
   hasPrevPage: boolean;
 }
 
-/** Lightweight essay summary used in the History list. */
-export interface HistoryItem {
-  _id: string;
-  userId: string;
+export interface ScoreRequest {
+  essayText: string;
+  prompt?: string;
+  taskType?: EssayTaskType;
+  userId?: string;
   centerId?: string;
-  text?: string;
-  originalText?: string;
+}
+
+export interface ScoreResponse {
+  essayId: string;
+  score: number;
+  scoreBreakdown: ScoreBreakdown;
+  grammarErrors: GrammarError[];
+  suggestions: Suggestion[];
+  aiFeedback: string;
   wordCount: number;
-  taskType: "task1" | "task2";
-  status: "pending" | "scoring" | "scored" | "error";
-  score?: number;
+  taskType: EssayTaskType;
+  processingTimeMs: number;
   createdAt: string;
-  updatedAt: string;
 }

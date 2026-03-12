@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { Tabs, router, useSegments } from "expo-router";
+import { Tabs, router, useRootNavigationState, useSegments } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { API_ROOT_URL } from "../src/config/api";
@@ -8,18 +8,22 @@ import { API_ROOT_URL } from "../src/config/api";
 // ─── Auth Guard ───────────────────────────────────────────────────────────────
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const segments = useSegments();
+  const rootNavigationState = useRootNavigationState();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || !rootNavigationState?.key) return;
     const inAuthScreen = segments[0] === "login";
     if (!isAuthenticated && !inAuthScreen) {
-      router.replace("/login");
+      router.navigate("/login");
     } else if (isAuthenticated && inAuthScreen) {
-      router.replace("/");
+      const role = user?.role;
+      if (role === "admin") router.navigate("/admin/dashboard");
+      else if (role === "teacher") router.navigate("/teacher/dashboard");
+      else router.navigate("/");
     }
-  }, [isAuthenticated, isLoading, segments]);
+  }, [isAuthenticated, isLoading, segments, rootNavigationState?.key, user?.role]);
 
   if (isLoading) {
     return (
@@ -101,18 +105,39 @@ function TabLayout() {
         }}
       />
       {/* Hide these screens from the tab bar */}
-      <Tabs.Screen name="home" options={{ href: null }} />
       <Tabs.Screen name="login" options={{ href: null }} />
       <Tabs.Screen name="improvement" options={{ href: null }} />
       <Tabs.Screen name="essay/input" options={{ href: null }} />
       <Tabs.Screen name="essay/result" options={{ href: null }} />
       <Tabs.Screen name="essay/detail" options={{ href: null }} />
+      <Tabs.Screen name="individualSubscription" options={{ href: null }} />
       <Tabs.Screen name="teacher/dashboard" options={{ href: null }} />
       <Tabs.Screen name="teacher/essays/[essayId]" options={{ href: null }} />
       <Tabs.Screen name="teacher/students/[id]" options={{ href: null }} />
       <Tabs.Screen name="teacher/students/index" options={{ href: null }} />
       <Tabs.Screen name="teacher/create-center" options={{ href: null }} />
       <Tabs.Screen name="teacher/essays/index" options={{ href: null }} />
+      {/* Teacher new screens */}
+      <Tabs.Screen name="teacher/classes/index" options={{ href: null }} />
+      <Tabs.Screen name="teacher/classes/[classId]" options={{ href: null }} />
+      <Tabs.Screen name="teacher/classes/create" options={{ href: null }} />
+      <Tabs.Screen name="teacher/assignments/index" options={{ href: null }} />
+      <Tabs.Screen name="teacher/assignments/[id]" options={{ href: null }} />
+      <Tabs.Screen name="teacher/assignments/create" options={{ href: null }} />
+      <Tabs.Screen
+        name="teacher/assignments/[id]/submissions"
+        options={{ href: null }}
+      />
+
+      {/* Student new screens */}
+      <Tabs.Screen name="student/join-class" options={{ href: null }} />
+      <Tabs.Screen name="student/assignments/index" options={{ href: null }} />
+      <Tabs.Screen name="student/assignments/[id]" options={{ href: null }} />
+
+      {/* Admin screens */}
+      <Tabs.Screen name="admin/dashboard" options={{ href: null }} />
+      <Tabs.Screen name="admin/users/index" options={{ href: null }} />
+      <Tabs.Screen name="admin/tasks/index" options={{ href: null }} />
     </Tabs>
   );
 }

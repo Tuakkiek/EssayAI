@@ -31,16 +31,21 @@ export const startEssayGrading = async (essayId: string): Promise<void> => {
     { status: "grading", errorMessage: null },
     { new: true }
   )
-    .populate("assignmentId", "title instructions")
-    .select("taskType originalText wordCount status assignmentId")
+    .populate("assignmentId", "title prompt gradingCriteria")
+    .select("taskType originalText wordCount status assignmentId gradingCriteria")
 
   if (!essay) {
     logger.info("[Grading] Skip missing/non-pending essay", { essayId })
     return
   }
 
-  const assignment = essay.assignmentId as { title?: string; instructions?: string } | null
-  const prompt = assignment?.instructions || assignment?.title || "No assignment prompt provided."
+  const assignment = essay.assignmentId as {
+    title?: string
+    prompt?: string
+    gradingCriteria?: Record<string, unknown>
+  } | null
+  const prompt = assignment?.prompt || assignment?.title || "No assignment prompt provided."
+  const criteria = (essay as any).gradingCriteria ?? assignment?.gradingCriteria ?? undefined
 
   try {
     logger.info("[Grading] Calling Gemini", {
@@ -55,6 +60,7 @@ export const startEssayGrading = async (essayId: string): Promise<void> => {
         essayText: essay.originalText,
         wordCount: essay.wordCount,
         prompt,
+        gradingCriteria: criteria,
       }),
       GRADING_TIMEOUT_MS
     )

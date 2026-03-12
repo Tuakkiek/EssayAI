@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"
+﻿import React, { useState, useEffect, useCallback } from "react"
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl
@@ -14,7 +14,8 @@ import { formatDate } from "@/utils/bandColor"
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   scored:  { label: "Scored",   color: Colors.success },
-  scoring: { label: "Scoring…", color: Colors.warning },
+  graded:  { label: "Scored",   color: Colors.success },
+  scoring: { label: "Scoringâ€¦", color: Colors.warning },
   pending: { label: "Pending",  color: Colors.textMuted },
   error:   { label: "Error",    color: Colors.error },
 }
@@ -29,12 +30,14 @@ function EssayCard({ item, onPress }: { item: HistoryItem; onPress: () => void }
           <Text style={styles.statusLabel}>{status.label}</Text>
           <Text style={styles.taskChip}>{item.taskType === "task2" ? "T2" : "T1"}</Text>
         </View>
-        {item.score != null && <ScoreBadge score={item.score} size="sm" />}
+        {(item.score ?? item.overallBand) != null && (
+          <ScoreBadge score={(item.score ?? item.overallBand)!} size="sm" />
+        )}
       </View>
       <Text style={styles.prompt} numberOfLines={2}>{item.text || item.originalText}</Text>
       <View style={styles.cardMeta}>
-        <Text style={styles.metaText}>📅 {formatDate(item.createdAt)}</Text>
-        <Text style={styles.metaText}>📝 {item.wordCount} words</Text>
+        <Text style={styles.metaText}>ðŸ“… {formatDate(item.createdAt)}</Text>
+        <Text style={styles.metaText}>ðŸ“ {item.wordCount} words</Text>
       </View>
     </TouchableOpacity>
   )
@@ -91,7 +94,7 @@ export default function HistoryScreen() {
   if (error) {
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 48 }}>📡</Text>
+        <Text style={{ fontSize: 48 }}>ðŸ“¡</Text>
         <Text style={[Typography.heading3, { marginTop: Spacing.md }]}>Can{"'"}t connect</Text>
         <Text style={[Typography.body, { color: Colors.textSecondary, textAlign: "center", marginTop: Spacing.sm }]}>
           {error}
@@ -106,7 +109,7 @@ export default function HistoryScreen() {
   if (essays.length === 0) {
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 48 }}>✍️</Text>
+        <Text style={{ fontSize: 48 }}>âœï¸</Text>
         <Text style={[Typography.heading3, { marginTop: Spacing.md }]}>No essays yet</Text>
         <Text style={[Typography.body, { color: Colors.textSecondary, textAlign: "center", marginTop: Spacing.sm }]}>
           Submit your first essay to see your results here
@@ -162,4 +165,5 @@ const styles = StyleSheet.create({
   retryBtn:    { marginTop: Spacing.xl, backgroundColor: Colors.primary, borderRadius: Radius.lg, paddingHorizontal: Spacing.xxxl, paddingVertical: 14 },
   retryText:   { ...Typography.body, color: Colors.surface, fontWeight: "700" },
 })
+
 

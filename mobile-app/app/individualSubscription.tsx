@@ -6,7 +6,7 @@ import { Link } from "expo-router";
 export default function IndividualSubscription() {
   const { user } = useAuth();
 
-  if (!user || user.role !== "individual_user") {
+  if (!user || user.role !== "free_student") {
     return (
       <View className="flex-1 justify-center items-center p-8">
         <Text className="text-xl font-bold mb-4">Subscription Required</Text>

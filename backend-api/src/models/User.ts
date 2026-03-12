@@ -3,36 +3,21 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 // ── Types ────────────────────────────────────────────────────────────
 /**
  * Role hierarchy (highest → lowest privilege):
- *   super_admin  — platform owner, no centerId
- *   center_admin — training center owner/manager
- *   teacher      — manages classes & students within a center
- *   student      — read-only, created by teacher/admin
- *
- * "admin" is kept as a deprecated alias for center_admin to avoid
- * breaking any existing JWT tokens during the migration window.
+ *   admin          — system administrator (seeded only)
+ *   teacher        — creates classes, assignments, reviews submissions
+ *   center_student — student in a teacher's class
+ *   free_student   — self-registered student (no class)
  */
 
-export type UserRole =
-  | "super_admin"
-  | "center_admin"
-  | "teacher"
-  | "student"
-  | "individual_user"
-  | "admin"; // ← deprecated alias — treat as center_admin in all checks
+export type UserRole = "admin" | "teacher" | "center_student" | "free_student";
 
-export const ADMIN_ROLES: UserRole[] = ["super_admin", "center_admin", "admin"];
-export const TEACHER_ROLES: UserRole[] = [
-  "super_admin",
-  "center_admin",
-  "admin",
-  "teacher",
-];
+export const ADMIN_ROLES: UserRole[] = ["admin"];
+export const TEACHER_ROLES: UserRole[] = ["admin", "teacher"];
 export const ALL_ROLES: UserRole[] = [
-  "super_admin",
-  "center_admin",
   "admin",
   "teacher",
-  "student",
+  "center_student",
+  "free_student",
 ];
 
 /** True if the role has teacher-level access or higher */
@@ -47,8 +32,8 @@ export const isAdminOrAbove = (role: UserRole): boolean =>
 export interface IUser extends Document {
   // Identity
   name: string;
-  phone: string; // Primary login identifier for students (unique within center)
-  email?: string; // Required for center_admin, teachers, self-registered students; optional for center-created students
+  phone?: string; // Optional (legacy)
+  email?: string; // Primary login identifier
   passwordHash: string;
 
   // Role & tenancy
@@ -56,11 +41,11 @@ export interface IUser extends Document {
   centerId?: mongoose.Types.ObjectId; // null only for super_admin and self-registered students
 
   /**
-   * "center"  = tài khoản do trung tâm cấp (teacher/admin tạo)
-   * "self"    = tự đăng ký, không cần trung tâm
-   * undefined = legacy records (treat as "center")
+   * "invited" = teacher/admin created (center-managed)
+   * "self"    = self-registered
+   * "system"  = seeded system account (admin)
    */
-  registrationMode?: "center" | "self";
+  registrationMode?: "invited" | "self" | "system";
 
   // Self-registered students manage their own subscription (not via Center)
   selfSubscription?: {
@@ -73,6 +58,10 @@ export interface IUser extends Document {
   // Profile
   avatarUrl?: string;
   classIds: mongoose.Types.ObjectId[]; // Classes this student is enrolled in
+  classId?: mongoose.Types.ObjectId; // Current class (single)
+  teacherId?: mongoose.Types.ObjectId; // Teacher who manages this student
+  centerName?: string; // Teacher organization name
+  bio?: string; // Teacher bio
 
   // Account state
   isActive: boolean; // false = disabled (cannot login)
@@ -106,8 +95,8 @@ const UserSchema = new Schema<IUser>(
 
     phone: {
       type: String,
-      required: [true, "Phone number is required"],
       trim: true,
+      default: undefined,
       // Uniqueness is enforced via a compound index { phone, centerId }
       // so the same phone can exist across different centers.
     },
@@ -130,8 +119,8 @@ const UserSchema = new Schema<IUser>(
 
     role: {
       type: String,
-      enum: ["super_admin", "center_admin", "admin", "teacher", "student"],
-      default: "student",
+      enum: ["admin", "teacher", "center_student", "free_student"],
+      default: "free_student",
     },
 
     centerId: {
@@ -151,6 +140,27 @@ const UserSchema = new Schema<IUser>(
         ref: "Class",
       },
     ],
+    classId: {
+      type: Schema.Types.ObjectId,
+      ref: "Class",
+      default: null,
+    },
+    teacherId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    centerName: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    bio: {
+      type: String,
+      default: null,
+      trim: true,
+      maxlength: [1000, "Bio must be at most 1000 characters"],
+    },
 
     isActive: {
       type: Boolean,
@@ -170,8 +180,8 @@ const UserSchema = new Schema<IUser>(
 
     registrationMode: {
       type: String,
-      enum: ["center", "self"],
-      default: "center",
+      enum: ["invited", "self", "system"],
+      default: "self",
     },
 
     selfSubscription: {

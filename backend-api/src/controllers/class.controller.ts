@@ -51,9 +51,7 @@ export const listClassesHandler = async (
     const { teacherId, search, page, limit, isActive } = req.query;
 
     // Teachers can only see their own classes unless they are admin
-    const isAdminRole = ["center_admin", "admin", "super_admin"].includes(
-      req.user!.role,
-    );
+    const isAdminRole = ["admin"].includes(req.user!.role);
     const resolvedTeacherId = !isAdminRole
       ? req.user!.userId // teacher sees own classes only
       : (teacherId as string | undefined); // admin can filter by any teacher

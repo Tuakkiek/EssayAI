@@ -50,6 +50,15 @@ export const slugify = (str: string): string => {
     .replace(/^-|-$/g, "")
 }
 
+export const generateTempPassword = (length = 10): string => {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  let out = "";
+  for (let i = 0; i < length; i += 1) {
+    out += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return out;
+};
+
 export const normalizePhone = (raw: string): string => {
   const digits = raw.replace(/\D/g, "")
   if (digits.startsWith("84") && digits.length === 11) {

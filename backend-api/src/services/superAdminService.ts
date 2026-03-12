@@ -15,7 +15,7 @@
 
 import mongoose from "mongoose"
 import jwt      from "jsonwebtoken"
-import { Center, User, Essay, Assignment } from "../models/index"
+import { Center, User, Essay, Assignment, Class } from "../models/index"
 import PaymentTransaction from "../models/PaymentTransaction"
 import { SubscriptionPlan, PLAN_META } from "../models/PaymentTransaction"
 import { manualGrantPlan } from "./subscriptionService"
@@ -42,7 +42,7 @@ export const getPlatformStats = async () => {
     Center.countDocuments(),
     Center.countDocuments({ isActive: true }),
     User.countDocuments(),
-    User.countDocuments({ role: "student", isActive: true }),
+    User.countDocuments({ role: "center_student", isActive: true }),
     Essay.countDocuments(),
     Essay.countDocuments({ createdAt: { $gte: monthAgo } }),
 
@@ -101,6 +101,24 @@ export const getGrowthTimeseries = async (days = 30) => {
 
   return { newCenters, newEssays, days }
 }
+
+// â”€â”€ User growth timeseries (last N days, grouped by day) â”€â”€â”€â”€â”€â”€
+export const getUserGrowthTimeseries = async (days = 30) => {
+  const since = new Date(Date.now() - days * 86_400_000);
+
+  const newUsers = await User.aggregate([
+    { $match: { createdAt: { $gte: since } } },
+    {
+      $group: {
+        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { _id: 1 } },
+  ]);
+
+  return { newUsers, days };
+};
 
 // ── List / search centers ─────────────────────────────────────────────
 
@@ -210,7 +228,7 @@ export const impersonateCenter = async (
     {
       userId:        superAdminId,
       email:         "super@admin",
-      role:          "super_admin",
+      role:          "admin",
       centerId:      centerId,
       _impersonate:  true,           // flag so audit middleware can log it
     },
@@ -262,6 +280,68 @@ export const listUsers = async (filter: UserListFilter = {}) => {
 
   return { users, pagination: { total, page, limit, pages: Math.ceil(total / limit) } }
 }
+
+// â”€â”€ Get single user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const getUserDetail = async (userId: string) => {
+  const user = await User.findById(userId)
+    .select("-passwordHash")
+    .populate("centerId", "name slug");
+  if (!user) throw new AppError("User not found", 404);
+  return user;
+};
+
+// â”€â”€ Update user role â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const updateUserRole = async (userId: string, role: string) => {
+  const allowed = ["admin", "teacher", "center_student", "free_student"];
+  if (!allowed.includes(role)) throw new AppError("Invalid role", 400);
+
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { role },
+    { new: true },
+  ).select("-passwordHash");
+  if (!user) throw new AppError("User not found", 404);
+  return user;
+};
+
+// â”€â”€ Toggle user active â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const setUserActive = async (userId: string, isActive: boolean) => {
+  const user = await User.findByIdAndUpdate(
+    userId,
+    { isActive },
+    { new: true },
+  ).select("-passwordHash");
+  if (!user) throw new AppError("User not found", 404);
+  return user;
+};
+
+// â”€â”€ Delete user (with basic safeguards) â”€â”€â”€â”€â”€â”€â”€â”€
+export const deleteUser = async (userId: string) => {
+  const user = await User.findById(userId);
+  if (!user) throw new AppError("User not found", 404);
+
+  if (user.role === "teacher") {
+    const classCount = await Class.countDocuments({
+      teacherId: user._id,
+    });
+    if (classCount > 0) {
+      throw new AppError(
+        "Cannot delete teacher with existing classes",
+        400,
+      );
+    }
+  }
+
+  if (user.role === "center_student") {
+    await Class.updateMany(
+      { studentIds: user._id },
+      { $pull: { studentIds: user._id } },
+    );
+  }
+
+  await User.findByIdAndDelete(userId);
+  return { deleted: true };
+};
 
 // ── Grant plan to center ──────────────────────────────────────────────
 

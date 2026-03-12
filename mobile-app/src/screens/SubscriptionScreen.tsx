@@ -48,7 +48,7 @@ const fetchStatus = (): Promise<SubscriptionStatus> =>
   subscriptionApi.getStatus().then((res) => res.data?.data)
 
 const initiatePayment = (plan: string): Promise<PaymentInstructions> =>
-  subscriptionApi.checkout(plan, "").then((res) => {
+  subscriptionApi.checkout(plan).then((res) => {
     const d = res.data
     if (!d.success && !d.data) throw new Error(d.message ?? "Payment initiation failed")
     return d.data || d

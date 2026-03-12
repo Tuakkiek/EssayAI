@@ -46,7 +46,7 @@ export const getCenter = async (centerId: string, requesterId: string) => {
     }),
     User.countDocuments({
       centerId,
-      role: { $in: ["teacher", "center_admin"] },
+      role: { $in: ["teacher", "admin"] },
       isActive: true,
     }),
   ]);
@@ -77,7 +77,7 @@ export const updateCenter = async (
 export const listTeachers = async (centerId: string) => {
   return User.find({
     centerId,
-    role: { $in: ["teacher", "center_admin"] },
+    role: { $in: ["teacher", "admin"] },
     isActive: true,
   }).select("-passwordHash");
 };

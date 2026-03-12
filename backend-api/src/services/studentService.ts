@@ -32,7 +32,7 @@ export interface CreateStudentResult {
     id: string;
     name: string;
     phone: string;
-    role: "student";
+    role: "center_student";
     classId: string | null;
   };
   /** Raw password — returned ONCE, never stored in plaintext */
@@ -96,7 +96,7 @@ export const createStudent = async (
     name: name.trim(),
     phone,
     passwordHash,
-    role: "student",
+    role: "center_student",
     centerId: new mongoose.Types.ObjectId(centerId),
     classIds: classId ? [new mongoose.Types.ObjectId(classId)] : [],
     isActive: true,
@@ -116,7 +116,7 @@ export const createStudent = async (
       id: (student._id as mongoose.Types.ObjectId).toString(),
       name: student.name,
       phone: student.phone ?? "",
-      role: "student",
+      role: "center_student",
       classId: classId ?? null,
     },
     plainPassword,
@@ -137,7 +137,7 @@ export const listStudents = async (filter: StudentListFilter) => {
 
   const query: Record<string, unknown> = {
     centerId: new mongoose.Types.ObjectId(centerId),
-    role: "student",
+    role: "center_student",
     isActive,
   };
 
@@ -175,7 +175,7 @@ export const getStudent = async (studentId: string, centerId: string) => {
   const student = await User.findOne({
     _id: new mongoose.Types.ObjectId(studentId),
     centerId: new mongoose.Types.ObjectId(centerId),
-    role: "student",
+    role: "center_student",
   }).select("-passwordHash");
 
   if (!student) throw new AppError("Student not found", 404);
@@ -192,7 +192,7 @@ export const updateStudent = async (
   const student = await User.findOne({
     _id: new mongoose.Types.ObjectId(studentId),
     centerId: new mongoose.Types.ObjectId(centerId),
-    role: "student",
+    role: "center_student",
   });
   if (!student) throw new AppError("Student not found", 404);
 
@@ -255,7 +255,7 @@ export const deactivateStudent = async (
     {
       _id: new mongoose.Types.ObjectId(studentId),
       centerId: new mongoose.Types.ObjectId(centerId),
-      role: "student",
+      role: "center_student",
     },
     { isActive: false },
     { new: true },
@@ -275,7 +275,7 @@ export const reactivateStudent = async (
     {
       _id: new mongoose.Types.ObjectId(studentId),
       centerId: new mongoose.Types.ObjectId(centerId),
-      role: "student",
+      role: "center_student",
     },
     { isActive: true },
     { new: true },
@@ -297,7 +297,7 @@ export const resetStudentPassword = async (
   const student = await User.findOne({
     _id: new mongoose.Types.ObjectId(studentId),
     centerId: new mongoose.Types.ObjectId(centerId),
-    role: "student",
+    role: "center_student",
   });
   if (!student) throw new AppError("Student not found", 404);
 

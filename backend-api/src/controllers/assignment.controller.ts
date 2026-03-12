@@ -23,11 +23,11 @@ export const createAssignmentHandler = async (
   req: Request, res: Response, next: NextFunction
 ): Promise<void> => {
   try {
-    const { classId, title, taskType, instructions, description,
-            dueDate, maxAttempts, gradingCriteria } = req.body
+    const { classId, title, taskType, prompt, description,
+            startDate, dueDate, maxAttempts, gradingCriteria, status } = req.body
 
-    if (!classId || !title || !taskType || !instructions) {
-      sendBadRequest(res, "Missing required fields: classId, title, taskType, instructions")
+    if (!classId || !title || !taskType || !prompt || !dueDate) {
+      sendBadRequest(res, "Missing required fields: classId, title, taskType, prompt, dueDate")
       return
     }
     if (!["task1", "task2"].includes(taskType)) {
@@ -38,8 +38,8 @@ export const createAssignmentHandler = async (
     const assignment = await createAssignment({
       centerId:    req.centerFilter!.centerId,
       teacherId:   req.user!.userId,
-      classId, title, taskType, instructions,
-      description, dueDate, maxAttempts, gradingCriteria,
+      classId, title, taskType, prompt,
+      description, startDate, dueDate, maxAttempts, gradingCriteria, status,
     })
 
     sendCreated(res, { assignment }, "Assignment created")
@@ -56,7 +56,7 @@ export const listAssignmentsHandler = async (
 
     // Students see only their own published assignments via a dedicated endpoint —
     // this general list is teacher/admin only and handled in student.routes.ts
-    const isAdminRole = ["center_admin", "admin", "super_admin"].includes(role)
+    const isAdminRole = ["admin"].includes(role)
     const teacherFilter = !isAdminRole ? req.user!.userId : undefined
 
     const result = await listAssignments({

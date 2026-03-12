@@ -8,11 +8,16 @@ import { sendSuccess, sendBadRequest } from "../utils/response"
 import {
   getPlatformStats,
   getGrowthTimeseries,
+  getUserGrowthTimeseries,
   listCenters,
   getCenterDetail,
   setCenterActive,
   impersonateCenter,
   listUsers,
+  getUserDetail,
+  updateUserRole,
+  setUserActive,
+  deleteUser,
   grantPlan,
   getEssayAnalytics,
 } from "../services/superAdminService"
@@ -152,3 +157,84 @@ export const listUsersHandler = async (
     sendSuccess(res, result)
   } catch (err) { next(err) }
 }
+
+// â”€â”€ GET /api/admin/users/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const getUserDetailHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const user = await getUserDetail(req.params.id as string);
+    sendSuccess(res, { user });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// â”€â”€ PATCH /api/admin/users/:id/role â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const updateUserRoleHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { role } = req.body;
+    if (!role) {
+      sendBadRequest(res, "role is required");
+      return;
+    }
+    const user = await updateUserRole(req.params.id as string, role as string);
+    sendSuccess(res, { user }, "Role updated");
+  } catch (err) {
+    next(err);
+  }
+};
+
+// â”€â”€ PATCH /api/admin/users/:id/active â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const toggleUserActiveHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { isActive } = req.body;
+    if (typeof isActive !== "boolean") {
+      sendBadRequest(res, "isActive (boolean) is required");
+      return;
+    }
+    const user = await setUserActive(req.params.id as string, isActive);
+    sendSuccess(res, { user }, "User updated");
+  } catch (err) {
+    next(err);
+  }
+};
+
+// â”€â”€ DELETE /api/admin/users/:id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const deleteUserHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const result = await deleteUser(req.params.id as string);
+    sendSuccess(res, result, "User deleted");
+  } catch (err) {
+    next(err);
+  }
+};
+
+// â”€â”€ GET /api/admin/analytics/users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+export const userAnalyticsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const days = req.query.days ? parseInt(req.query.days as string, 10) : 30;
+    const data = await getUserGrowthTimeseries(days);
+    sendSuccess(res, data);
+  } catch (err) {
+    next(err);
+  }
+};

@@ -50,6 +50,8 @@ export interface IEssay extends Document {
   // ── Assignment link (Phase 5) ────────────────────────────────────────
   assignmentId?: mongoose.Types.ObjectId; // null = free-write (no assignment)
   classId?: mongoose.Types.ObjectId; // denormalised from assignment for fast queries
+  gradingCriteria?: Record<string, unknown> | null; // snapshot at submission time
+  submittedBy?: "student" | "free_student";
 
   // ── Submission ────────────────────────────────────────────────────────
   taskType: EssayTaskType;
@@ -89,7 +91,7 @@ const EssaySchema = new Schema<IEssay>(
     studentId: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      required: [true, "studentId is required"],
+      required: [true, "studentId là bắt buộc"],
     },
     assignmentId: {
       type: Schema.Types.ObjectId,
@@ -101,18 +103,27 @@ const EssaySchema = new Schema<IEssay>(
       ref: "Class",
       default: null,
     },
+    gradingCriteria: {
+      type: Schema.Types.Mixed,
+      default: null,
+    },
+    submittedBy: {
+      type: String,
+      enum: ["student", "free_student"],
+      default: "student",
+    },
 
     // ── Submission ────────────────────────────────────────────────────
     taskType: {
       type: String,
       enum: ["task1", "task2"],
-      required: [true, "taskType is required"],
+      required: [true, "Loại bài viết là bắt buộc"],
     },
     originalText: {
       type: String,
-      required: [true, "Essay text is required"],
-      minlength: [50, "Essay must be at least 50 characters"],
-      maxlength: [20000, "Essay must be at most 20000 characters"],
+      required: [true, "Nội dung bài viết là bắt buộc"],
+      minlength: [50, "Bài viết phải có ít nhất 50 ký tự"],
+      maxlength: [20000, "Bài viết không được vượt quá 20000 ký tự"],
     },
     wordCount: {
       type: Number,

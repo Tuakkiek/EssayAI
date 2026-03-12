@@ -9,6 +9,10 @@ import improvementRoutes from "./improvement.routes";
 import studentRoutes from "./student.routes";
 import classRoutes from "./class.routes";
 import centerRoutes from "./center.routes";
+import assignmentRoutes from "./assignment.routes";
+import subscriptionRoutes from "./subscription.routes";
+import adminRoutes from "./admin.routes";
+import studentPortalRoutes from "./studentPortal.routes";
 
 const router = Router();
 
@@ -21,9 +25,13 @@ router.use("/essay", essayRoutes);
 router.use("/essays", essayRoutes);
 router.use("/user", userRoutes);
 router.use("/teacher", teacherRoutes);
+router.use("/student", studentPortalRoutes);
 router.use("/upload", updateRoutes);
 router.use("/improvement", improvementRoutes);
 router.use("/students", studentRoutes);
 router.use("/classes", classRoutes);
+router.use("/assignments", assignmentRoutes);
+router.use("/subscription", subscriptionRoutes);
+router.use("/admin", adminRoutes);
 
 export default router;

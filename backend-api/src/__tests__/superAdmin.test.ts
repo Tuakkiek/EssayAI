@@ -131,7 +131,7 @@ describe("Impersonation token", () => {
   const buildImpersonationPayload = (superAdminId: string, centerId: string) => ({
     userId:       superAdminId,
     email:        "super@admin",
-    role:         "super_admin",
+    role:         "admin",
     centerId,
     _impersonate: true,
   })
@@ -143,7 +143,7 @@ describe("Impersonation token", () => {
 
   test("payload preserves super_admin role", () => {
     const p = buildImpersonationPayload("sa1", "c1")
-    expect(p.role).toBe("super_admin")
+    expect(p.role).toBe("admin")
   })
 
   test("payload includes target centerId", () => {

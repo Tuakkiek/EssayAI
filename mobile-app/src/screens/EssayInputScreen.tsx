@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+﻿import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { LoadingOverlay } from "../components/LoadingOverlay";
-import { essayApi, getErrorMessage } from "../services/api";
+import { essayApi, getErrorMessage, extractEssay } from "../services/api";
 import { EssayTaskType } from "../types";
 
 const WORD_TARGET: Record<EssayTaskType, number> = { task2: 250, task1: 150 };
@@ -54,20 +54,17 @@ export default function EssayInputScreen() {
     setLoading(true);
     try {
       const res = await essayApi.submit(essayText, taskType);
-      console.log("[EssayInput] raw response:", JSON.stringify(res.data));
 
       const resData = res.data;
-      console.log("[EssayInput] raw response:", JSON.stringify(resData));
 
-      const payload = resData.data ?? resData;
-      const essayId = payload?.essay?._id ?? payload?._id ?? payload?.id;
+      const essay = extractEssay(resData);
+      const essayId = essay?._id;
 
-      console.log("[EssayInput] essayId extracted:", essayId);
       if (!essayId) {
-        Alert.alert("Error", "Server không trả về essay ID. Vui lòng thử lại.");
+        Alert.alert("Error", "Server khÃ´ng tráº£ vá» essay ID. Vui lÃ²ng thá»­ láº¡i.");
         return;
       }
-      router.replace({ pathname: "/essay/result", params: { essayId } });
+      router.navigate({ pathname: "/essay/result", params: { essayId } });
     } catch (err) {
       Alert.alert("Scoring Failed", getErrorMessage(err), [{ text: "OK" }]);
     } finally {
@@ -89,7 +86,7 @@ export default function EssayInputScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Write Essay</Text>
         <View style={{ width: 60 }} />
@@ -121,7 +118,7 @@ export default function EssayInputScreen() {
                     taskType === t && styles.toggleTextActive,
                   ]}
                 >
-                  {t === "task2" ? "Task 2 — Essay" : "Task 1 — Data"}
+                  {t === "task2" ? "Task 2 â€” Essay" : "Task 1 â€” Data"}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -176,8 +173,8 @@ export default function EssayInputScreen() {
 
           {/* Tips row */}
           <View style={styles.tipsRow}>
-            <Text style={styles.tipChip}>🎯 {target}+ words recommended</Text>
-            <Text style={styles.tipChip}>✏️ Check spelling</Text>
+            <Text style={styles.tipChip}>ðŸŽ¯ {target}+ words recommended</Text>
+            <Text style={styles.tipChip}>âœï¸ Check spelling</Text>
           </View>
         </ScrollView>
 

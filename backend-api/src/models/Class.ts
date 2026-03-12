@@ -4,6 +4,7 @@ import mongoose, { Document, Schema, Model } from "mongoose";
 export interface IClass extends Document {
   centerId: mongoose.Types.ObjectId;
   name: string;
+  code: string;
   teacherId: mongoose.Types.ObjectId; // primary teacher
   studentIds: mongoose.Types.ObjectId[];
   description?: string;
@@ -11,6 +12,27 @@ export interface IClass extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
+
+
+// Helpers: generate unique class code
+const CODE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const CODE_LENGTH = 8;
+
+const generateClassCode = (): string => {
+  let out = "";
+  for (let i = 0; i < CODE_LENGTH; i += 1) {
+    out += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  }
+  return out;
+};
+
+const generateUniqueCode = async (model: Model<IClass>): Promise<string> => {
+  let code = generateClassCode();
+  while (await model.exists({ code })) {
+    code = generateClassCode();
+  }
+  return code;
+};
 
 // ── Schema ───────────────────────────────────────────────────────────
 const ClassSchema = new Schema<IClass>(
@@ -27,17 +49,26 @@ const ClassSchema = new Schema<IClass>(
       minlength: [2, "Name must be at least 2 characters"],
       maxlength: [100, "Name must be at most 100 characters"],
     },
+    code: {
+      type: String,
+      unique: true,
+      uppercase: true,
+      trim: true,
+    },
     teacherId: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: [true, "teacherId is required"],
     },
-    studentIds: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "User",
-      },
-    ],
+    studentIds: {
+      type: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+        },
+      ],
+      default: [],
+    },
     description: {
       type: String,
       maxlength: [500, "Description must be at most 500 characters"],
@@ -60,9 +91,24 @@ const ClassSchema = new Schema<IClass>(
   },
 );
 
-// ── Virtual: student count ────────────────────────────────────────────
+// Hooks
+ClassSchema.pre("validate", async function (next) {
+  try {
+    if (!this.code) {
+      const model = this.model("Class") as Model<IClass>;
+      this.code = await generateUniqueCode(model);
+    } else {
+      this.code = this.code.toUpperCase();
+    }
+    next();
+  } catch (err) {
+    next(err as Error);
+  }
+});
+
+// Virtual: student count
 ClassSchema.virtual("studentCount").get(function (this: IClass) {
-  return this.studentIds.length;
+  return this.studentIds?.length ?? 0;
 });
 
 // ── Indexes ──────────────────────────────────────────────────────────

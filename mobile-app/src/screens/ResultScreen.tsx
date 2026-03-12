@@ -14,7 +14,7 @@ import { ScoreBadge } from "../components/ScoreBadge";
 import ScoreBreakdownCard from "../components/ScoreBreakdownCard";
 import { GrammarErrorCard } from "../components/GrammarErrorCard";
 import { SuggestionsCard } from "../components/SuggestionsCard";
-import { essayApi, getErrorMessage } from "../services/api";
+import { essayApi, getErrorMessage, extractEssay } from "../services/api";
 import { Essay } from "../types";
 
 const POLL_INTERVAL_MS = 3000;
@@ -42,15 +42,7 @@ export default function ResultScreen() {
         // Guard: 304 Not Modified returns empty body — skip and retry
         // res.data can be "", null, or {} depending on axios version
         const raw = res.data;
-        const data: Essay | null = raw?.data?.essay
-          ? raw.data.essay
-          : raw?.data?._id
-            ? raw.data
-            : raw?.essay
-              ? raw.essay
-              : raw?._id
-                ? raw
-                : null; // empty / 304 / unexpected shape
+        const data = extractEssay(raw);
 
         if (data) {
           console.log("[ResultScreen] Extracted essay data:", JSON.stringify(data, null, 2));
@@ -78,7 +70,11 @@ export default function ResultScreen() {
 
         setEssay(data);
 
-        if (data.status === "scored" || data.status === "error") {
+        if (
+          data.status === "scored" ||
+          data.status === "graded" ||
+          data.status === "error"
+        ) {
           // Grading finished — stop polling
           setIsPolling(false);
           setLoading(false);
@@ -114,7 +110,8 @@ export default function ResultScreen() {
   }, [fetchEssay]);
 
   const handleShare = async () => {
-    const finalScore = essay?.score ?? essay?.overallScore;
+    const finalScore =
+      essay?.score ?? essay?.overallScore ?? essay?.overallBand;
     if (!finalScore) return;
     await Share.share({
       message: `I just scored ${finalScore.toFixed(1)} on my IELTS essay using Essay AI! 🎯`,
@@ -224,7 +221,7 @@ export default function ResultScreen() {
         </Text>
         <TouchableOpacity
           style={styles.retryBtn}
-          onPress={() => router.replace("/essay/input" as any)}
+          onPress={() => router.navigate("/essay/input" as any)}
         >
           <Text style={styles.retryText}>Try Again</Text>
         </TouchableOpacity>
@@ -243,7 +240,7 @@ export default function ResultScreen() {
     );
   }
 
-  const finalScore = essay.score ?? essay.overallScore;
+  const finalScore = essay.score ?? essay.overallScore ?? essay.overallBand;
   const scoreColor = finalScore != null
     ? finalScore >= 7
       ? Colors.success

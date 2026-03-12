@@ -11,21 +11,15 @@ import { authApi } from "../services/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type UserRole =
-  | "super_admin"
-  | "center_admin"
-  | "teacher"
-  | "student"
-  | "individual_user";
+export type UserRole = "admin" | "teacher" | "center_student" | "free_student";
 
 export interface User {
   id: string;
   name: string;
   email: string | null;
-  phone: string;
   role: UserRole;
-  accountType?: "CENTER_STUDENT" | "INDIVIDUAL_USER" | "CENTER_STAFF";
   centerId?: string | null;
+  centerName?: string | null;
   mustChangePassword?: boolean;
   avatarUrl?: string | null;
 }
@@ -35,13 +29,18 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  accountType?: "CENTER_STUDENT" | "INDIVIDUAL_USER" | "CENTER_STAFF";
-  centerId?: string | null;
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    role: "free_student" | "teacher",
+    centerName?: string,
+  ) => Promise<User>;
+  redirectAfterLogin: (role: UserRole) => void;
   logout: () => Promise<void>;
   getToken: () => Promise<string | null>;
 }
@@ -108,26 +107,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoading: false,
       isAuthenticated: true,
     });
-
-    // Role-based navigation for dual models
-    switch (user.role) {
-      case "center_admin":
-        router.replace("/teacher/create-center");
-        break;
-      case "teacher":
-        router.replace("/teacher/dashboard");
-        break;
-      case "individual_user":
-        router.replace("/subscription"); // Check plan first
-        break;
-      default: // student
-        router.replace("/");
-    }
+    return user;
   }, []);
 
   const register = useCallback(
-    async (name: string, email: string, password: string) => {
-      const response = await authApi.register(name, email, password);
+    async (
+      name: string,
+      email: string,
+      password: string,
+      role: "free_student" | "teacher",
+      centerName?: string,
+    ) => {
+      const response = await authApi.register(
+        name,
+        email,
+        password,
+        role,
+        centerName,
+      );
       const { token, user } = response.data.data;
 
       await Promise.all([
@@ -141,11 +138,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading: false,
         isAuthenticated: true,
       });
-
-      router.replace("/");
+      return user;
     },
     [],
   );
+
+  const redirectAfterLogin = useCallback((role: UserRole) => {
+    switch (role) {
+      case "admin":
+        router.navigate("/admin/dashboard");
+        break;
+      case "teacher":
+        router.navigate("/teacher/dashboard");
+        break;
+      case "center_student":
+      case "free_student":
+      default:
+        router.navigate("/");
+    }
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -165,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: false,
       });
 
-      router.replace("/login");
+      router.navigate("/login");
     }
   }, []);
 
@@ -175,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ ...state, login, register, logout, getToken }}
+      value={{ ...state, login, register, redirectAfterLogin, logout, getToken }}
     >
       {children}
     </AuthContext.Provider>

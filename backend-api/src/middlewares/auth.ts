@@ -82,8 +82,6 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
  * Must be used AFTER requireAuth.
  * Pass any number of allowed roles.
  *
- * NOTE: "admin" is treated the same as "center_admin" here to support
- * existing tokens during the migration window.
  */
 export const requireRole = (...roles: UserRole[]) =>
   (req: Request, res: Response, next: NextFunction): void => {
@@ -93,11 +91,7 @@ export const requireRole = (...roles: UserRole[]) =>
     }
 
     const userRole = req.user.role
-    // Treat legacy "admin" as "center_admin" for role matching
-    const effectiveRole = userRole === "admin" ? "center_admin" : userRole
-    const normalizedAllowed = roles.map(r => r === "admin" ? "center_admin" : r)
-
-    if (!normalizedAllowed.includes(effectiveRole)) {
+    if (!roles.includes(userRole)) {
       sendForbidden(res, `Access requires role: ${roles.join(" or ")}`)
       return
     }
@@ -158,7 +152,7 @@ export const requirePasswordChanged = async (
   req: Request, res: Response, next: NextFunction
 ): Promise<void> => {
   if (!req.user) { sendUnauthorized(res); return }
-  if (req.user.role !== "student") { next(); return }
+  if (req.user.role !== "center_student") { next(); return }
 
   const { User } = await import("../models/index")
   const user = await User.findById(req.user.userId).select("mustChangePassword")
@@ -177,68 +171,56 @@ export const requirePasswordChanged = async (
  * Example:
  *   router.get("/students", ...requireTeacher, handler)
  */
-export const requireSuperAdmin = [requireAuth, requireRole("super_admin")]
+export const requireSuperAdmin = [requireAuth, requireRole("admin")]
 
-export const requireAdmin = [
-  requireAuth,
-  requireRole("super_admin", "center_admin", "admin"),
-]
+export const requireAdmin = [requireAuth, requireRole("admin")]
 
-export const requireCenterAdmin = [
-  requireAuth,
-  requireRole("center_admin", "admin"),
-  requireCenter,
-]
+export const requireCenterAdmin = [requireAuth, requireRole("admin")]
 
-export const requireTeacher = [
+export const requireTeacher = [requireAuth, requireRole("teacher"), requireCenter]
+
+export const requireCenterStudent = [
   requireAuth,
-  requireRole("super_admin", "center_admin", "admin", "teacher"),
+  requireRole("center_student"),
   requireCenter,
 ]
 
 export const requireStudent = [
   requireAuth,
-  requireRole("student", "teacher", "center_admin", "admin", "super_admin"),
-  requireCenter,
+  requireRole("center_student", "free_student"),
 ]
 
 // ── requireSelfStudent ────────────────────────────────────────────────
 /**
- * Middleware cho student tự đăng ký (không có centerId).
- *
- * Khác với requireStudent (bắt buộc phải có centerId từ trung tâm),
- * middleware này cho phép cả hai trường hợp:
- *   - Student tự đăng ký (centerId = null) → centerFilter = null
- *   - Student từ trung tâm (centerId có giá trị) → centerFilter được set bình thường
- *
- * Dùng cho các route mà cả hai loại student đều có thể truy cập (VD: nộp bài, xem bài).
+ * Middleware cho các tỏa khoản học sinh (center_student & free_student).
  */
-export const requireSelfStudent = (req: Request, res: Response, next: NextFunction): void => {
-  if (!req.user) { sendUnauthorized(res, "Not authenticated"); return }
-
-  const role = req.user.role
-  const allowedRoles: UserRole[] = ["student", "teacher", "center_admin", "admin", "super_admin"]
-  const effectiveRole = role === "admin" ? "center_admin" : role
-
-  if (!allowedRoles.map(r => r === "admin" ? "center_admin" : r).includes(effectiveRole)) {
-    sendForbidden(res, "Access denied"); return
+export const requireSelfStudent = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
+  if (!req.user) {
+    sendUnauthorized(res, "Not authenticated");
+    return;
   }
 
-  // Nếu có centerId → inject centerFilter như bình thường
-  // Nếu không → để centerFilter = undefined (service sẽ handle)
+  const role = req.user.role;
+  const allowedRoles: UserRole[] = ["center_student", "free_student"];
+
+  if (!allowedRoles.includes(role)) {
+    sendForbidden(res, "Access denied");
+    return;
+  }
+
   if (req.user.centerId) {
-    req.centerFilter = { centerId: req.user.centerId }
+    req.centerFilter = { centerId: req.user.centerId };
   }
-  // centerFilter = undefined cho self-registered students → OK
 
-  next()
-}
+  next();
+};
 
 /**
  * Pre-composed array dùng trên các essay/assignment routes
- * để cho phép cả center-student lẫn self-student truy cập.
+ * để cho phép cả center-student lẫn free-student truy cập.
  */
-export const requireAnyStudent = [
-  requireAuth,
-  requireSelfStudent,
-]
+export const requireAnyStudent = [requireAuth, requireSelfStudent]

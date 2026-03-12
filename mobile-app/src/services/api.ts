@@ -50,8 +50,14 @@ export const getErrorMessage = (error: unknown): string => {
 export const authApi = {
   login: (email: string, password: string) =>
     api.post("/api/auth/login", { email, password }),
-  register: (name: string, email: string, password: string) =>
-    api.post("/api/auth/register/student", { name, email, password }),
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    role: "free_student" | "teacher",
+    centerName?: string,
+  ) =>
+    api.post("/api/auth/register", { name, email, password, role, centerName }),
   logout: () => api.post("/api/auth/logout"),
 };
 
@@ -72,8 +78,8 @@ export const essayApi = {
 // ─── Subscription ─────────────────────────────────────────────────────────────
 export const subscriptionApi = {
   getPlans: () => api.get("/api/subscription/plans"),
-  checkout: (planId: string, userId: string) =>
-    api.post("/api/subscription/checkout", { planId, userId }),
+  checkout: (planId: string) =>
+    api.post("/api/subscription/checkout", { planId }),
   getStatus: () => api.get("/api/subscription"),
 };
 
@@ -90,8 +96,74 @@ export const teacherApi = {
   getStudents: () => api.get("/api/teacher/students"),
   getStudentById: (id: string) => api.get(`/api/teacher/students/${id}`),
   getEssays: () => api.get("/api/teacher/essays"),
+  getEssayById: (id: string) => api.get(`/api/teacher/essays/${id}`),
+  getCenterAnalytics: () => api.get("/api/teacher/center/analytics"),
   createCenter: (data: Record<string, unknown>) =>
     api.post("/api/teacher/center", data),
+};
+
+// ─── Teacher - Classes ────────────────────────────────────────────
+export const classApi = {
+  getAll: (params?: object) => api.get("/api/teacher/classes", { params }),
+  getById: (id: string) => api.get(`/api/teacher/classes/${id}`),
+  create: (data: { name: string; description?: string }) =>
+    api.post("/api/teacher/classes", data),
+  delete: (id: string) => api.delete(`/api/teacher/classes/${id}`),
+  getAnalytics: (id: string) => api.get(`/api/teacher/classes/${id}/analytics`),
+  inviteStudent: (classId: string, email: string) =>
+    api.post(`/api/teacher/classes/${classId}/invite`, { email }),
+  removeStudent: (classId: string, studentId: string) =>
+    api.delete(`/api/teacher/classes/${classId}/students/${studentId}`),
+};
+
+// ─── Teacher - Assignments ────────────────────────────────────────
+export const assignmentApi = {
+  getAll: (params?: object) => api.get("/api/teacher/assignments", { params }),
+  getById: (id: string) => api.get(`/api/teacher/assignments/${id}`),
+  create: (data: Record<string, unknown>) =>
+    api.post("/api/teacher/assignments", data),
+  update: (id: string, data: Record<string, unknown>) =>
+    api.put(`/api/teacher/assignments/${id}`, data),
+  publish: (id: string) => api.patch(`/api/teacher/assignments/${id}/publish`),
+  close: (id: string) => api.patch(`/api/teacher/assignments/${id}/close`),
+  delete: (id: string) => api.delete(`/api/teacher/assignments/${id}`),
+  getSubmissions: (id: string) =>
+    api.get(`/api/teacher/assignments/${id}/submissions`),
+};
+
+// ─── Teacher - Submissions ────────────────────────────────────────
+export const submissionApi = {
+  getById: (id: string) => api.get(`/api/teacher/submissions/${id}`),
+  review: (id: string, comment: string) =>
+    api.patch(`/api/teacher/submissions/${id}/review`, { comment }),
+};
+
+// ─── Student ──────────────────────────────────────────────────────
+export const studentApi = {
+  joinClass: (classCode: string) =>
+    api.post("/api/student/join-class", { classCode }),
+  getMyClass: () => api.get("/api/student/my-class"),
+  getAssignments: () => api.get("/api/student/assignments"),
+  getAssignmentById: (id: string) => api.get(`/api/student/assignments/${id}`),
+  submitAssignment: (assignmentId: string, text: string, taskType: string) =>
+    api.post(`/api/student/assignments/${assignmentId}/submit`, {
+      text,
+      taskType,
+    }),
+};
+
+// ─── Admin ────────────────────────────────────────────────────────
+export const adminApi = {
+  getUsers: (params?: object) => api.get("/api/admin/users", { params }),
+  getUserById: (id: string) => api.get(`/api/admin/users/${id}`),
+  updateUserRole: (id: string, role: string) =>
+    api.patch(`/api/admin/users/${id}/role`, { role }),
+  toggleUserActive: (id: string, isActive: boolean) =>
+    api.patch(`/api/admin/users/${id}/active`, { isActive }),
+  deleteUser: (id: string) => api.delete(`/api/admin/users/${id}`),
+  getAnalyticsOverview: () => api.get("/api/admin/analytics/overview"),
+  getAnalyticsEssays: () => api.get("/api/admin/analytics/essays"),
+  getAnalyticsUsers: () => api.get("/api/admin/analytics/users"),
 };
 
 // ─── User ─────────────────────────────────────────────────────────────────────
@@ -104,3 +176,23 @@ export const userApi = {
 };
 
 export default api;
+
+/** Parse essay from any backend response shape */
+export const extractEssay = (raw: unknown): import("../types").Essay | null => {
+  if (!raw || typeof raw !== "object") return null;
+
+  const r = raw as Record<string, unknown>;
+
+  // Priority: data.essay > data > essay > root
+  const candidate =
+    (r.data as Record<string, unknown>)?.essay ??
+    ((r.data as Record<string, unknown>)?._id ? r.data : null) ??
+    (r as Record<string, unknown>)?.essay ??
+    (r._id ? r : null);
+
+  return candidate &&
+    typeof candidate === "object" &&
+    (candidate as Record<string, unknown>)._id
+    ? (candidate as import("../types").Essay)
+    : null;
+};

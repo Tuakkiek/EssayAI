@@ -270,7 +270,7 @@ export const getCenterStats = async (
     topStudentsRes,
   ] = await Promise.all([
     Center.findById(centerId).select("name logoUrl studentCount"),
-    User.countDocuments({ centerId: cid, role: "student" }),
+    User.countDocuments({ centerId: cid, role: "center_student" }),
     Essay.countDocuments({ centerId: cid }),
     Essay.countDocuments({
       centerId: cid,
@@ -307,7 +307,7 @@ export const getCenterStats = async (
       },
       { $sort: { _id: -1 } },
     ]),
-    User.find({ centerId: cid, role: "student" })
+    User.find({ centerId: cid, role: "center_student" })
       .sort({ "stats.averageScore": -1 })
       .limit(5)
       .select("name stats")
@@ -356,7 +356,7 @@ export const getCenterStudents = async (
   const skip = (page - 1) * limit;
   const query: any = {
     centerId: new mongoose.Types.ObjectId(centerId),
-    role: "student",
+    role: "center_student",
   };
   if (search) {
     query.$or = [
@@ -391,7 +391,7 @@ export const getCenterStudents = async (
 export const addStudentToCenter = async (centerId: string, email: string) => {
   const user = await User.findOne({ email: email.toLowerCase() });
   if (!user) throw new AppError("User not found", 404);
-  if (user.role !== "student")
+  if (user.role !== "center_student")
     throw new AppError("Only students can be added to center", 400);
   if (user.centerId?.toString() === centerId) return user; // already added
 

@@ -39,7 +39,7 @@ const run = async () => {
 
   // Find all center_admin users that still have a subscription field
   const admins = await (User as unknown as mongoose.Model<OldUserDoc>).find({
-    role:         { $in: ["center_admin", "admin"] },
+    role:         { $in: ["admin"] },
     "subscription.plan": { $exists: true },
   }).lean()
 

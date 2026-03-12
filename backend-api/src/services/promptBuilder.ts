@@ -1,10 +1,27 @@
-import { EssayTaskType } from "../models/index"
+﻿import { EssayTaskType } from "../models/index"
 
 export interface PromptInput {
   essayText: string
   prompt: string
   taskType: EssayTaskType
   wordCount: number
+  gradingCriteria?: GradingCriteria | null
+}
+
+export interface GradingCriteria {
+  overview?: string
+  requiredVocabulary?: Array<{
+    word: string
+    synonyms?: string[]
+    importance?: "required" | "recommended"
+  }>
+  bandDescriptors?: Array<{
+    band: number
+    descriptor: string
+  }>
+  structureRequirements?: string
+  penaltyNotes?: string
+  additionalNotes?: string
 }
 
 // ── IELTS Band descriptors for context ──────────────────────────────
@@ -29,9 +46,59 @@ Evaluate: task response, coherence & cohesion, lexical resource, grammatical ran
 Minimum expected word count: 250 words.`,
 }
 
+const buildCriteriaSection = (criteria?: GradingCriteria | null): string => {
+  if (!criteria) return "";
+
+  let section = `\n=== TIÊU CHÍ ĐÁNH GIÁ CỦA GIÁO VIÊN ===\n`;
+
+  if (criteria.overview) {
+    section += `Tổng quan: ${criteria.overview}\n`;
+  }
+
+  if (criteria.requiredVocabulary && criteria.requiredVocabulary.length > 0) {
+    section += `\nTừ vựng yêu cầu:\n`;
+    criteria.requiredVocabulary.forEach((v) => {
+      const synonymStr =
+        v.synonyms && v.synonyms.length > 0
+          ? ` (chấp nhận: ${v.synonyms.join(", ")})`
+          : "";
+      const importance = v.importance ?? "required";
+      section += `- "${v.word}"${synonymStr} [${importance}]\n`;
+    });
+    section +=
+      "Nếu bài không có các từ trên hoặc từ đồng nghĩa tương đương, trừ điểm Lexical Resource.\n";
+  }
+
+  if (criteria.bandDescriptors && criteria.bandDescriptors.length > 0) {
+    section += `\nThang điểm:\n`;
+    criteria.bandDescriptors
+      .slice()
+      .sort((a, b) => a.band - b.band)
+      .forEach((d) => {
+        section += `Band ${d.band}: ${d.descriptor}\n`;
+      });
+  }
+
+  if (criteria.structureRequirements) {
+    section += `\nYêu cầu cấu trúc: ${criteria.structureRequirements}\n`;
+  }
+
+  if (criteria.penaltyNotes) {
+    section += `\nLỗi bị trừ điểm nặng: ${criteria.penaltyNotes}\n`;
+  }
+
+  if (criteria.additionalNotes) {
+    section += `\nGhi chú thêm: ${criteria.additionalNotes}\n`;
+  }
+
+  section += `=== KẾT THÚC TIÊU CHÍ ===\n`;
+  return section;
+};
+
 // ── Main prompt builder ──────────────────────────────────────────
 export const buildScoringPrompt = (input: PromptInput): string => {
   const taskInstruction = TASK_INSTRUCTIONS[input.taskType]
+  const criteriaSection = buildCriteriaSection(input.gradingCriteria)
 
   return `Hãy đóng vai một giám khảo IELTS Writing cực kỳ khắt khe và có thâm niên. Nhiệm vụ của bạn là chấm điểm bài Essay sau đây dựa trên 4 tiêu chí: Task Response (hoặc Task Achievement đối với Task 1), Coherence and Cohesion, Lexical Resource, và Grammatical Range Accuracy.
 
@@ -47,6 +114,7 @@ ${taskInstruction}
 
 ĐỀ BÀI (ESSAY PROMPT):
 "${input.prompt}"
+${criteriaSection}
 
 BÀI VIẾT CỦA HỌC VIÊN (${input.wordCount} từ):
 """

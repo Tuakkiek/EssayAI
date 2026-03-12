@@ -309,11 +309,13 @@ export default function ProfileScreen() {
   const displayName = user?.name ?? "—";
   const displayEmail = user?.email ?? "—";
   const displayRole =
-    user?.role === "teacher"
-      ? "Teacher"
-      : user?.role === "center_admin"
-        ? "Center Admin"
-        : "Student";
+    user?.role === "admin"
+      ? "Admin"
+      : user?.role === "teacher"
+        ? "Teacher"
+        : user?.role === "center_student"
+          ? "Center Student"
+          : "Free Student";
 
   const handleSaveName = useCallback(async (newName: string) => {
     await userApi.updateProfile({ name: newName });

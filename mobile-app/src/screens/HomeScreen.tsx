@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,10 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
+import { useAuth } from "../context/AuthContext";
+import { studentApi } from "../services/api";
+import { Assignment } from "../types";
+import { formatDate } from "@/utils/bandColor";
 
 const TASK_CARDS = [
   {
@@ -41,6 +45,21 @@ const TIPS = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+
+  useEffect(() => {
+    if (user?.role !== "center_student") return;
+    studentApi
+      .getAssignments()
+      .then((res) => {
+        const data = res.data?.data?.assignments ?? res.data?.data ?? [];
+        setAssignments(data);
+      })
+      .catch(() => {
+        setAssignments([]);
+      });
+  }, [user?.role]);
 
   return (
     <View style={styles.container}>
@@ -110,6 +129,45 @@ export default function HomeScreen() {
             </View>
           ))}
         </View>
+
+        {user?.role === "center_student" && (
+          <>
+            <Text style={styles.sectionTitle}>Bài tập được giao</Text>
+            {assignments.length > 0 ? (
+              assignments.slice(0, 3).map((a) => (
+                <TouchableOpacity
+                  key={a._id}
+                  style={styles.assignmentCard}
+                  onPress={() => router.push(`/student/assignments/${a._id}`)}
+                >
+                  <Text style={styles.assignmentTitle}>{a.title}</Text>
+                  <Text
+                    style={[
+                      styles.assignmentDue,
+                      new Date(a.dueDate) <
+                        new Date(Date.now() + 86400000) && {
+                        color: Colors.error,
+                      },
+                    ]}
+                  >
+                    ⏰ Hạn: {formatDate(a.dueDate)}
+                  </Text>
+                  {a.mySubmission ? (
+                    <Text style={styles.assignmentSubmitted}>
+                      ✅ Đã nộp · Band{" "}
+                      {a.mySubmission.score?.toFixed(1) ??
+                        a.mySubmission.overallScore?.toFixed(1)}
+                    </Text>
+                  ) : (
+                    <Text style={styles.assignmentPending}>📝 Chưa nộp</Text>
+                  )}
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>Chưa có bài tập nào</Text>
+            )}
+          </>
+        )}
       </ScrollView>
     </View>
   );
@@ -196,4 +254,24 @@ const styles = StyleSheet.create({
   tipBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
   tipIcon: { fontSize: 18, marginRight: Spacing.md, width: 28 },
   tipText: { ...Typography.body, flex: 1 },
+  assignmentCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Shadow.sm,
+  },
+  assignmentTitle: { ...Typography.body, fontWeight: "700" },
+  assignmentDue: { ...Typography.bodySmall, marginTop: 4 },
+  assignmentSubmitted: {
+    ...Typography.caption,
+    color: Colors.success,
+    marginTop: 4,
+  },
+  assignmentPending: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  emptyText: { ...Typography.bodySmall, color: Colors.textMuted },
 });

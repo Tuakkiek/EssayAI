@@ -48,6 +48,7 @@ export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
 
   let attemptNumber = 1;
   let classId: mongoose.Types.ObjectId | undefined = undefined;
+  let criteriaSnapshot: Record<string, unknown> | null = null;
 
   // ── Quota check for self-registered students ──────────────────────
   if (!centerId) {
@@ -134,17 +135,9 @@ export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
       );
     }
 
-    // Min words check (if set)
-    if (
-      assignment.gradingCriteria.minWords &&
-      wordCount < assignment.gradingCriteria.minWords
-    ) {
-      throw new AppError(
-        `Your essay has ${wordCount} words. This assignment requires at least ${assignment.gradingCriteria.minWords} words.`,
-        400,
-      );
-    }
-
+      criteriaSnapshot = assignment.gradingCriteria
+        ? (assignment.gradingCriteria as Record<string, unknown>)
+        : null;
     classId = assignment.classId;
   }
 
@@ -156,6 +149,8 @@ export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
       ? new mongoose.Types.ObjectId(assignmentId)
       : null,
     classId: classId ?? null,
+    gradingCriteria: criteriaSnapshot,
+    submittedBy: centerId ? "student" : "free_student",
     taskType,
     originalText: text.trim(),
     wordCount,
@@ -228,7 +223,7 @@ export const listEssays = async (filter: EssayListFilter) => {
   }
 
   // Center-based students also only see their own essays
-  if (requesterRole === "student" && centerId) {
+  if (requesterRole === "center_student" && centerId) {
     query.studentId = new mongoose.Types.ObjectId(requesterId);
   }
 
@@ -274,13 +269,13 @@ export const getEssay = async (
   }
 
   // Students can only fetch their own
-  if (requesterRole === "student") {
+  if (requesterRole === "center_student") {
     query.studentId = new mongoose.Types.ObjectId(requesterId);
   }
 
   const essay = await Essay.findOne(query)
     .populate("studentId", "name phone")
-    .populate("assignmentId", "title taskType instructions gradingCriteria")
+    .populate("assignmentId", "title taskType prompt gradingCriteria")
     .populate("reviewedBy", "name");
 
   if (!essay) throw new AppError("Essay not found", 404);

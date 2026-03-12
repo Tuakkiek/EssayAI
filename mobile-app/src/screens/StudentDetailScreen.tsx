@@ -11,7 +11,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { getBandColor } from "@/utils/bandColor";
-import api from "../services/api";
+import { teacherApi } from "../services/api";
 
 
 
@@ -49,11 +49,7 @@ export default function StudentDetailScreen() {
 
   const load = useCallback(async () => {
     try {
-      const res = await api.get(`/api/teacher/students/${id}`, {
-        headers: {
-          "x-center-id": "dummy",
-        },
-      });
+      const res = await teacherApi.getStudentById(id);
       const body = res.data;
       if (!body.success) throw new Error(body.message || "Failed to load student");
       setData(body.data);

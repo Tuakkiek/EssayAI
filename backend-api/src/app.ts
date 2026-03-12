@@ -16,6 +16,8 @@ import assignmentRoutes   from "./routes/assignment.routes"
 import essayRoutes        from "./routes/essay.routes"
 import subscriptionRoutes from "./routes/subscription.routes"
 import adminRoutes        from "./routes/admin.routes"
+import teacherRoutes      from "./routes/teacher.routes"
+import studentPortalRoutes from "./routes/studentPortal.routes"
 
 import { errorHandler } from "./middlewares/errorHandler"
 
@@ -61,6 +63,8 @@ export const createApp = (): Application => {
 
   // ── API routes (all prefixed /api) ────────────────────────────────
   app.use("/api/auth",         authRoutes)
+  app.use("/api/teacher",      teacherRoutes)
+  app.use("/api/student",      studentPortalRoutes)
   app.use("/api/students",     studentRoutes)
   app.use("/api/classes",      classRoutes)
   app.use("/api/assignments",  assignmentRoutes)

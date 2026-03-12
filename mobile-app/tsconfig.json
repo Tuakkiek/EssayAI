@@ -3,6 +3,12 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
+      "@/constants/*": [
+        "./src/constants/*"
+      ],
+      "@/utils/*": [
+        "./src/utils/*"
+      ],
       "@/*": [
         "./*"
       ]

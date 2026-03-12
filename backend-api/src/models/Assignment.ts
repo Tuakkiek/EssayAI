@@ -1,127 +1,154 @@
-import mongoose, { Document, Schema, Model } from "mongoose"
+import mongoose, { Document, Schema, Model } from "mongoose";
 
 // ── Types ─────────────────────────────────────────────────────────────
-export type AssignmentTaskType = "task1" | "task2"
-export type AssignmentStatus   = "draft" | "published" | "closed"
+export type AssignmentTaskType = "task1" | "task2";
+export type AssignmentStatus = "draft" | "published" | "closed";
 
-export interface IGradingCriteria {
-  /** Word count minimum the AI should enforce */
-  minWords?:      number
-  /** Extra instructions injected into the AI grading prompt */
-  customPrompt?:  string
-  /** Whether to show band score breakdown to student (default: true) */
-  showBreakdown?: boolean
+export interface IRequiredVocabulary {
+  word: string;
+  synonyms?: string[];
+  importance?: "required" | "recommended";
 }
 
-// ── Interface ─────────────────────────────────────────────────────────
+export interface IBandDescriptor {
+  band: number;
+  descriptor: string;
+}
+
+export interface IGradingCriteria {
+  overview?: string;
+  requiredVocabulary?: IRequiredVocabulary[];
+  bandDescriptors?: IBandDescriptor[];
+  structureRequirements?: string;
+  penaltyNotes?: string;
+  additionalNotes?: string;
+}
+
+// ── Interface ───────────────────────────────────────────────────────────
 export interface IAssignment extends Document {
-  centerId:    mongoose.Types.ObjectId
-  classId:     mongoose.Types.ObjectId
-  teacherId:   mongoose.Types.ObjectId
+  centerId?: mongoose.Types.ObjectId;
+  classId: mongoose.Types.ObjectId;
+  teacherId: mongoose.Types.ObjectId;
 
-  title:       string
-  description?: string
-  taskType:    AssignmentTaskType
+  title: string;
+  description?: string;
+  taskType: AssignmentTaskType;
 
-  /**
-   * The essay prompt shown to students.
-   * For Task 1: usually a description of a chart/diagram.
-   * For Task 2: the discursive question.
-   */
-  instructions: string
+  // Essay prompt
+  prompt: string;
 
-  dueDate?:    Date
-  maxAttempts: number   // how many submissions each student can make (default: 1)
+  // Teacher-defined grading criteria (VSTEP Writing)
+  gradingCriteria?: IGradingCriteria;
 
-  status: AssignmentStatus   // draft → published → closed
+  // Scheduling
+  startDate?: Date | null;
+  dueDate: Date;
 
-  gradingCriteria: IGradingCriteria
+  // State
+  status: AssignmentStatus;
+  maxAttempts: number;
 
   // Denormalised stats (updated async after each submission)
   stats: {
-    submissionCount:  number
-    gradedCount:      number
-    averageScore:     number
-  }
+    submissionCount: number;
+    gradedCount: number;
+    averageScore: number;
+  };
 
-  createdAt: Date
-  updatedAt: Date
+  createdAt: Date;
+  updatedAt: Date;
 }
 
-// ── Schema ────────────────────────────────────────────────────────────
+// ── Schema ───────────────────────────────────────────────────────────
 const AssignmentSchema = new Schema<IAssignment>(
   {
     centerId: {
-      type:     Schema.Types.ObjectId,
-      ref:      "Center",
-      required: [true, "centerId is required"],
+      type: Schema.Types.ObjectId,
+      ref: "Center",
+      default: null,
     },
     classId: {
-      type:     Schema.Types.ObjectId,
-      ref:      "Class",
+      type: Schema.Types.ObjectId,
+      ref: "Class",
       required: [true, "classId is required"],
     },
     teacherId: {
-      type:     Schema.Types.ObjectId,
-      ref:      "User",
+      type: Schema.Types.ObjectId,
+      ref: "User",
       required: [true, "teacherId is required"],
     },
 
     title: {
-      type:      String,
-      required:  [true, "Title is required"],
-      trim:      true,
-      minlength: [3,    "Title must be at least 3 characters"],
-      maxlength: [200,  "Title must be at most 200 characters"],
+      type: String,
+      required: [true, "Title is required"],
+      trim: true,
+      minlength: [3, "Title must be at least 3 characters"],
+      maxlength: [200, "Title must be at most 200 characters"],
     },
 
     description: {
-      type:      String,
+      type: String,
       maxlength: [1000, "Description must be at most 1000 characters"],
-      default:   null,
-    },
-
-    taskType: {
-      type:     String,
-      enum:     ["task1", "task2"],
-      required: [true, "taskType is required"],
-    },
-
-    instructions: {
-      type:      String,
-      required:  [true, "Instructions are required"],
-      minlength: [10,   "Instructions must be at least 10 characters"],
-      maxlength: [5000, "Instructions must be at most 5000 characters"],
-    },
-
-    dueDate: {
-      type:    Date,
       default: null,
     },
 
-    maxAttempts: {
-      type:    Number,
-      default: 1,
-      min:     [1,  "maxAttempts must be at least 1"],
-      max:     [10, "maxAttempts must be at most 10"],
+    taskType: {
+      type: String,
+      enum: ["task1", "task2"],
+      required: [true, "taskType is required"],
     },
 
-    status: {
-      type:    String,
-      enum:    ["draft", "published", "closed"],
-      default: "draft",
+    prompt: {
+      type: String,
+      required: [true, "Prompt is required"],
+      minlength: [10, "Prompt must be at least 10 characters"],
+      maxlength: [5000, "Prompt must be at most 5000 characters"],
     },
 
     gradingCriteria: {
-      minWords:      { type: Number, default: null },
-      customPrompt:  { type: String, default: null, maxlength: 2000 },
-      showBreakdown: { type: Boolean, default: true },
+      overview: { type: String, default: null },
+      requiredVocabulary: [
+        {
+          word: { type: String, default: null },
+          synonyms: { type: [String], default: [] },
+          importance: {
+            type: String,
+            enum: ["required", "recommended"],
+            default: "required",
+          },
+        },
+      ],
+      bandDescriptors: [
+        {
+          band: { type: Number, default: null },
+          descriptor: { type: String, default: null },
+        },
+      ],
+      structureRequirements: { type: String, default: null },
+      penaltyNotes: { type: String, default: null },
+      additionalNotes: { type: String, default: null },
+    },
+
+    startDate: { type: Date, default: null },
+    dueDate: { type: Date, required: [true, "dueDate is required"] },
+
+    status: {
+      type: String,
+      enum: ["draft", "published", "closed"],
+      default: "draft",
+    },
+
+    maxAttempts: {
+      type: Number,
+      default: 1,
+      min: [1, "maxAttempts must be at least 1"],
+      max: [10, "maxAttempts must be at most 10"],
     },
 
     stats: {
       submissionCount: { type: Number, default: 0 },
-      gradedCount:     { type: Number, default: 0 },
-      averageScore:    { type: Number, default: 0, min: 0, max: 9 },
+      gradedCount: { type: Number, default: 0 },
+      averageScore: { type: Number, default: 0, min: 0, max: 9 },
     },
   },
   {
@@ -129,22 +156,21 @@ const AssignmentSchema = new Schema<IAssignment>(
     toJSON: {
       virtuals: true,
       transform: (_doc, ret: Record<string, unknown>) => {
-        const { __v: _v, ...clean } = ret
-        return clean
+        const { __v: _v, ...clean } = ret;
+        return clean;
       },
     },
   }
-)
+);
 
 // ── Indexes ───────────────────────────────────────────────────────────
-AssignmentSchema.index({ centerId: 1, classId: 1, status: 1 })
-AssignmentSchema.index({ centerId: 1, teacherId: 1 })
-AssignmentSchema.index({ classId: 1, dueDate: 1 })
-// Students query: published assignments for their class
-AssignmentSchema.index({ classId: 1, status: 1, dueDate: 1 })
+AssignmentSchema.index({ centerId: 1, classId: 1, status: 1 });
+AssignmentSchema.index({ centerId: 1, teacherId: 1 });
+AssignmentSchema.index({ classId: 1, dueDate: 1 });
+AssignmentSchema.index({ classId: 1, status: 1, dueDate: 1 });
 
 // ── Model ─────────────────────────────────────────────────────────────
 const Assignment: Model<IAssignment> =
-  mongoose.model<IAssignment>("Assignment", AssignmentSchema)
+  mongoose.model<IAssignment>("Assignment", AssignmentSchema);
 
-export default Assignment
+export default Assignment;

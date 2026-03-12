@@ -43,7 +43,7 @@ export const createClass = async (input: CreateClassInput): Promise<IClass> => {
   const teacher = await User.findOne({
     _id: new mongoose.Types.ObjectId(teacherId),
     centerId: new mongoose.Types.ObjectId(centerId),
-    role: { $in: ["teacher", "center_admin", "admin"] },
+    role: { $in: ["teacher", "admin"] },
     isActive: true,
   });
   if (!teacher) {
@@ -135,7 +135,7 @@ export const getClassWithStudents = async (
   const students = await User.find({
     classIds: new mongoose.Types.ObjectId(classId),
     centerId: new mongoose.Types.ObjectId(centerId),
-    role: "student",
+    role: "center_student",
   }).select("name phone isActive stats mustChangePassword");
 
   return { cls, students };
@@ -158,7 +158,7 @@ export const updateClass = async (
     const teacher = await User.findOne({
       _id: new mongoose.Types.ObjectId(input.teacherId),
       centerId: new mongoose.Types.ObjectId(centerId),
-      role: { $in: ["teacher", "center_admin", "admin"] },
+      role: { $in: ["teacher", "admin"] },
       isActive: true,
     });
     if (!teacher) throw new AppError("Teacher not found in this center", 404);
@@ -216,7 +216,7 @@ export const addStudentsToClass = async (
   const validStudents = await User.find({
     _id: { $in: objectIds },
     centerId: new mongoose.Types.ObjectId(centerId),
-    role: "student",
+    role: "center_student",
     isActive: true,
   }).select("_id classIds");
 
@@ -300,18 +300,18 @@ export const getClassStats = async (classId: string, centerId: string) => {
       User.countDocuments({
         classIds: cls._id,
         centerId: new mongoose.Types.ObjectId(centerId),
-        role: "student",
+        role: "center_student",
       }),
       User.countDocuments({
         classIds: cls._id,
         centerId: new mongoose.Types.ObjectId(centerId),
-        role: "student",
+        role: "center_student",
         isActive: true,
       }),
       User.countDocuments({
         classIds: cls._id,
         centerId: new mongoose.Types.ObjectId(centerId),
-        role: "student",
+        role: "center_student",
         mustChangePassword: true,
       }),
     ]);

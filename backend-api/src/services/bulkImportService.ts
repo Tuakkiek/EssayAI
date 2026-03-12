@@ -296,7 +296,7 @@ export const bulkImportStudents = async (
       name: item.row.name.trim(),
       phone: item.row.phone,
       passwordHash: item.passwordHash,
-      role: "student" as const,
+      role: "center_student" as const,
       centerId: centerObjectId,
       classIds: item.classId ? [item.classId] : [],
       isActive: true,

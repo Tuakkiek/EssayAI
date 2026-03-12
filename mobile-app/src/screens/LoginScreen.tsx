@@ -6,33 +6,59 @@ import {
 import { useRouter } from "expo-router"
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme"
 import { useAuth } from "../context/AuthContext"
+import { getErrorMessage } from "../services/api"
 
 type Mode = "login" | "register"
 
 export default function LoginScreen() {
   const router = useRouter()
-  const { login, register } = useAuth()
+  const { login, register, redirectAfterLogin } = useAuth()
   const [mode,     setMode]     = useState<Mode>("login")
   const [name,     setName]     = useState("")
   const [email,    setEmail]    = useState("")
   const [password, setPassword] = useState("")
+  const [role,     setRole]     = useState<"free_student" | "teacher">("free_student")
+  const [centerName, setCenterName] = useState("")
   const [loading,  setLoading]  = useState(false)
 
   const handleSubmit = async () => {
-    if (!email.trim() || !password.trim()) {
+    const emailValue = email.trim()
+    const nameValue = name.trim()
+    const centerValue = centerName.trim()
+
+    if (!emailValue || !password.trim()) {
       Alert.alert("Missing fields", "Please fill in all fields.")
+      return
+    }
+    if (mode === "register" && !nameValue) {
+      Alert.alert("Missing fields", "Please enter your full name.")
+      return
+    }
+    if (mode === "register" && role === "teacher" && !centerValue) {
+      Alert.alert("Missing fields", "Please enter your center name.")
+      return
+    }
+    if (!/^\S+@\S+\.\S+$/.test(emailValue)) {
+      Alert.alert("Invalid email", "Please enter a valid email address.")
       return
     }
     setLoading(true)
     try {
       if (mode === "login") {
-        await login(email.trim(), password)
+        const loggedInUser = await login(emailValue, password)
+        redirectAfterLogin(loggedInUser.role)
       } else {
-        await register(name.trim(), email.trim(), password)
+        const registeredUser = await register(
+          nameValue,
+          emailValue,
+          password,
+          role,
+          centerValue || undefined,
+        )
+        redirectAfterLogin(registeredUser.role)
       }
-      // Note: Navigation is handled inside login/register functions in AuthContext
     } catch (err) {
-      Alert.alert("Error", err instanceof Error ? err.message : "Something went wrong")
+      Alert.alert("Error", getErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -90,6 +116,53 @@ export default function LoginScreen() {
             />
           </View>
 
+          {mode === "register" && (
+            <>
+              <View style={styles.field}>
+                <Text style={styles.label}>Bạn là</Text>
+                <View style={styles.roleRow}>
+                  {[
+                    { value: "free_student", label: "🎓 Học sinh", desc: "Luyện tập tự do" },
+                    { value: "teacher", label: "📚 Giáo viên", desc: "Quản lý lớp học" },
+                  ].map((r) => (
+                    <TouchableOpacity
+                      key={r.value}
+                      style={[
+                        styles.roleCard,
+                        role === r.value && styles.roleCardActive,
+                      ]}
+                      onPress={() => setRole(r.value as any)}
+                    >
+                      <Text style={styles.roleCardLabel}>{r.label}</Text>
+                      <Text
+                        style={[
+                          styles.roleCardDesc,
+                          role === r.value && { color: Colors.primary },
+                        ]}
+                      >
+                        {r.desc}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {role === "teacher" && (
+                <View style={styles.field}>
+                  <Text style={styles.label}>Tên trung tâm / Tổ chức *</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={centerName}
+                    onChangeText={setCenterName}
+                    placeholder="VD: Trung tâm Anh ngữ ABC"
+                    placeholderTextColor={Colors.textMuted}
+                    autoCapitalize="words"
+                  />
+                </View>
+              )}
+            </>
+          )}
+
           <View style={styles.field}>
             <Text style={styles.label}>Password</Text>
             <TextInput
@@ -117,7 +190,7 @@ export default function LoginScreen() {
           </TouchableOpacity>
 
           {/* Guest mode */}
-          <TouchableOpacity style={styles.guestBtn} onPress={() => router.replace("/")}>
+          <TouchableOpacity style={styles.guestBtn} onPress={() => router.navigate("/")}>
             <Text style={styles.guestText}>Continue as Guest</Text>
           </TouchableOpacity>
         </View>
@@ -142,6 +215,11 @@ const styles = StyleSheet.create({
   field:           {},
   label:           { ...Typography.label, marginBottom: Spacing.xs },
   input:           { backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1, borderColor: Colors.border, paddingHorizontal: Spacing.lg, paddingVertical: 14, ...Typography.body },
+  roleRow:         { flexDirection: "row", gap: Spacing.md },
+  roleCard:        { flex: 1, backgroundColor: Colors.surface, borderRadius: Radius.md, borderWidth: 1.5, borderColor: Colors.border, padding: Spacing.md, alignItems: "center", gap: 4 },
+  roleCardActive:  { borderColor: Colors.primary, backgroundColor: Colors.primaryLight },
+  roleCardLabel:   { ...Typography.body, fontWeight: "700" },
+  roleCardDesc:    { ...Typography.caption, color: Colors.textMuted, textAlign: "center" },
   submitBtn:       { backgroundColor: Colors.primary, borderRadius: Radius.lg, paddingVertical: 16, alignItems: "center", ...Shadow.md, marginTop: Spacing.sm },
   submitDisabled:  { backgroundColor: Colors.textMuted },
   submitText:      { fontSize: 16, fontWeight: "700", color: Colors.surface },

@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express"
+import mongoose from "mongoose"
 import { logger } from "../utils/logger"
 import { env } from "../config/env"
 
@@ -20,8 +21,21 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  const statusCode = "statusCode" in err ? err.statusCode : 500
-  const message = err.message || "Internal Server Error"
+  let statusCode = "statusCode" in err ? err.statusCode : 500
+  let message = err.message || "Internal Server Error"
+
+  if (err instanceof mongoose.Error.ValidationError) {
+    statusCode = 400
+    const messages = Object.values(err.errors).map((e) => e.message)
+    if (messages.length > 0) message = messages.join(", ")
+  } else if (err instanceof mongoose.Error.CastError) {
+    statusCode = 400
+    message = `Invalid ${err.path}`
+  } else if ((err as any)?.name === "MongoServerError" && (err as any)?.code === 11000) {
+    statusCode = 409
+    const key = Object.keys((err as any)?.keyValue ?? {})[0]
+    message = key ? `${key} already exists` : "Duplicate key"
+  }
 
   logger.error(`${req.method} ${req.originalUrl} — ${message}`, {
     statusCode,
