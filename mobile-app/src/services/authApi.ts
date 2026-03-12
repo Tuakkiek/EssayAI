@@ -1,7 +1,7 @@
 import { authApi as apiAuthApi } from "./api"
 import * as SecureStore from "expo-secure-store"
 
-const TOKEN_KEY = "essay_ai_token"
+const TOKEN_KEY = "authToken"
 
 export const saveToken = async (token: string) => {
   await SecureStore.setItemAsync(TOKEN_KEY, token)
