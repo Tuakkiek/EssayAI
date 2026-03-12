@@ -1,20 +1,26 @@
-# TODO: Fix Essay Duplicate Key Bug
+# EssayAI Fix Progress
 
-## Plan Breakdown (Approved)
+## ✅ Completed
 
-**Step 1 [PENDING]** ✅ Create TODO.md (this file)
+- [x] Created `backend-api/.env.example` with `GOOGLE_AI_MODEL=gemini-1.5-flash`
+- [x] Fixed `gemini.ts`: model fallback → "gemini-1.5-flash" (no more 404 default)
+- [x] Fixed `gradingService.ts`:
+  - Catch block: `JSON.stringify(err)` for plain objects like `{status:404}`
+  - Logs full error details
+  - `errorMessage: msg` → essay status → "error" properly
 
-**Step 2 [✅ DONE]** Edit `backend-api/src/services/essayService.ts`:
+## ⏳ Next Steps
 
-- Added `attemptNumber` computation for free-writes (lifetime sequential per student)
-- Fixed duplicate `classId` declaration and redundant assignment queries
+1. **Copy to .env**: Edit `backend-api/.env` → `GOOGLE_AI_MODEL=gemini-1.5-flash`
+2. **Restart**: `cd backend-api && npm run dev`
+3. **Test**: Submit essay → expect `[Gemini] Model: gemini-1.5-flash` + `[Grading] ✅ Done`
 
-**Step 3 [✅ DONE]** Edit `backend-api/src/models/Essay.ts`:
+Expected logs:
 
-- Updated unique index `{ studentId: 1, assignmentId: 1, centerId: 1, attemptNumber: 1 }`
-
-**Step 4 [✅ SKIPPED]** Unit tests (manual verification recommended after backend restart)
-
-**Step 5 [MANUAL]** Backend restart + test frontend essay submissions
-
-**Step 6 [DONE]** ✅ attempt_completion
+```
+[Gemini] Model: gemini-1.5-flash
+[Grading] ▶ Start — essayId=...
+[Grading] Calling Gemini...
+[Grading] Gemini responded in XXXms...
+[Grading] ✅ Done — essayId=..., score=6.5
+```

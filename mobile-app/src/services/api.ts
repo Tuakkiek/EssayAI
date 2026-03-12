@@ -2,10 +2,11 @@ import axios, { AxiosError } from "axios";
 import * as SecureStore from "expo-secure-store";
 import { ApiResponse } from "../types";
 import { API_ROOT_URL } from "../config/api";
+
 // Base URL from Expo config
 const api = axios.create({
   baseURL: API_ROOT_URL,
-  timeout: 10000,
+  timeout: 30000, // increased to 30s for AI grading responses
   headers: { "Content-Type": "application/json" },
 });
 
@@ -29,10 +30,10 @@ api.interceptors.response.use(
       error.friendlyMessage = "Server error. Please try again later.";
     }
     return Promise.reject(error);
-  }
+  },
 );
 
-// ─── Error helper ───────────────────────────────────────────────────────
+// ─── Error helper ────────────────────────────────────────────────────────────
 export const getErrorMessage = (error: unknown): string => {
   if (error instanceof AxiosError) {
     if ((error as any).friendlyMessage) {
@@ -59,7 +60,13 @@ export const essayApi = {
   submit: (text: string, taskType: "task1" | "task2", assignmentId?: string) =>
     api.post("/api/essays", { text, taskType, assignmentId }),
   getHistory: () => api.get("/api/essays"),
-  getById: (id: string) => api.get(`/api/essays/${id}`),
+  // Add cache-busting param + headers to prevent 304 Not Modified
+  // during polling (304 returns empty body which breaks parsing)
+  getById: (id: string) =>
+    api.get(`/api/essays/${id}`, {
+      params: { _t: Date.now() },
+      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    }),
 };
 
 // ─── Subscription ─────────────────────────────────────────────────────────────
@@ -88,6 +95,3 @@ export const teacherApi = {
 };
 
 export default api;
-
-
-

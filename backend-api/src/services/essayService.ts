@@ -47,7 +47,7 @@ export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
   const wordCount = countWords(text);
 
   let attemptNumber = 1;
-  let classId: mongoose.Types.ObjectId | undefined;
+  let classId: mongoose.Types.ObjectId | undefined = undefined;
 
   // ── Quota check for self-registered students ──────────────────────
   if (!centerId) {
@@ -75,8 +75,6 @@ export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
     });
     attemptNumber = previousFreeWrites + 1;
   }
-
-  let classId: mongoose.Types.ObjectId | undefined;
 
   // ── Assignment validation ─────────────────────────────────────────
   if (assignmentId) {
@@ -181,6 +179,11 @@ export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
     $set: { "stats.lastActiveAt": new Date() },
   }).catch(() => {
     /* non-critical */
+  });
+
+  // Trigger async grading (fire-and-forget)
+  gradeEssayAsync(essay._id.toString()).catch((err) => {
+    logger.error("[submitEssay] Unhandled grading error:", err);
   });
 
   return essay;
@@ -332,11 +335,17 @@ export interface GradeEssayResult {
   suggestions: IEssay["suggestions"];
 }
 
+import { logger } from "../utils/logger";
+import { gradeEssayAsync } from "./gradingService";
+
 export const saveGradingResult = async (
   essayId: string,
   result: GradeEssayResult | { error: string },
 ): Promise<void> => {
+  logger.info(`[Grading] saveGradingResult called for essayId=${essayId}`);
+
   if ("error" in result) {
+    logger.error("[Grading] FAILED:", result.error);
     await Essay.findByIdAndUpdate(essayId, {
       status: "error",
       errorMessage: result.error,
@@ -348,7 +357,7 @@ export const saveGradingResult = async (
     result;
 
   await Essay.findByIdAndUpdate(essayId, {
-    status: "graded",
+    status: "scored",
     overallScore,
     scoreBreakdown,
     feedback,
@@ -357,6 +366,9 @@ export const saveGradingResult = async (
     gradedAt: new Date(),
     errorMessage: null,
   });
+  logger.info(
+    `[Grading] Success for essayId=${essayId}, score=${overallScore}`,
+  );
 
   // Recompute student averageScore (async, non-blocking)
   const essay = await Essay.findById(essayId).select("studentId centerId");
@@ -365,7 +377,7 @@ export const saveGradingResult = async (
       {
         $match: {
           studentId: essay.studentId,
-          status: "graded",
+          status: "scored",
         },
       },
       {

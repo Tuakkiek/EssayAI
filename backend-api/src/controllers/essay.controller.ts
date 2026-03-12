@@ -7,6 +7,7 @@
  */
 
 import { Request, Response, NextFunction } from "express"
+import mongoose from "mongoose"
 import { sendSuccess, sendCreated, sendBadRequest } from "../utils/response"
 import {
   submitEssay,
@@ -15,6 +16,9 @@ import {
   reviewEssay,
   deleteEssay,
 } from "../services/essayService"
+
+const isValidObjectId = (id: unknown): id is string =>
+  typeof id === "string" && mongoose.Types.ObjectId.isValid(id)
 
 // ── POST /api/essays ───────────────────────────────────────────────────
 export const submitEssayHandler = async (
@@ -50,6 +54,14 @@ export const listEssaysHandler = async (
 ): Promise<void> => {
   try {
     const { assignmentId, classId, status, isReviewed, page, limit } = req.query
+    if (assignmentId && !isValidObjectId(assignmentId)) {
+      sendBadRequest(res, "Invalid assignment id")
+      return
+    }
+    if (classId && !isValidObjectId(classId)) {
+      sendBadRequest(res, "Invalid class id")
+      return
+    }
 
     const result = await listEssays({
       centerId:      req.centerFilter?.centerId ?? null,
@@ -74,6 +86,10 @@ export const getEssayHandler = async (
   req: Request, res: Response, next: NextFunction
 ): Promise<void> => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      sendBadRequest(res, "Invalid essay id")
+      return
+    }
     const essay = await getEssay(
       req.params.id as string,
       req.user!.userId,
@@ -89,6 +105,10 @@ export const reviewEssayHandler = async (
   req: Request, res: Response, next: NextFunction
 ): Promise<void> => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      sendBadRequest(res, "Invalid essay id")
+      return
+    }
     const { note } = req.body
     const essay = await reviewEssay(
       req.params.id as string,
@@ -105,6 +125,10 @@ export const deleteEssayHandler = async (
   req: Request, res: Response, next: NextFunction
 ): Promise<void> => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      sendBadRequest(res, "Invalid essay id")
+      return
+    }
     await deleteEssay(
       req.params.id as string,
       req.user!.userId,
