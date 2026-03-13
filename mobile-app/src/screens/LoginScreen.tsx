@@ -12,7 +12,7 @@ type Mode = "login" | "register"
 
 export default function LoginScreen() {
   const router = useRouter()
-  const { login, register, redirectAfterLogin } = useAuth()
+  const { login, register } = useAuth()
   const [mode,     setMode]     = useState<Mode>("login")
   const [name,     setName]     = useState("")
   const [phone,    setPhone]    = useState("")
@@ -51,10 +51,9 @@ export default function LoginScreen() {
     Keyboard.dismiss()
     try {
       if (mode === "login") {
-        const loggedInUser = await login(phoneValue, password)
-        redirectAfterLogin(loggedInUser.role)
+        await login(phoneValue, password)
       } else {
-        const registeredUser = await register(
+        await register(
           nameValue,
           phoneValue,
           password,
@@ -62,7 +61,6 @@ export default function LoginScreen() {
           role,
           centerValue || undefined,
         )
-        redirectAfterLogin(registeredUser.role)
       }
     } catch (err) {
       Alert.alert("Error", getErrorMessage(err))

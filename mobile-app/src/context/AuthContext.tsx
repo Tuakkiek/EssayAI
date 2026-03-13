@@ -42,7 +42,6 @@ interface AuthContextValue extends AuthState {
     role: "free_student" | "teacher",
     centerName?: string,
   ) => Promise<User>;
-  redirectAfterLogin: (role: UserRole) => void;
   refreshUser: (partial?: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
   getToken: () => Promise<string | null>;
@@ -148,24 +147,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const redirectAfterLogin = useCallback((role: UserRole) => {
-    // Slight delay to allow Keyboard.dismiss() layout animation to finish before unmounting LoginScreen
-    setTimeout(() => {
-      switch (role) {
-        case "admin":
-          router.replace("/admin/dashboard");
-          break;
-        case "teacher":
-          router.replace("/teacher/dashboard");
-          break;
-        case "center_student":
-        case "free_student":
-        default:
-          router.replace("/");
-      }
-    }, 100);
-  }, []);
-
   const refreshUser = useCallback(async (partial: Partial<User> = {}) => {
     let nextUser: User | null = null;
 
@@ -213,7 +194,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ...state,
         login,
         register,
-        redirectAfterLogin,
         refreshUser,
         logout,
         getToken,
