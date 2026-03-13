@@ -63,7 +63,12 @@ export default function TeacherAssignmentSubmissionsScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity
             style={styles.card}
-            onPress={() => router.push({ pathname: "/essay/result", params: { essayId: item._id } })}
+            onPress={() =>
+              router.push({
+                pathname: "/teacher/essays/[essayId]",
+                params: { essayId: item._id },
+              })
+            }
             activeOpacity={0.8}
           >
             <Text style={styles.title}>{item.studentId?.name ?? "Học sinh"}</Text>

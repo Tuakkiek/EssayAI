@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+﻿import axios, { AxiosError } from "axios";
 import * as SecureStore from "expo-secure-store";
 import { ApiResponse } from "../types";
 import { API_ROOT_URL } from "../config/api";
@@ -33,7 +33,7 @@ api.interceptors.response.use(
   },
 );
 
-// ─── Error helper ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Error helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const getErrorMessage = (error: unknown): string => {
   if (error instanceof AxiosError) {
     if ((error as any).friendlyMessage) {
@@ -46,7 +46,7 @@ export const getErrorMessage = (error: unknown): string => {
   return "Unknown error";
 };
 
-// ─── Auth ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const authApi = {
   login: (phone: string, password: string) =>
     api.post("/api/auth/login", { phone, password }),
@@ -69,7 +69,7 @@ export const authApi = {
   logout: () => api.post("/api/auth/logout"),
 };
 
-// ─── Essays ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Essays â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const essayApi = {
   submit: (text: string, assignmentId?: string) =>
     api.post("/api/essays", { text, assignmentId }),
@@ -84,7 +84,7 @@ export const essayApi = {
     }),
 };
 
-// ─── Subscription ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Subscription â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const subscriptionApi = {
   getPlans: () => api.get("/api/subscription/plans"),
   checkout: (planId: string) =>
@@ -92,7 +92,7 @@ export const subscriptionApi = {
   getStatus: () => api.get("/api/subscription"),
 };
 
-// ─── Improvement ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Improvement â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const improvementApi = {
   getProgress: () => api.get("/api/improvement/progress"),
   getVocabulary: () => api.get("/api/improvement/vocabulary"),
@@ -100,7 +100,7 @@ export const improvementApi = {
   getPhrases: () => api.get("/api/improvement/phrases"),
 };
 
-// ─── Teacher ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Teacher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const teacherApi = {
   getStudents: () => api.get("/api/teacher/students"),
   getStudentById: (id: string) => api.get(`/api/teacher/students/${id}`),
@@ -111,7 +111,7 @@ export const teacherApi = {
     api.post("/api/teacher/center", data),
 };
 
-// ─── Teacher - Classes ────────────────────────────────────────────
+// â”€â”€â”€ Teacher - Classes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const classApi = {
   getAll: (params?: object) => api.get("/api/teacher/classes", { params }),
   getById: (id: string) => api.get(`/api/teacher/classes/${id}`),
@@ -133,7 +133,7 @@ export const classApi = {
     api.delete(`/api/teacher/classes/${classId}/students/${studentId}`),
 };
 
-// ─── Teacher - Assignments ────────────────────────────────────────
+// â”€â”€â”€ Teacher - Assignments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const assignmentApi = {
   getAll: (params?: object) => api.get("/api/teacher/assignments", { params }),
   getById: (id: string) => api.get(`/api/teacher/assignments/${id}`),
@@ -148,27 +148,31 @@ export const assignmentApi = {
     api.get(`/api/teacher/assignments/${id}/submissions`),
 };
 
-// ─── Teacher - Submissions ────────────────────────────────────────
+// â”€â”€â”€ Teacher - Submissions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const submissionApi = {
   getById: (id: string) => api.get(`/api/teacher/submissions/${id}`),
   review: (id: string, comment: string) =>
     api.patch(`/api/teacher/submissions/${id}/review`, { comment }),
 };
 
-// ─── Student ──────────────────────────────────────────────────────
+// â”€â”€â”€ Student â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const studentApi = {
   joinClass: (classCode: string) =>
     api.post("/api/student/join-class", { classCode }),
   getMyClass: () => api.get("/api/student/my-class"),
   getAssignments: () => api.get("/api/student/assignments"),
-  getAssignmentById: (id: string) => api.get(`/api/student/assignments/${id}`),
+  getAssignmentById: (id: string) =>
+    api.get(`/api/student/assignments/${id}`, {
+      params: { _t: Date.now() },
+      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    }),
   submitAssignment: (assignmentId: string, text: string) =>
     api.post(`/api/student/assignments/${assignmentId}/submit`, {
       text,
     }),
 };
 
-// ─── Admin ────────────────────────────────────────────────────────
+// â”€â”€â”€ Admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const adminApi = {
   getUsers: (params?: object) => api.get("/api/admin/users", { params }),
   getUserById: (id: string) => api.get(`/api/admin/users/${id}`),
@@ -182,7 +186,7 @@ export const adminApi = {
   getAnalyticsUsers: () => api.get("/api/admin/analytics/users"),
 };
 
-// ─── User ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ User â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const userApi = {
   updateProfile: (data: { name?: string; avatarUrl?: string }) =>
     api.patch("/api/user/profile", data),
@@ -202,8 +206,10 @@ export const extractEssay = (raw: unknown): import("../types").Essay | null => {
   // Priority: data.essay > data > essay > root
   const candidate =
     (r.data as Record<string, unknown>)?.essay ??
+    (r.data as Record<string, unknown>)?.submission ??
     ((r.data as Record<string, unknown>)?._id ? r.data : null) ??
     (r as Record<string, unknown>)?.essay ??
+    (r as Record<string, unknown>)?.submission ??
     (r._id ? r : null);
 
   return candidate &&
@@ -212,3 +218,4 @@ export const extractEssay = (raw: unknown): import("../types").Essay | null => {
     ? (candidate as import("../types").Essay)
     : null;
 };
+

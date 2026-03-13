@@ -30,14 +30,14 @@ const MAX_POLL_ATTEMPTS = 40;
 
 // â”€â”€â”€ Score accent colors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const getScoreTheme = (score: number | null | undefined) => {
-  if (score == null) return { accent: "#94A3B8", bg: "#F1F5F9", label: "â€”" };
+  if (score == null) return { accent: "#94A3B8", bg: "#F1F5F9", label: "—" };
   if (score >= 7.5)
-    return { accent: "#0EA5E9", bg: "#E0F2FE", label: "Xuáº¥t sáº¯c" };
-  if (score >= 7) return { accent: "#10B981", bg: "#D1FAE5", label: "Tá»‘t" };
-  if (score >= 6) return { accent: "#F59E0B", bg: "#FEF3C7", label: "KhÃ¡" };
+    return { accent: "#0EA5E9", bg: "#E0F2FE", label: "Xuất sắc" };
+  if (score >= 7) return { accent: "#10B981", bg: "#D1FAE5", label: "Tốt" };
+  if (score >= 6) return { accent: "#F59E0B", bg: "#FEF3C7", label: "Khá" };
   if (score >= 5)
-    return { accent: "#F97316", bg: "#FFEDD5", label: "Trung bÃ¬nh" };
-  return { accent: "#EF4444", bg: "#FEE2E2", label: "Cáº§n cáº£i thiá»‡n" };
+    return { accent: "#F97316", bg: "#FFEDD5", label: "Trung bình" };
+  return { accent: "#EF4444", bg: "#FEE2E2", label: "Cần cải thiện" };
 };
 
 export default function ResultScreen() {
@@ -50,6 +50,7 @@ export default function ResultScreen() {
   const { user } = useAuth();
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const historyRoute = isTeacher ? "/teacher/essays" : "/history";
+  const historyLabel = isTeacher ? "Bài luận" : "Lịch sử";
   const [essay, setEssay] = useState<Essay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +77,10 @@ export default function ResultScreen() {
     ]).start();
   }, [fadeAnim, slideAnim]);
 
+  const handleBack = useCallback(() => {
+    router.replace(historyRoute as any);
+  }, [router, historyRoute]);
+
   const fetchEssay = useCallback(
     async (attempt = 0) => {
       try {
@@ -98,7 +103,7 @@ export default function ResultScreen() {
           } else {
             setLoading(false);
             setError(
-              "QuÃ¡ trÃ¬nh cháº¥m Ä‘iá»ƒm Ä‘ang máº¥t nhiá»u thá»i gian hÆ¡n dá»± kiáº¿n. Vui lÃ²ng kiá»ƒm tra láº¡i trong má»¥c Lá»‹ch sá»­ sau Ã­t phÃºt.",
+              `Quá trình chấm điểm đang mất nhiều thời gian hơn dự kiến. Vui lòng kiểm tra lại trong mục ${historyLabel} sau ít phút.`,
             );
           }
           return;
@@ -121,7 +126,7 @@ export default function ResultScreen() {
           setIsPolling(false);
           setLoading(false);
           setError(
-            "Há»‡ thá»‘ng Ä‘ang báº­n. Vui lÃ²ng kiá»ƒm tra káº¿t quáº£ trong má»¥c Lá»‹ch sá»­ sau.",
+            `Hệ thống đang bận. Vui lòng kiểm tra kết quả trong mục ${historyLabel} sau.`,
           );
         }
       } catch (err) {
@@ -130,7 +135,7 @@ export default function ResultScreen() {
         setIsPolling(false);
       }
     },
-    [essayId, user?.role, animateIn],
+    [essayId, user?.role, historyLabel, animateIn],
   );
 
   useEffect(() => {
@@ -145,7 +150,7 @@ export default function ResultScreen() {
       essay?.score ?? essay?.overallScore ?? essay?.overallBand;
     if (!finalScore) return;
     await Share.share({
-      message: `TÃ´i vá»«a Ä‘áº¡t Ä‘Æ°á»£c ${finalScore.toFixed(1)} Ä‘iá»ƒm cho bÃ i viáº¿t IELTS cá»§a mÃ¬nh nhá» Essay AI!`,
+      message: `Tôi vừa đạt được ${finalScore.toFixed(1)} điểm cho bài viết IELTS của mình nhờ Essay AI!`,
     });
   };
 
@@ -161,10 +166,10 @@ export default function ResultScreen() {
             color="#0EA5E9"
             style={{ marginBottom: 20 }}
           />
-          <Text style={styles.loadingTitle}>Äang cháº¥m bÃ i{dots}</Text>
+          <Text style={styles.loadingTitle}>Đang chấm bài{dots}</Text>
           <Text style={styles.loadingSubtitle}>
-            GiÃ¡m kháº£o AI Ä‘ang phÃ¢n tÃ­ch chi tiáº¿t bÃ i viáº¿t cá»§a báº¡n.{"\n"}ThÆ°á»ng
-            máº¥t tá»« 15â€“40 giÃ¢y.
+            Giám khảo AI đang phân tích chi tiết bài viết của bạn.{"\n"}Thường
+            mất từ 15–40 giây.
           </Text>
           {elapsed > 10 && (
             <View style={styles.elapsedPill}>
@@ -184,18 +189,18 @@ export default function ResultScreen() {
           <View style={styles.errorIconWrap}>
             <Text style={styles.errorIcon}>!</Text>
           </View>
-          <Text style={styles.errorTitle}>KhÃ´ng thá»ƒ táº£i káº¿t quáº£</Text>
+          <Text style={styles.errorTitle}>Không thể tải kết quả</Text>
           <Text style={styles.errorBody}>
-            {error ?? "KhÃ´ng thá»ƒ táº£i káº¿t quáº£ bÃ i viáº¿t"}
+            {error ?? "Không thể tải kết quả bài viết"}
           </Text>
           <TouchableOpacity
             style={styles.primaryBtn}
             onPress={() => router.replace(historyRoute as any)}
           >
-            <Text style={styles.primaryBtnText}>Xem Lá»‹ch sá»­</Text>
+            <Text style={styles.primaryBtnText}>Xem {historyLabel}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.ghostBtn} onPress={() => router.replace(historyRoute as any)}>
-            <Text style={styles.ghostBtnText}>Quay láº¡i</Text>
+          <TouchableOpacity style={styles.ghostBtn} onPress={handleBack}>
+            <Text style={styles.ghostBtnText}>Quay lại</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -210,22 +215,22 @@ export default function ResultScreen() {
           <View style={[styles.errorIconWrap, { backgroundColor: "#FEF3C7" }]}>
             <Text style={[styles.errorIcon, { color: "#F59E0B" }]}>~</Text>
           </View>
-          <Text style={styles.errorTitle}>Cháº¥m Ä‘iá»ƒm tháº¥t báº¡i</Text>
+          <Text style={styles.errorTitle}>Chấm điểm thất bại</Text>
           <Text style={styles.errorBody}>
             {essay.errorMessage ??
-              "GiÃ¡m kháº£o AI gáº·p sá»± cá»‘ ká»¹ thuáº­t. Vui lÃ²ng thá»­ gá»­i láº¡i bÃ i viáº¿t."}
+              "Giám khảo AI gặp sự cố kỹ thuật. Vui lòng thử gửi lại bài viết."}
           </Text>
           <TouchableOpacity
             style={styles.primaryBtn}
             onPress={() => router.navigate("/essay/input" as any)}
           >
-            <Text style={styles.primaryBtnText}>Thá»­ láº¡i</Text>
+            <Text style={styles.primaryBtnText}>Thử lại</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.ghostBtn}
             onPress={() => router.replace(historyRoute as any)}
           >
-            <Text style={styles.ghostBtnText}>Xem Lá»‹ch sá»­</Text>
+            <Text style={styles.ghostBtnText}>Xem {historyLabel}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -240,13 +245,13 @@ export default function ResultScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <BackButton label="Lá»‹ch sá»­" onPress={() => router.replace(historyRoute as any)} />
-        <Text style={styles.headerTitle}>Káº¿t quáº£</Text>
+        <BackButton label={historyLabel} onPress={handleBack} />
+        <Text style={styles.headerTitle}>Kết quả</Text>
         <TouchableOpacity
           onPress={handleShare}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text style={styles.headerAction}>Chia sáº»</Text>
+          <Text style={styles.headerAction}>Chia sẻ</Text>
         </TouchableOpacity>
       </View>
 
@@ -272,13 +277,13 @@ export default function ResultScreen() {
                 <ScoreBadge score={finalScore} size="lg" />
               </View>
             ) : (
-              <Text style={styles.noScore}>KhÃ´ng cÃ³ Ä‘iá»ƒm</Text>
+              <Text style={styles.noScore}>Không có điểm</Text>
             )}
 
             {/* Meta chips */}
             <View style={styles.metaRow}>
               <View style={styles.metaChip}>
-                <Text style={styles.metaChipText}>{essay.wordCount} tá»«</Text>
+                <Text style={styles.metaChipText}>{essay.wordCount} từ</Text>
               </View>
               {essay.processingTimeMs && (
                 <View style={styles.metaChip}>
@@ -297,7 +302,7 @@ export default function ResultScreen() {
                 <View
                   style={[styles.sectionDot, { backgroundColor: theme.accent }]}
                 />
-                <Text style={styles.sectionTitle}>Nháº­n xÃ©t tá»« GiÃ¡m kháº£o</Text>
+                <Text style={styles.sectionTitle}>Nhận xét từ Giám khảo</Text>
               </View>
               <Text style={styles.feedbackText}>
                 {essay.aiFeedback ?? essay.feedback}

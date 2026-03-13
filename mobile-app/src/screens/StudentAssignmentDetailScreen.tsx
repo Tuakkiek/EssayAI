@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
+﻿import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { studentApi, getErrorMessage } from "../services/api";
@@ -20,6 +21,23 @@ import { useRoleGuard } from "../hooks/useRoleGuard";
 import { BackButton } from "../components/BackButton";
 import { useBack } from "../hooks/useBack";
 
+const POLL_INTERVAL_MS = 3000;
+const MAX_POLL_ATTEMPTS = 40;
+
+const STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  scored: { label: "Đã chấm", color: Colors.success },
+  graded: { label: "Đã chấm", color: Colors.success },
+  scoring: { label: "Đang chấm…", color: Colors.warning },
+  pending: { label: "Đang chờ", color: Colors.textMuted },
+  error: { label: "Lỗi", color: Colors.error },
+};
+
+const normalizeStatus = (status?: string) =>
+  status === "grading" ? "scoring" : status;
+
+const getDisplayScore = (submission?: Assignment["mySubmission"] | null) =>
+  submission?.score ?? submission?.overallScore ?? submission?.overallBand ?? null;
+
 export default function StudentAssignmentDetailScreen() {
   useRoleGuard(["center_student", "free_student"]);
   const goBack = useBack("/student/assignments");
@@ -27,25 +45,110 @@ export default function StudentAssignmentDetailScreen() {
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [optimisticSubmitted, setOptimisticSubmitted] = useState(false);
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
+  const [focusTick, setFocusTick] = useState(0);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollingRef = useRef(false);
+  const notifyOnCompleteRef = useRef(false);
 
   const load = useCallback(async () => {
-    if (!id) return;
-    const res = await studentApi.getAssignmentById(id);
-    setAssignment(res.data?.data?.assignment ?? null);
+    if (!id) return null;
+    try {
+      const res = await studentApi.getAssignmentById(id);
+      const next = res.data?.data?.assignment ?? null;
+      setAssignment(next);
+      if (next?.mySubmission) setOptimisticSubmitted(false);
+      return next;
+    } catch (err) {
+      Alert.alert("Lỗi", getErrorMessage(err));
+      return null;
+    }
   }, [id]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearTimeout(pollRef.current);
+      pollRef.current = null;
+    }
+    pollingRef.current = false;
+    setIsPolling(false);
+    setPollCount(0);
+  }, []);
+
+  const pollOnce = useCallback(
+    async (attempt: number) => {
+      const next = await load();
+      if (!next) {
+        stopPolling();
+        notifyOnCompleteRef.current = false;
+        return;
+      }
+      const submission = next?.mySubmission ?? null;
+      const normalizedStatus = normalizeStatus(submission?.status);
+      const displayScore = getDisplayScore(submission);
+      const isFinal =
+        displayScore != null ||
+        normalizedStatus === "graded" ||
+        normalizedStatus === "scored";
+      const isError = normalizedStatus === "error";
+
+      if (isFinal || isError) {
+        stopPolling();
+        if (notifyOnCompleteRef.current && displayScore != null) {
+          Alert.alert("Đã chấm xong", `Band: ${displayScore.toFixed(1)}`);
+        }
+        notifyOnCompleteRef.current = false;
+        return;
+      }
+
+      if (attempt >= MAX_POLL_ATTEMPTS) {
+        stopPolling();
+        notifyOnCompleteRef.current = false;
+        return;
+      }
+
+      setPollCount(attempt + 1);
+      pollRef.current = setTimeout(
+        () => pollOnce(attempt + 1),
+        POLL_INTERVAL_MS,
+      );
+    },
+    [load, stopPolling],
+  );
+
+  const startPolling = useCallback(() => {
+    if (pollingRef.current) return;
+    pollingRef.current = true;
+    notifyOnCompleteRef.current = true;
+    setIsPolling(true);
+    setPollCount(0);
+    pollOnce(0);
+  }, [pollOnce]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      setFocusTick((value) => value + 1);
+      return () => {
+        stopPolling();
+      };
+    }, [load, stopPolling]),
+  );
 
   const handleSubmit = async () => {
     if (!assignment || !text.trim()) return;
     setSubmitting(true);
     try {
       await studentApi.submitAssignment(assignment._id, text.trim());
+      setOptimisticSubmitted(true);
+      notifyOnCompleteRef.current = true;
       await load();
       setText("");
     } catch (err) {
+      setOptimisticSubmitted(false);
+      notifyOnCompleteRef.current = false;
       Alert.alert("Lỗi", getErrorMessage(err));
     } finally {
       setSubmitting(false);
@@ -60,7 +163,33 @@ export default function StudentAssignmentDetailScreen() {
     );
   }
 
-  const hasSubmitted = !!assignment.mySubmission;
+  const hasSubmitted = !!assignment.mySubmission || optimisticSubmitted;
+  const submission = assignment.mySubmission;
+  const normalizedStatus = normalizeStatus(
+    submission?.status ?? (hasSubmitted ? "pending" : undefined),
+  );
+  const status = STATUS_LABELS[normalizedStatus ?? "pending"] ??
+    STATUS_LABELS.pending;
+  const displayScore = getDisplayScore(submission);
+  const isFinal =
+    displayScore != null ||
+    normalizedStatus === "graded" ||
+    normalizedStatus === "scored";
+  const isError = normalizedStatus === "error";
+  const isGrading = hasSubmitted && !isFinal && !isError;
+  const dots = isPolling ? ".".repeat((pollCount % 3) + 1) : "";
+
+  useEffect(() => {
+    if (displayScore != null && notifyOnCompleteRef.current) {
+      Alert.alert("Đã chấm xong", `Band: ${displayScore.toFixed(1)}`);
+      notifyOnCompleteRef.current = false;
+    }
+  }, [displayScore]);
+
+  useEffect(() => {
+    if (isGrading) startPolling();
+    else stopPolling();
+  }, [focusTick, isGrading, startPolling, stopPolling]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -80,8 +209,7 @@ export default function StudentAssignmentDetailScreen() {
         >
           <Text style={styles.title}>{assignment.title}</Text>
 
-          <View style={styles.card}
-          >
+          <View style={styles.card}>
             <Text style={styles.sectionLabel}>Đề bài</Text>
             <Text style={styles.prompt}>{assignment.prompt}</Text>
           </View>
@@ -90,12 +218,30 @@ export default function StudentAssignmentDetailScreen() {
             <View style={styles.card}>
               <Text style={styles.sectionLabel}>Trạng thái</Text>
               <Text style={styles.submittedTitle}>Bạn đã nộp bài</Text>
-              <Text style={styles.submittedMeta}>
-                Trạng thái: {assignment.mySubmission?.status}
-              </Text>
-              {assignment.mySubmission?.overallScore != null && (
+              <View style={styles.statusRow}>
+                <View
+                  style={[styles.statusDot, { backgroundColor: status.color }]}
+                />
+                <Text style={[styles.statusLabel, { color: status.color }]}>
+                  {status.label}
+                </Text>
+                {isGrading && (
+                  <ActivityIndicator size="small" color={status.color} />
+                )}
+              </View>
+              {isGrading && (
                 <Text style={styles.submittedMeta}>
-                  Band: {assignment.mySubmission?.overallScore?.toFixed(1)}
+                  Đang chấm điểm{dots}
+                </Text>
+              )}
+              {displayScore != null && (
+                <Text style={styles.submittedMeta}>
+                  Band: {displayScore.toFixed(1)}
+                </Text>
+              )}
+              {isError && (
+                <Text style={styles.submittedMeta}>
+                  Có lỗi khi chấm điểm. Vui lòng thử lại sau.
                 </Text>
               )}
             </View>
@@ -126,7 +272,9 @@ export default function StudentAssignmentDetailScreen() {
               onPress={handleSubmit}
               disabled={submitting}
             >
-              <Text style={styles.submitText}>Nộp bài</Text>
+              <Text style={styles.submitText}>
+                {submitting ? "Đang nộp..." : "Nộp bài"}
+              </Text>
             </Pressable>
           </View>
         )}
@@ -183,6 +331,19 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 4,
   },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  statusLabel: {
+    ...Typography.caption,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
   footer: {
     backgroundColor: Colors.background,
     paddingHorizontal: Spacing.md,
@@ -203,3 +364,4 @@ const styles = StyleSheet.create({
   submitDisabled: { opacity: 0.6 },
   submitText: { ...Typography.body, color: Colors.onPrimary, fontWeight: "600" },
 });
+
