@@ -155,16 +155,8 @@ export default function StudentAssignmentDetailScreen() {
     }
   };
 
-  if (!assignment) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.tint} />
-      </View>
-    );
-  }
-
-  const hasSubmitted = !!assignment.mySubmission || optimisticSubmitted;
-  const submission = assignment.mySubmission;
+  const hasSubmitted = !!assignment?.mySubmission || optimisticSubmitted;
+  const submission = assignment?.mySubmission;
   const normalizedStatus = normalizeStatus(
     submission?.status ?? (hasSubmitted ? "pending" : undefined),
   );
@@ -190,6 +182,14 @@ export default function StudentAssignmentDetailScreen() {
     if (isGrading) startPolling();
     else stopPolling();
   }, [focusTick, isGrading, startPolling, stopPolling]);
+
+  if (!assignment) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={Colors.tint} />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>

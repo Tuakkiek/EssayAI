@@ -67,7 +67,7 @@ export default function StudentAssignmentsScreen() {
             >
               <Text style={styles.title}>{item.title}</Text>
               <Text style={styles.meta}>Giáo viên: {(item as any).teacherId?.name ?? ""}</Text>
-              <Text style={[styles.meta, dueSoon && { color: Colors.error }]}>⏰ Hạn: {formatDate(item.dueDate)}</Text>
+              <Text style={[styles.meta, dueSoon && { color: Colors.error }]}>Hạn: {formatDate(item.dueDate)}</Text>
               <Text style={styles.meta}>Trạng thái: {status}</Text>
               {item.mySubmission?.overallScore != null && (
                 <Text style={styles.meta}>Band: {item.mySubmission.overallScore?.toFixed(1)}</Text>
