@@ -109,8 +109,8 @@ export const submitAssignmentHandler = async (
 ): Promise<void> => {
   try {
     const { text, taskType } = req.body;
-    if (!text || !taskType) {
-      sendBadRequest(res, "Missing required fields: text, taskType");
+    if (!text) {
+      sendBadRequest(res, "Missing required fields: text");
       return;
     }
 

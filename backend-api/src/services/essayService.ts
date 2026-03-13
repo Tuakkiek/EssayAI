@@ -33,12 +33,16 @@ export interface SubmitEssayInput {
   studentId: string;
   centerId: string | null; // null for self-registered students (no training center)
   text: string;
-  taskType: "task1" | "task2";
+  taskType?: "task1" | "task2";
   assignmentId?: string; // undefined = free-write
 }
 
 export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
   const { studentId, centerId, text, taskType, assignmentId } = input;
+  let resolvedTaskType = taskType;
+  if (resolvedTaskType && !["task1", "task2"].includes(resolvedTaskType)) {
+    throw new AppError("taskType must be 'task1' or 'task2'", 400);
+  }
 
   if (!text || text.trim().length < 50) {
     throw new AppError("Essay must be at least 50 characters long", 400);
@@ -106,8 +110,11 @@ export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
       );
     }
 
-    // taskType must match
-    if (assignment.taskType !== taskType) {
+    // Resolve taskType from assignment when client doesn't send it
+    if (!resolvedTaskType) {
+      resolvedTaskType = assignment.taskType;
+    } else if (assignment.taskType !== resolvedTaskType) {
+      // taskType must match
       throw new AppError(
         `This assignment requires Task ${assignment.taskType.replace("task", "")}`,
         400,
@@ -142,6 +149,10 @@ export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
   }
 
   // ── Create essay document ─────────────────────────────────────────
+  if (!resolvedTaskType) {
+    throw new AppError("taskType is required", 400);
+  }
+
   const essay = await Essay.create({
     centerId: centerId ? new mongoose.Types.ObjectId(centerId) : null,
     studentId: new mongoose.Types.ObjectId(studentId),
@@ -151,7 +162,7 @@ export const submitEssay = async (input: SubmitEssayInput): Promise<IEssay> => {
     classId: classId ?? null,
     gradingCriteria: criteriaSnapshot,
     submittedBy: centerId ? "student" : "free_student",
-    taskType,
+    taskType: resolvedTaskType,
     originalText: text.trim(),
     wordCount,
     attemptNumber,

@@ -9,6 +9,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { Wifi, PenLine, CalendarDays, FileText } from "lucide-react-native";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { ScoreBadge } from "../components/ScoreBadge";
 import { essayApi, getErrorMessage } from "../services/api";
@@ -19,13 +20,14 @@ import { useAuth } from "../context/AuthContext";
 const PAGE_SIZE = 20;
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  scored: { label: "Đã chấm", color: Colors.success },
-  graded: { label: "Đã chấm", color: Colors.success },
+  scored:  { label: "Đã chấm",    color: Colors.success },
+  graded:  { label: "Đã chấm",    color: Colors.success },
   scoring: { label: "Đang chấm…", color: Colors.warning },
-  pending: { label: "Đang chờ", color: Colors.textMuted },
-  error: { label: "Lỗi", color: Colors.error },
+  pending: { label: "Đang chờ",   color: Colors.textMuted },
+  error:   { label: "Lỗi",        color: Colors.error },
 };
 
+// ─── Essay Card ───────────────────────────────────────────────────────────────
 function EssayCard({ item, onPress }: { item: HistoryItem; onPress: () => void }) {
   const normalizedStatus = item.status === "grading" ? "scoring" : item.status;
   const status = STATUS_LABELS[normalizedStatus] ?? STATUS_LABELS.pending;
@@ -38,29 +40,35 @@ function EssayCard({ item, onPress }: { item: HistoryItem; onPress: () => void }
     item.textPreview ??
     assignmentTitle ??
     (item.taskType === "task2" ? "Bài viết Task 2" : "Bài viết Task 1");
+
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.cardTop}>
         <View style={styles.cardLeft}>
           <View style={[styles.statusDot, { backgroundColor: status.color }]} />
-          <Text style={styles.statusLabel}>{status.label}</Text>
+          <Text style={[styles.statusLabel, { color: status.color }]}>{status.label}</Text>
           <Text style={styles.taskChip}>{item.taskType === "task2" ? "T2" : "T1"}</Text>
         </View>
-        {displayScore != null && (
-          <ScoreBadge score={displayScore} size="sm" />
-        )}
+        {displayScore != null && <ScoreBadge score={displayScore} size="sm" />}
       </View>
-      <Text style={styles.prompt} numberOfLines={2}>
-        {promptText}
-      </Text>
+
+      <Text style={styles.prompt} numberOfLines={2}>{promptText}</Text>
+
       <View style={styles.cardMeta}>
-        <Text style={styles.metaText}>📅 {formatDate(item.createdAt)}</Text>
-        <Text style={styles.metaText}>📝 {item.wordCount} từ</Text>
+        <View style={styles.metaItem}>
+          <CalendarDays size={12} color={Colors.textMuted} strokeWidth={2} />
+          <Text style={styles.metaText}>{formatDate(item.createdAt)}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <FileText size={12} color={Colors.textMuted} strokeWidth={2} />
+          <Text style={styles.metaText}>{item.wordCount} từ</Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
 }
 
+// ─── History Screen ───────────────────────────────────────────────────────────
 export default function HistoryScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -108,10 +116,9 @@ export default function HistoryScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    load({ refresh: true, nextPage: 1 });
-  }, [load]);
+  useEffect(() => { load({ refresh: true, nextPage: 1 }); }, [load]);
 
+  // ── Loading ──
   if (loading) {
     return (
       <View style={styles.center}>
@@ -123,10 +130,13 @@ export default function HistoryScreen() {
     );
   }
 
+  // ── Error ──
   if (error) {
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 48 }}>📡</Text>
+        <View style={styles.emptyIconWrap}>
+          <Wifi size={32} color={Colors.textMuted} strokeWidth={1.5} />
+        </View>
         <Text style={[Typography.heading3, { marginTop: Spacing.md }]}>Không thể kết nối</Text>
         <Text style={[Typography.body, { color: Colors.textSecondary, textAlign: "center", marginTop: Spacing.sm }]}>
           {error}
@@ -138,32 +148,25 @@ export default function HistoryScreen() {
     );
   }
 
+  // ── Empty ──
   if (essays.length === 0) {
     const isTeacher = user?.role === "teacher";
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 48 }}>✍️</Text>
+        <View style={styles.emptyIconWrap}>
+          <PenLine size={32} color={Colors.primary} strokeWidth={1.5} />
+        </View>
         <Text style={[Typography.heading3, { marginTop: Spacing.md }]}>Chưa có bài luận</Text>
         <Text style={[Typography.body, { color: Colors.textSecondary, textAlign: "center", marginTop: Spacing.sm }]}>
           {isTeacher
             ? "Bài luận của học sinh sẽ xuất hiện ở đây sau khi họ nộp bài."
             : "Nộp bài luận đầu tiên để xem kết quả tại đây"}
         </Text>
-        {!isTeacher && (
-          <TouchableOpacity style={styles.retryBtn} onPress={() => router.push("/essay/input")}>
-            <Text style={styles.retryText}>Viết bài</Text>
-          </TouchableOpacity>
-        )}
       </View>
     );
   }
 
   const totalLabel = total ?? essays.length;
-
-  const handleLoadMore = () => {
-    if (loading || refreshing || loadingMore || !hasMore) return;
-    load({ nextPage: page + 1 });
-  };
 
   return (
     <View style={styles.container}>
@@ -173,15 +176,27 @@ export default function HistoryScreen() {
         renderItem={({ item }) => (
           <EssayCard
             item={item}
-            onPress={() => router.push({ pathname: "/essay/detail", params: { essayId: item._id } })}
+            onPress={() =>
+              router.push({ pathname: "/essay/detail", params: { essayId: item._id } })
+            }
           />
         )}
         contentContainerStyle={styles.list}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load({ refresh: true, nextPage: 1 })} tintColor={Colors.primary} />
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => load({ refresh: true, nextPage: 1 })}
+            tintColor={Colors.primary}
+          />
         }
-        ListHeaderComponent={<Text style={styles.listHeader}>{totalLabel} bài</Text>}
-        onEndReached={handleLoadMore}
+        ListHeaderComponent={
+          <Text style={styles.listHeader}>{totalLabel} bài</Text>
+        }
+        onEndReached={() => {
+          if (!loading && !refreshing && !loadingMore && hasMore) {
+            load({ nextPage: page + 1 });
+          }
+        }}
         onEndReachedThreshold={0.6}
         ListFooterComponent={
           loadingMore ? (
@@ -196,17 +211,38 @@ export default function HistoryScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: Spacing.xl },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.xl,
+  },
+
+  // Empty / error icon container
+  emptyIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.surfaceAlt,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  // List
   list: { padding: Spacing.lg, paddingBottom: 32 },
   listHeader: {
     ...Typography.caption,
     color: Colors.textMuted,
     marginBottom: Spacing.md,
+    marginTop: 30,
     fontWeight: "700",
     textTransform: "uppercase",
   },
+
+  // Card
   card: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
@@ -238,9 +274,19 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: Spacing.xs,
   },
-  prompt: { ...Typography.body, lineHeight: 22, color: Colors.textSecondary, marginBottom: Spacing.sm },
+  prompt: {
+    ...Typography.body,
+    lineHeight: 22,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.sm,
+  },
+
+  // Meta row
   cardMeta: { flexDirection: "row", gap: Spacing.md },
-  metaText: { ...Typography.bodySmall },
+  metaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  metaText: { ...Typography.bodySmall, color: Colors.textMuted },
+
+  // Retry
   retryBtn: {
     marginTop: Spacing.xl,
     backgroundColor: Colors.primary,
@@ -250,6 +296,3 @@ const styles = StyleSheet.create({
   },
   retryText: { ...Typography.body, color: Colors.surface, fontWeight: "700" },
 });
-
-
-

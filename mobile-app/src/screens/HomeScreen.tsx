@@ -49,6 +49,7 @@ export default function HomeScreen() {
   }, [isLoading, isStudent, loadData]);
 
   const firstName = user?.name?.trim().split(" ")[0] || "Bạn";
+  const lastName = user?.name?.trim().split(" ").slice(1).join(" ") || "";
   const isCenterStudent = user?.role === "center_student";
 
   if (isLoading || !isStudent) {
@@ -124,7 +125,9 @@ export default function HomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.greeting}>Xin chào, {firstName}</Text>
+        <Text style={styles.greeting}>
+          {firstName} {lastName}
+        </Text>
         {isCenterStudent && myClass ? (
           <Text style={styles.headerSub}>
             Lớp {myClass.class?.name}{" "}
