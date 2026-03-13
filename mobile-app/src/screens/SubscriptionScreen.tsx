@@ -88,7 +88,7 @@ const buildFeatures = (
         : `AI chấm ${essaysPerMonth} bài/tháng`,
     );
   }
-  if (!aiGradingEnabled) items.push("Không hỗ trợ AI chấm bài");
+  if (!aiGradingEnabled) items.push("Không h? tr? AI chấm bài");
   return items;
 };
 
@@ -170,7 +170,7 @@ function PlanCard({
       </View>
 
       <Text style={styles.essayLimit}>
-        {plan.essaysPerMonth === -1 ? "✦ Không giới hạn bài" : `${plan.essaysPerMonth} bài / tháng`}
+        {plan.essaysPerMonth === -1 ? "∞ Không giới hạn bài" : `${plan.essaysPerMonth} bài / tháng`}
       </Text>
 
       <View style={styles.featureList}>
@@ -236,7 +236,7 @@ function PaymentModal({
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Hoàn tất thanh toán</Text>
           <TouchableOpacity onPress={onClose}>
-            <Text style={styles.modalClose}>✕</Text>
+            <Text style={styles.modalClose}>×</Text>
           </TouchableOpacity>
         </View>
         <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
@@ -246,9 +246,9 @@ function PaymentModal({
           </View>
 
           <TouchableOpacity style={styles.qrBtn} onPress={() => Linking.openURL(b.qrCodeUrl)} activeOpacity={0.85}>
-            <Text style={styles.qrBtnIcon}>📷</Text>
+            <Text style={styles.qrBtnIcon}>QR</Text>
             <Text style={styles.qrBtnText}>Mở VietQR Code</Text>
-            <Text style={styles.qrBtnArrow}>↗</Text>
+            <Text style={styles.qrBtnArrow}>›</Text>
           </TouchableOpacity>
 
           <Text style={styles.orDivider}>— hoặc chuyển khoản thủ công —</Text>
@@ -264,7 +264,7 @@ function PaymentModal({
                 <Text style={styles.detailLabel}>{label}</Text>
                 <Text style={styles.detailValue}>{value}</Text>
               </View>
-              <Text style={styles.copyIcon}>{copied === label ? "✓" : "⎘"}</Text>
+              <Text style={styles.copyIcon}>{copied === label ? "✅" : "📋"}</Text>
             </TouchableOpacity>
           ))}
 
@@ -281,7 +281,7 @@ function PaymentModal({
                 Bạn BẮT BUỘC phải ghi đúng nội dung này để hệ thống tự động kích hoạt.
               </Text>
             </View>
-            <Text style={styles.copyIcon}>{copied === "Nội dung" ? "✓" : "⎘"}</Text>
+            <Text style={styles.copyIcon}>{copied === "Nội dung" ? "✅" : "📋"}</Text>
           </TouchableOpacity>
 
           <Text style={styles.expiryNote}>
@@ -315,7 +315,7 @@ function CenterStudentView({ status }: { status: SubscriptionStatus | null }) {
             ]}
           >
             <Text style={styles.statusPlan}>
-              {status.isActive ? "🌟" : "🆓"} Gói {status.plan.charAt(0).toUpperCase() + status.plan.slice(1)}
+              {status.isActive ? "✓" : "○"} Gói {status.plan.charAt(0).toUpperCase() + status.plan.slice(1)}
             </Text>
             {status.daysRemaining != null && <Text style={styles.statusDays}>{status.daysRemaining} ngày còn lại</Text>}
           </View>
@@ -443,7 +443,7 @@ export default function SubscriptionScreen() {
           >
             <View>
               <Text style={styles.statusPlan}>
-                {status.isActive && status.plan !== "free" ? "🌟" : "🆓"} Gói {status.plan.charAt(0).toUpperCase() + status.plan.slice(1)}
+                {status.isActive && status.plan !== "free" ? "✓" : "○"} Gói {status.plan.charAt(0).toUpperCase() + status.plan.slice(1)}
               </Text>
               {status.daysRemaining != null && <Text style={styles.statusDays}>{status.daysRemaining} ngày còn lại</Text>}
             </View>
@@ -524,7 +524,7 @@ const styles = StyleSheet.create({
   selectBtnTextDisabled: { color: Colors.textMuted },
   currentBtn: { backgroundColor: Colors.successLight, borderRadius: Radius.md, paddingVertical: 12, alignItems: "center" },
   currentBtnText: { ...Typography.body, fontWeight: "700", color: Colors.success },
-  enterpriseCard: { backgroundColor: Colors.primaryLight, borderRadius: Radius.lg, padding: Spacing.xl, marginBottom: Spacing.lg, borderWidth: 1.5, borderColor: Colors.primary + "40" },
+  enterpriseCard: { backgroundColor: Colors.primaryLight, borderRadius: Radius.lg, padding: Spacing.xl, marginBottom: Spacing.lg, borderWidth: 1.5, borderColor: Colors.separator },
   enterpriseTitle: { ...Typography.heading3, marginBottom: Spacing.sm },
   enterpriseDesc: { ...Typography.body, color: Colors.textSecondary, lineHeight: 22, marginBottom: Spacing.lg },
   contactBtn: { backgroundColor: Colors.primary, borderRadius: Radius.md, paddingVertical: 12, alignItems: "center" },
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
   qrBtnArrow: { color: Colors.surface, fontSize: 18 },
   orDivider: { ...Typography.bodySmall, textAlign: "center", color: Colors.textMuted, marginBottom: Spacing.lg },
   detailRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: Colors.surface, borderRadius: Radius.md, padding: Spacing.lg, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
-  detailRowHighlight: { borderColor: Colors.error + "50", backgroundColor: Colors.errorLight + "30" },
+  detailRowHighlight: { borderColor: Colors.error, backgroundColor: Colors.secondaryBackground },
   detailLabel: { ...Typography.caption, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 3 },
   detailValue: { ...Typography.body, fontWeight: "600" },
   descHint: { ...Typography.caption, color: Colors.textSecondary, marginTop: 4, lineHeight: 16 },
@@ -558,4 +558,7 @@ const styles = StyleSheet.create({
   doneBtn: { backgroundColor: Colors.success, borderRadius: Radius.lg, paddingVertical: 16, alignItems: "center", ...Shadow.md },
   doneBtnText: { fontSize: 16, fontWeight: "700", color: Colors.surface },
 });
+
+
+
 

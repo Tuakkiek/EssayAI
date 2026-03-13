@@ -1,8 +1,9 @@
-﻿import { useEffect } from "react";
+import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { Stack, router, useRootNavigationState, useSegments } from "expo-router";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { API_ROOT_URL } from "../src/config/api";
+import { Colors } from "../src/constants/theme";
 
 // --- Auth Guard ----------------------------------------------------------------
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -48,7 +49,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#4F46E5" />
+        <ActivityIndicator size="large" color={Colors.tint} />
       </View>
     );
   }
@@ -99,4 +100,3 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
-

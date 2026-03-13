@@ -1,12 +1,15 @@
-import React, { useCallback, useEffect, useState } from "react";
+﻿import React, { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
-  TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
+  Pressable,
+  ScrollView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { studentApi } from "../services/api";
@@ -14,20 +17,24 @@ import { Assignment } from "../types";
 import { formatDate } from "@/utils/bandColor";
 import { useAuth } from "../context/AuthContext";
 import { useRoleGuard } from "../hooks/useRoleGuard";
+import { SFIcon } from "../components/SFIcon";
 
 export default function HomeScreen() {
   useRoleGuard(["center_student", "free_student"]);
 
   const router = useRouter();
-  const { user, isLoading } = useAuth();
-  const isStudent =
-    user?.role === "center_student" || user?.role === "free_student";
+  const { user } = useAuth();
   const [myClass, setMyClass] = useState<any>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const [classRes, assignRes] = await Promise.all([
         studentApi.getMyClass().catch(() => ({ data: { data: null } })),
@@ -40,36 +47,60 @@ export default function HomeScreen() {
       setAssignments(data);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => {
-    if (isLoading || !isStudent) return;
-    loadData();
-  }, [isLoading, isStudent, loadData]);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData]),
+  );
 
   const firstName = user?.name?.trim().split(" ")[0] || "Bạn";
   const lastName = user?.name?.trim().split(" ").slice(1).join(" ") || "";
   const isCenterStudent = user?.role === "center_student";
 
-  if (isLoading || !isStudent) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-      </View>
+  const {
+    nextAssignment,
+    upcomingAssignments,
+    pendingCount,
+    submittedCount,
+    dueSoonCount,
+  } = useMemo(() => {
+    const sorted = [...assignments].sort(
+      (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime(),
     );
-  }
+    const pending = sorted.filter((a) => !a.mySubmission);
+    const dueSoon = pending.filter(
+      (a) => new Date(a.dueDate).getTime() < Date.now() + 3 * 86400000,
+    );
+    return {
+      nextAssignment: pending[0] ?? null,
+      upcomingAssignments: sorted.slice(0, 3),
+      pendingCount: pending.length,
+      submittedCount: Math.max(0, sorted.length - pending.length),
+      dueSoonCount: dueSoon.length,
+    };
+  }, [assignments]);
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={Colors.tint} />
       </View>
     );
   }
 
-  const renderAssignment = ({ item }: { item: Assignment }) => {
-    const dueSoon = new Date(item.dueDate) < new Date(Date.now() + 86400000);
+  const handlePrimaryAction = () => {
+    if (nextAssignment) {
+      router.push(`/student/assignments/${nextAssignment._id}`);
+    } else {
+      router.push("/essay/input");
+    }
+  };
+
+  const renderUpcoming = (item: Assignment, index: number) => {
     const isOverdue = new Date(item.dueDate) < new Date();
     const status = item.mySubmission
       ? "Đã nộp"
@@ -77,136 +108,409 @@ export default function HomeScreen() {
         ? "Hết hạn"
         : "Chưa nộp";
     const statusColor = item.mySubmission
-      ? Colors.success
+      ? Colors.text
       : isOverdue
         ? Colors.error
         : Colors.textSecondary;
 
     return (
-      <TouchableOpacity
-        style={styles.card}
+      <Pressable
+        key={item._id}
+        style={({ pressed }) => [
+          styles.row,
+          index > 0 && styles.rowDivider,
+          pressed && styles.rowPressed,
+        ]}
         onPress={() => router.push(`/student/assignments/${item._id}`)}
       >
-        <Text style={styles.title}>{item.title}</Text>
-        {item.className && (
-          <Text style={styles.className}>Lớp: {item.className}</Text>
-        )}
-        {item.teacherId?.name && (
-          <Text style={styles.meta}>Giáo viên: {item.teacherId.name}</Text>
-        )}
-        <Text style={[styles.meta, dueSoon && { color: Colors.error }]}>
-          ⏰ Hạn: {formatDate(item.dueDate)}
-        </Text>
-        <Text style={[styles.status, { color: statusColor }]}>
-          Trạng thái: {status}
-        </Text>
-        {item.mySubmission?.overallScore != null && (
-          <Text style={styles.score}>
-            ⭐ Band: {item.mySubmission.overallScore?.toFixed(1)}
+        <View style={styles.rowHeader}>
+          <Text style={styles.rowTitle} numberOfLines={1}>
+            {item.title}
           </Text>
-        )}
-      </TouchableOpacity>
+          <SFIcon
+            name="chevron.right"
+            size={14}
+            color={Colors.textMuted}
+            fallbackName="chevron-forward"
+          />
+        </View>
+        <Text style={styles.rowMeta}>Hạn: {formatDate(item.dueDate)}</Text>
+        <View style={styles.rowFooter}>
+          <View style={styles.badge}>
+            <Text style={[styles.badgeText, { color: statusColor }]}>
+              {status}
+            </Text>
+          </View>
+          {item.mySubmission?.overallScore != null && (
+            <Text style={styles.rowScore}>
+              Band {item.mySubmission.overallScore?.toFixed(1)}
+            </Text>
+          )}
+        </View>
+      </Pressable>
     );
   };
 
-  const emptyComponent = (
-    <View style={styles.empty}>
-      <Text style={styles.emptyText}>
-        {isCenterStudent
-          ? "Chưa có bài tập nào được giao"
-          : "Chưa có đề thi hoặc bài tập từ admin"}
-      </Text>
-      {isCenterStudent && (
-        <Text style={styles.emptySub}>Hỏi giáo viên hoặc kiểm tra sau</Text>
-      )}
-    </View>
-  );
+  const nextDueText = nextAssignment
+    ? `Hạn: ${formatDate(nextAssignment.dueDate)}`
+    : "Không có bài tập gần hạn";
+  const isNextOverdue = nextAssignment
+    ? new Date(nextAssignment.dueDate) < new Date()
+    : false;
+  const primaryLabel = nextAssignment
+    ? isNextOverdue
+      ? "Nộp ngay"
+      : "Bắt đầu"
+    : "Viết bài mới";
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.greeting}>
-          {firstName} {lastName}
-        </Text>
-        {isCenterStudent && myClass ? (
-          <Text style={styles.headerSub}>
-            Lớp {myClass.class?.name}{" "}
-            {myClass.class.centerId?.name
-              ? `- Trung tâm ${myClass.class.centerId.name}`
-              : ""}
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => loadData(true)}
+            tintColor={Colors.tint}
+          />
+        }
+      >
+        <View style={styles.header}>
+          <Text style={styles.greeting}>
+            {firstName} {lastName}
           </Text>
-        ) : (
-          <Text style={styles.headerSub}>Bài tập từ admin & đợt thi</Text>
-        )}
-      </View>
+          {isCenterStudent && myClass ? (
+            <Text style={styles.headerSub}>
+              Lớp {myClass.class?.name}{" "}
+              {(myClass.class.centerId as any)?.name
+                ? `- Trung tâm ${(myClass.class.centerId as any).name}`
+                : ""}
+            </Text>
+          ) : (
+            <Text style={styles.headerSub}>Tổng quan học tập hôm nay</Text>
+          )}
+        </View>
 
-      <FlatList
-        data={assignments}
-        keyExtractor={(item) => item._id}
-        contentContainerStyle={styles.list}
-        renderItem={renderAssignment}
-        ListEmptyComponent={emptyComponent}
-      />
-    </View>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.accentDot} />
+            <Text style={[styles.sectionTitle, styles.sectionTitleAccent]}>
+              Việc tiếp theo
+            </Text>
+          </View>
+          <View style={[styles.card, styles.cardAccent]}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle} numberOfLines={2}>
+                {nextAssignment ? nextAssignment.title : "Chưa có bài tập mới"}
+              </Text>
+              <SFIcon
+                name="bolt"
+                size={18}
+                color={Colors.textSecondary}
+                fallbackName="flash-outline"
+              />
+            </View>
+            <Text style={styles.cardMeta}>{nextDueText}</Text>
+            <Pressable
+              style={({ pressed }) => [
+                styles.primaryBtn,
+                pressed && styles.primaryBtnPressed,
+              ]}
+              onPress={handlePrimaryAction}
+            >
+              <Text style={styles.primaryBtnText}>{primaryLabel}</Text>
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Tổng quan</Text>
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{pendingCount}</Text>
+              <Text style={styles.statLabel}>Chưa nộp</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text
+                style={[
+                  styles.statValue,
+                  dueSoonCount > 0 && styles.statValueAccent,
+                ]}
+              >
+                {dueSoonCount}
+              </Text>
+              <Text style={styles.statLabel}>Sắp đến hạn</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statValue}>{submittedCount}</Text>
+              <Text style={styles.statLabel}>Đã nộp</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Lối tắt</Text>
+          <View style={styles.listCard}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.listRow,
+                pressed && styles.rowPressed,
+              ]}
+              onPress={() => router.push("/student/assignments")}
+            >
+              <View style={styles.listRowLeft}>
+                <SFIcon
+                  name="doc.text"
+                  size={18}
+                  color={Colors.textSecondary}
+                  fallbackName="clipboard-outline"
+                />
+                <Text style={styles.listRowText}>Bài tập chưa nộp</Text>
+              </View>
+              <SFIcon
+                name="chevron.right"
+                size={14}
+                color={Colors.textMuted}
+                fallbackName="chevron-forward"
+              />
+            </Pressable>
+            <View style={styles.divider} />
+            <Pressable
+              style={({ pressed }) => [
+                styles.listRow,
+                pressed && styles.rowPressed,
+              ]}
+              onPress={() => router.push("/history")}
+            >
+              <View style={styles.listRowLeft}>
+                <SFIcon
+                  name="clock"
+                  size={18}
+                  color={Colors.textSecondary}
+                  fallbackName="time-outline"
+                />
+                <Text style={styles.listRowText}>Lịch sử chấm bài</Text>
+              </View>
+              <SFIcon
+                name="chevron.right"
+                size={14}
+                color={Colors.textMuted}
+                fallbackName="chevron-forward"
+              />
+            </Pressable>
+            <View style={styles.divider} />
+            <Pressable
+              style={({ pressed }) => [
+                styles.listRow,
+                pressed && styles.rowPressed,
+              ]}
+              onPress={() => router.push("/subscription")}
+            >
+              <View style={styles.listRowLeft}>
+                <SFIcon
+                  name="star"
+                  size={18}
+                  color={Colors.tint}
+                  fallbackName="star-outline"
+                />
+                <Text style={[styles.listRowText, styles.listRowTextAccent]}>
+                  Nâng cấp tài khoản
+                </Text>
+              </View>
+              <SFIcon
+                name="chevron.right"
+                size={14}
+                color={Colors.textMuted}
+                fallbackName="chevron-forward"
+              />
+            </Pressable>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Bài tập gần đây</Text>
+          {upcomingAssignments.length === 0 ? (
+            <View style={styles.card}>
+              <Text style={styles.emptyText}>Chưa có bài tập</Text>
+              <Text style={styles.emptySub}>
+                Khi có bài mới, chúng sẽ xuất hiện ở đây.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.listCard}>
+              {upcomingAssignments.map((item, index) =>
+                renderUpcoming(item, index),
+              )}
+            </View>
+          )}
+        </View>
+
+        <View style={{ height: Spacing.xl }} />
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: Colors.groupedBackground },
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  scroll: { paddingBottom: Spacing.lg },
   header: {
-    backgroundColor: Colors.primary,
-    paddingTop: 56,
-    paddingBottom: 24,
-    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.lg,
+    paddingHorizontal: Spacing.md,
   },
   greeting: {
-    ...Typography.heading2,
-    color: Colors.surface,
-    fontWeight: "800",
+    ...Typography.largeTitle,
   },
   headerSub: {
-    ...Typography.body,
-    color: "rgba(255,255,255,0.9)",
-    marginTop: 4,
+    ...Typography.subhead,
+    marginTop: Spacing.xs,
   },
-  list: { padding: Spacing.lg, paddingBottom: 40 },
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadow.sm,
+  section: {
+    paddingHorizontal: Spacing.md,
+    marginBottom: Spacing.lg,
   },
-  title: { ...Typography.body, fontWeight: "700", marginBottom: 4 },
-  className: {
-    ...Typography.bodySmall,
-    color: Colors.primary,
-    fontWeight: "600",
-    marginBottom: 8,
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
-  meta: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 2 },
-  status: { ...Typography.bodySmall, marginTop: 4, fontWeight: "600" },
-  score: {
-    ...Typography.bodySmall,
-    color: Colors.success,
-    marginTop: 4,
+  sectionTitle: {
+    ...Typography.label,
+    textTransform: "uppercase",
     fontWeight: "700",
   },
-  empty: {
-    flexGrow: 1,
-    justifyContent: "center",
+  sectionTitleAccent: {
+    color: Colors.tint,
+  },
+  accentDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.tint,
+  },
+  card: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
+    ...Shadow.sm,
+  },
+  cardAccent: {
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.tint,
+  },
+  cardHeader: {
+    flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.xl,
+    justifyContent: "space-between",
+    gap: Spacing.sm,
   },
-  emptyText: {
-    ...Typography.body,
-    textAlign: "center",
-    marginBottom: Spacing.md,
-  },
-  emptySub: {
+  cardTitle: { ...Typography.heading3, flex: 1 },
+  cardMeta: {
     ...Typography.bodySmall,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+  },
+  primaryBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.lg,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginTop: Spacing.md,
+  },
+  primaryBtnPressed: { opacity: 0.85 },
+  primaryBtnText: {
+    ...Typography.body,
+    color: Colors.onPrimary,
+    fontWeight: "600",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.md,
+    alignItems: "center",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
+  },
+  statValue: { ...Typography.heading3 },
+  statValueAccent: { color: Colors.tint },
+  statLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  listCard: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: Radius.md,
+    overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
+  },
+  listRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  listRowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  listRowText: { ...Typography.body },
+  listRowTextAccent: { color: Colors.tint },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: Colors.separator,
+    marginLeft: Spacing.md,
+  },
+  row: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.md,
+  },
+  rowPressed: { opacity: 0.7 },
+  rowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.separator,
+  },
+  rowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.sm,
+  },
+  rowTitle: { ...Typography.body, fontWeight: "600", flex: 1 },
+  rowMeta: { ...Typography.caption, color: Colors.textSecondary, marginTop: 4 },
+  rowFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: Spacing.sm,
+  },
+  badge: {
+    borderRadius: Radius.full,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+  },
+  badgeText: { ...Typography.caption },
+  rowScore: { ...Typography.caption, color: Colors.text },
+  emptyText: { ...Typography.body, textAlign: "center" },
+  emptySub: {
+    ...Typography.caption,
     textAlign: "center",
+    marginTop: Spacing.xs,
+    color: Colors.textSecondary,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+﻿import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   meta: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 4 },
   deleteBtn: {
     padding: Spacing.sm,
-    backgroundColor: Colors.error + "20",
+    backgroundColor: Colors.secondaryBackground,
     borderRadius: Radius.md,
     marginLeft: Spacing.md,
   },
@@ -165,5 +165,4 @@ const styles = StyleSheet.create({
   },
   fabText: { ...Typography.body, color: Colors.surface, fontWeight: "700" },
 });
-
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,30 +15,41 @@ import { ScoreBadge } from "../components/ScoreBadge";
 import ScoreBreakdownCard from "../components/ScoreBreakdownCard";
 import { GrammarErrorCard } from "../components/GrammarErrorCard";
 import { SuggestionsCard } from "../components/SuggestionsCard";
-import { essayApi, getErrorMessage, extractEssay, submissionApi } from "../services/api";
+import {
+  essayApi,
+  getErrorMessage,
+  extractEssay,
+  submissionApi,
+} from "../services/api";
 import { Essay } from "../types";
-import { useBack } from "../hooks/useBack";
+import { BackButton } from "../components/BackButton";
 import { useAuth } from "../context/AuthContext";
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 40;
 
-// ─── Score accent colors ──────────────────────────────────────────────────────
+// â”€â”€â”€ Score accent colors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const getScoreTheme = (score: number | null | undefined) => {
-  if (score == null) return { accent: "#94A3B8", bg: "#F1F5F9", label: "—" };
-  if (score >= 7.5) return { accent: "#0EA5E9", bg: "#E0F2FE", label: "Xuất sắc" };
-  if (score >= 7)   return { accent: "#10B981", bg: "#D1FAE5", label: "Tốt" };
-  if (score >= 6)   return { accent: "#F59E0B", bg: "#FEF3C7", label: "Khá" };
-  if (score >= 5)   return { accent: "#F97316", bg: "#FFEDD5", label: "Trung bình" };
-  return              { accent: "#EF4444", bg: "#FEE2E2", label: "Cần cải thiện" };
+  if (score == null) return { accent: "#94A3B8", bg: "#F1F5F9", label: "â€”" };
+  if (score >= 7.5)
+    return { accent: "#0EA5E9", bg: "#E0F2FE", label: "Xuáº¥t sáº¯c" };
+  if (score >= 7) return { accent: "#10B981", bg: "#D1FAE5", label: "Tá»‘t" };
+  if (score >= 6) return { accent: "#F59E0B", bg: "#FEF3C7", label: "KhÃ¡" };
+  if (score >= 5)
+    return { accent: "#F97316", bg: "#FFEDD5", label: "Trung bÃ¬nh" };
+  return { accent: "#EF4444", bg: "#FEE2E2", label: "Cáº§n cáº£i thiá»‡n" };
 };
 
 export default function ResultScreen() {
   const router = useRouter();
-  const goBack = useBack("/");
-  const { essayId } = useLocalSearchParams<{ essayId: string; score: string }>();
+  const { essayId } = useLocalSearchParams<{
+    essayId: string;
+    score: string;
+  }>();
 
   const { user } = useAuth();
+  const isTeacher = user?.role === "teacher" || user?.role === "admin";
+  const historyRoute = isTeacher ? "/teacher/essays" : "/history";
   const [essay, setEssay] = useState<Essay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,8 +63,16 @@ export default function ResultScreen() {
 
   const animateIn = useCallback(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 480, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 480, useNativeDriver: true }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 480,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 480,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, [fadeAnim, slideAnim]);
 
@@ -72,10 +91,15 @@ export default function ResultScreen() {
           if (attempt < MAX_POLL_ATTEMPTS) {
             setIsPolling(true);
             setPollCount(attempt + 1);
-            pollRef.current = setTimeout(() => fetchEssay(attempt + 1), POLL_INTERVAL_MS);
+            pollRef.current = setTimeout(
+              () => fetchEssay(attempt + 1),
+              POLL_INTERVAL_MS,
+            );
           } else {
             setLoading(false);
-            setError("Quá trình chấm điểm đang mất nhiều thời gian hơn dự kiến. Vui lòng kiểm tra lại trong mục Lịch sử sau ít phút.");
+            setError(
+              "QuÃ¡ trÃ¬nh cháº¥m Ä‘iá»ƒm Ä‘ang máº¥t nhiá»u thá»i gian hÆ¡n dá»± kiáº¿n. Vui lÃ²ng kiá»ƒm tra láº¡i trong má»¥c Lá»‹ch sá»­ sau Ã­t phÃºt.",
+            );
           }
           return;
         }
@@ -89,11 +113,16 @@ export default function ResultScreen() {
         } else if (attempt < MAX_POLL_ATTEMPTS) {
           setIsPolling(true);
           setPollCount(attempt + 1);
-          pollRef.current = setTimeout(() => fetchEssay(attempt + 1), POLL_INTERVAL_MS);
+          pollRef.current = setTimeout(
+            () => fetchEssay(attempt + 1),
+            POLL_INTERVAL_MS,
+          );
         } else {
           setIsPolling(false);
           setLoading(false);
-          setError("Hệ thống đang bận. Vui lòng kiểm tra kết quả trong mục Lịch sử sau.");
+          setError(
+            "Há»‡ thá»‘ng Ä‘ang báº­n. Vui lÃ²ng kiá»ƒm tra káº¿t quáº£ trong má»¥c Lá»‹ch sá»­ sau.",
+          );
         }
       } catch (err) {
         setError(getErrorMessage(err));
@@ -106,28 +135,36 @@ export default function ResultScreen() {
 
   useEffect(() => {
     fetchEssay(0);
-    return () => { if (pollRef.current) clearTimeout(pollRef.current); };
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
   }, [fetchEssay]);
 
   const handleShare = async () => {
-    const finalScore = essay?.score ?? essay?.overallScore ?? essay?.overallBand;
+    const finalScore =
+      essay?.score ?? essay?.overallScore ?? essay?.overallBand;
     if (!finalScore) return;
     await Share.share({
-      message: `Tôi vừa đạt được ${finalScore.toFixed(1)} điểm cho bài viết IELTS của mình nhờ Essay AI!`,
+      message: `TÃ´i vá»«a Ä‘áº¡t Ä‘Æ°á»£c ${finalScore.toFixed(1)} Ä‘iá»ƒm cho bÃ i viáº¿t IELTS cá»§a mÃ¬nh nhá» Essay AI!`,
     });
   };
 
-  // ─── Loading state ─────────────────────────────────────────────────────────
+  // â”€â”€â”€ Loading state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (loading || isPolling) {
     const dots = ".".repeat((pollCount % 3) + 1);
     const elapsed = Math.round((pollCount * POLL_INTERVAL_MS) / 1000);
     return (
       <View style={styles.center}>
         <View style={styles.loadingCard}>
-          <ActivityIndicator size="large" color="#0EA5E9" style={{ marginBottom: 20 }} />
-          <Text style={styles.loadingTitle}>Đang chấm bài{dots}</Text>
+          <ActivityIndicator
+            size="large"
+            color="#0EA5E9"
+            style={{ marginBottom: 20 }}
+          />
+          <Text style={styles.loadingTitle}>Äang cháº¥m bÃ i{dots}</Text>
           <Text style={styles.loadingSubtitle}>
-            Giám khảo AI đang phân tích chi tiết bài viết của bạn.{"\n"}Thường mất từ 15–40 giây.
+            GiÃ¡m kháº£o AI Ä‘ang phÃ¢n tÃ­ch chi tiáº¿t bÃ i viáº¿t cá»§a báº¡n.{"\n"}ThÆ°á»ng
+            máº¥t tá»« 15â€“40 giÃ¢y.
           </Text>
           {elapsed > 10 && (
             <View style={styles.elapsedPill}>
@@ -139,7 +176,7 @@ export default function ResultScreen() {
     );
   }
 
-  // ─── Error state ───────────────────────────────────────────────────────────
+  // â”€â”€â”€ Error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (error || !essay) {
     return (
       <View style={styles.center}>
@@ -147,20 +184,25 @@ export default function ResultScreen() {
           <View style={styles.errorIconWrap}>
             <Text style={styles.errorIcon}>!</Text>
           </View>
-          <Text style={styles.errorTitle}>Không thể tải kết quả</Text>
-          <Text style={styles.errorBody}>{error ?? "Không thể tải kết quả bài viết"}</Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => router.push("/history" as any)}>
-            <Text style={styles.primaryBtnText}>Xem Lịch sử</Text>
+          <Text style={styles.errorTitle}>KhÃ´ng thá»ƒ táº£i káº¿t quáº£</Text>
+          <Text style={styles.errorBody}>
+            {error ?? "KhÃ´ng thá»ƒ táº£i káº¿t quáº£ bÃ i viáº¿t"}
+          </Text>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() => router.replace(historyRoute as any)}
+          >
+            <Text style={styles.primaryBtnText}>Xem Lá»‹ch sá»­</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.ghostBtn} onPress={goBack}>
-            <Text style={styles.ghostBtnText}>Quay lại</Text>
+          <TouchableOpacity style={styles.ghostBtn} onPress={() => router.replace(historyRoute as any)}>
+            <Text style={styles.ghostBtnText}>Quay láº¡i</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  // ─── Grader error state ────────────────────────────────────────────────────
+  // â”€â”€â”€ Grader error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (essay.status === "error") {
     return (
       <View style={styles.center}>
@@ -168,22 +210,29 @@ export default function ResultScreen() {
           <View style={[styles.errorIconWrap, { backgroundColor: "#FEF3C7" }]}>
             <Text style={[styles.errorIcon, { color: "#F59E0B" }]}>~</Text>
           </View>
-          <Text style={styles.errorTitle}>Chấm điểm thất bại</Text>
+          <Text style={styles.errorTitle}>Cháº¥m Ä‘iá»ƒm tháº¥t báº¡i</Text>
           <Text style={styles.errorBody}>
-            {essay.errorMessage ?? "Giám khảo AI gặp sự cố kỹ thuật. Vui lòng thử gửi lại bài viết."}
+            {essay.errorMessage ??
+              "GiÃ¡m kháº£o AI gáº·p sá»± cá»‘ ká»¹ thuáº­t. Vui lÃ²ng thá»­ gá»­i láº¡i bÃ i viáº¿t."}
           </Text>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => router.navigate("/essay/input" as any)}>
-            <Text style={styles.primaryBtnText}>Thử lại</Text>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={() => router.navigate("/essay/input" as any)}
+          >
+            <Text style={styles.primaryBtnText}>Thá»­ láº¡i</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.ghostBtn} onPress={() => router.push("/history" as any)}>
-            <Text style={styles.ghostBtnText}>Xem Lịch sử</Text>
+          <TouchableOpacity
+            style={styles.ghostBtn}
+            onPress={() => router.replace(historyRoute as any)}
+          >
+            <Text style={styles.ghostBtnText}>Xem Lá»‹ch sá»­</Text>
           </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  // ─── Result ────────────────────────────────────────────────────────────────
+  // â”€â”€â”€ Result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const finalScore = essay.score ?? essay.overallScore ?? essay.overallBand;
   const theme = getScoreTheme(finalScore);
 
@@ -191,12 +240,13 @@ export default function ResultScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push("/")} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.headerBack}>Trang chủ</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Kết quả</Text>
-        <TouchableOpacity onPress={handleShare} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.headerAction}>Chia sẻ</Text>
+        <BackButton label="Lá»‹ch sá»­" onPress={() => router.replace(historyRoute as any)} />
+        <Text style={styles.headerTitle}>Káº¿t quáº£</Text>
+        <TouchableOpacity
+          onPress={handleShare}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.headerAction}>Chia sáº»</Text>
         </TouchableOpacity>
       </View>
 
@@ -204,13 +254,16 @@ export default function ResultScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-
-          {/* ── Hero score card ── */}
+        <Animated.View
+          style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
+        >
+          {/* â”€â”€ Hero score card â”€â”€ */}
           <View style={[styles.heroCard, { borderTopColor: theme.accent }]}>
             {/* Score level label */}
             <View style={[styles.levelPill, { backgroundColor: theme.bg }]}>
-              <Text style={[styles.levelText, { color: theme.accent }]}>{theme.label}</Text>
+              <Text style={[styles.levelText, { color: theme.accent }]}>
+                {theme.label}
+              </Text>
             </View>
 
             {/* Score number */}
@@ -219,42 +272,51 @@ export default function ResultScreen() {
                 <ScoreBadge score={finalScore} size="lg" />
               </View>
             ) : (
-              <Text style={styles.noScore}>Không có điểm</Text>
+              <Text style={styles.noScore}>KhÃ´ng cÃ³ Ä‘iá»ƒm</Text>
             )}
 
             {/* Meta chips */}
             <View style={styles.metaRow}>
               <View style={styles.metaChip}>
-                <Text style={styles.metaChipText}>{essay.wordCount} từ</Text>
+                <Text style={styles.metaChipText}>{essay.wordCount} tá»«</Text>
               </View>
               {essay.processingTimeMs && (
                 <View style={styles.metaChip}>
-                  <Text style={styles.metaChipText}>{(essay.processingTimeMs / 1000).toFixed(1)}s</Text>
+                  <Text style={styles.metaChipText}>
+                    {(essay.processingTimeMs / 1000).toFixed(1)}s
+                  </Text>
                 </View>
               )}
             </View>
           </View>
 
-          {/* ── AI Feedback ── */}
+          {/* â”€â”€ AI Feedback â”€â”€ */}
           {(essay.aiFeedback || essay.feedback) && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <View style={[styles.sectionDot, { backgroundColor: theme.accent }]} />
-                <Text style={styles.sectionTitle}>Nhận xét từ Giám khảo</Text>
+                <View
+                  style={[styles.sectionDot, { backgroundColor: theme.accent }]}
+                />
+                <Text style={styles.sectionTitle}>Nháº­n xÃ©t tá»« GiÃ¡m kháº£o</Text>
               </View>
-              <Text style={styles.feedbackText}>{essay.aiFeedback ?? essay.feedback}</Text>
+              <Text style={styles.feedbackText}>
+                {essay.aiFeedback ?? essay.feedback}
+              </Text>
             </View>
           )}
 
-          {/* ── Score breakdown ── */}
+          {/* â”€â”€ Score breakdown â”€â”€ */}
           {essay.scoreBreakdown && finalScore != null && (
-            <ScoreBreakdownCard breakdown={essay.scoreBreakdown} overallBand={finalScore} />
+            <ScoreBreakdownCard
+              breakdown={essay.scoreBreakdown}
+              overallBand={finalScore}
+            />
           )}
 
-          {/* ── Grammar errors ── */}
+          {/* â”€â”€ Grammar errors â”€â”€ */}
           <GrammarErrorCard errors={essay.grammarErrors ?? []} />
 
-          {/* ── Suggestions ── */}
+          {/* â”€â”€ Suggestions â”€â”€ */}
           <SuggestionsCard suggestions={essay.suggestions ?? []} />
 
           <View style={{ height: 48 }} />
@@ -264,7 +326,7 @@ export default function ResultScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const SURFACE = "#FFFFFF";
 const BG = "#F8FAFC";
 const TEXT_PRIMARY = "#0F172A";
@@ -286,7 +348,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
 
-  // ── Header ──────────────────────────────────────────────────────────────────
+  // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -317,13 +379,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 
-  // ── Scroll ───────────────────────────────────────────────────────────────────
+  // â”€â”€ Scroll â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   scroll: {
     padding: 16,
     paddingTop: 20,
   },
 
-  // ── Hero card ────────────────────────────────────────────────────────────────
+  // â”€â”€ Hero card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   heroCard: {
     backgroundColor: SURFACE,
     borderRadius: 20,
@@ -386,7 +448,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
 
-  // ── Section (feedback) ────────────────────────────────────────────────────────
+  // â”€â”€ Section (feedback) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   section: {
     backgroundColor: SURFACE,
     borderRadius: 20,
@@ -422,7 +484,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
   },
 
-  // ── Loading card ──────────────────────────────────────────────────────────────
+  // â”€â”€ Loading card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   loadingCard: {
     backgroundColor: SURFACE,
     borderRadius: 24,
@@ -464,7 +526,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // ── Error card ────────────────────────────────────────────────────────────────
+  // â”€â”€ Error card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   errorCard: {
     backgroundColor: SURFACE,
     borderRadius: 24,
@@ -542,3 +604,9 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 });
+
+
+
+
+
+

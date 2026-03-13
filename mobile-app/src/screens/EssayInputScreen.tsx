@@ -1,20 +1,22 @@
-import React, { useState, useCallback } from "react";
+﻿import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { LoadingOverlay } from "../components/LoadingOverlay";
 import { essayApi, getErrorMessage, extractEssay } from "../services/api";
 import { EssayTaskType } from "../types";
+import { BackButton } from "../components/BackButton";
 import { useBack } from "../hooks/useBack";
 import { useRoleGuard } from "../hooks/useRoleGuard";
 
@@ -61,38 +63,38 @@ export default function EssayInputScreen() {
       const essay = extractEssay(res.data);
       const essayId = essay?._id;
       if (!essayId) {
-        Alert.alert("Lỗi", "Server không trả về essay ID. Vui lòng thử lại.");
+        Alert.alert(
+          "Lỗi",
+          "Server không trả về essay ID. Vui lòng thử lại.",
+        );
         return;
       }
       router.navigate({ pathname: "/essay/result", params: { essayId } });
     } catch (err) {
-      Alert.alert("Chấm bài thất bại", getErrorMessage(err), [{ text: "OK" }]);
+      Alert.alert(
+        "Chấm bài thất bại",
+        getErrorMessage(err),
+        [{ text: "OK" }],
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const wordBarColor =
-    wordCount < target * 0.6
-      ? Colors.error
-      : wordCount < target
-        ? Colors.warning
-        : Colors.success;
+  const wordBarColor = wordCount < target * 0.6 ? Colors.error : Colors.text;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       <LoadingOverlay visible={loading} message="Đang chấm bài..." />
 
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={goBack}>
-          <Text style={styles.backText}>Quay lại</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Viết bài</Text>
-        <View style={{ width: 60 }} />
+      <View style={styles.nav}>
+        <BackButton label="Trang chủ" onPress={goBack} />
+        <Text style={styles.navTitle}>Viết bài</Text>
+        <View style={styles.navSpacer} />
       </View>
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
@@ -100,26 +102,32 @@ export default function EssayInputScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.toggleRow}>
+          <View style={styles.segment}>
             {(["task2", "task1"] as EssayTaskType[]).map((t) => (
-              <TouchableOpacity
+              <Pressable
                 key={t}
-                style={[styles.toggleBtn, taskType === t && styles.toggleActive]}
+                style={({ pressed }) => [
+                  styles.segmentItem,
+                  taskType === t && styles.segmentItemActive,
+                  pressed && styles.segmentItemPressed,
+                ]}
                 onPress={() => switchTask(t)}
               >
                 <Text
                   style={[
-                    styles.toggleText,
-                    taskType === t && styles.toggleTextActive,
+                    styles.segmentText,
+                    taskType === t && styles.segmentTextActive,
                   ]}
                 >
-                  {t === "task2" ? "Task 2 — Bài luận" : "Task 1 — Dữ liệu"}
+                  {t === "task2"
+                    ? "Task 2 — Bài luận"
+                    : "Task 1 — Dữ liệu"}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
 
-          <Text style={styles.sectionLabel}>ĐỀ BÀI</Text>
+          <Text style={styles.sectionLabel}>Đề bài</Text>
           <TextInput
             style={styles.promptInput}
             value={prompt}
@@ -131,9 +139,9 @@ export default function EssayInputScreen() {
           />
 
           <View style={styles.essayHeader}>
-            <Text style={styles.sectionLabel}>BÀI VIẾT</Text>
+            <Text style={styles.sectionLabel}>Bài viết</Text>
             <View style={styles.wordBadge}>
-              <Text style={[styles.wordCount, { color: wordBarColor }]}>
+              <Text style={styles.wordCount}>
                 {wordCount} / {target} từ
               </Text>
             </View>
@@ -152,13 +160,17 @@ export default function EssayInputScreen() {
           </View>
 
           <TextInput
-            style={[styles.essayInput, { minHeight: 280 }]}
+            style={styles.essayInput}
             value={essayText}
             onChangeText={setEssayText}
             multiline
             placeholder={`Bắt đầu viết ${
-              taskType === "task2" ? "bài luận học thuật" : "mô tả biểu đồ"
-            } ở đây...\n\nTối thiểu 50 từ để nộp, khuyến nghị ${target}+ từ.`}
+              taskType === "task2"
+                ? "bài luận học thuật"
+                : "mô tả biểu đồ"
+            } ở đây...\n\nTối thiểu 50 từ để nộp, khuyến nghị ${
+              target
+            }+ từ.`}
             placeholderTextColor={Colors.textMuted}
             textAlignVertical="top"
             autoCapitalize="sentences"
@@ -166,86 +178,101 @@ export default function EssayInputScreen() {
           />
 
           <View style={styles.tipsRow}>
-            <Text style={styles.tipChip}>🎯 Khuyến nghị {target}+ từ</Text>
-            <Text style={styles.tipChip}>✏️ Kiểm tra chính tả</Text>
+            <View style={styles.tipChip}>
+              <Text style={styles.tipText}>
+                Khuyến nghị {target}+ từ
+              </Text>
+            </View>
+            <View style={styles.tipChip}>
+              <Text style={styles.tipText}>Kiểm tra chính tả</Text>
+            </View>
           </View>
         </ScrollView>
 
         <View style={styles.footer}>
-          <TouchableOpacity
-            style={[styles.submitBtn, !isReady && styles.submitDisabled]}
+          <Pressable
+            style={({ pressed }) => [
+              styles.submitBtn,
+              !isReady && styles.submitDisabled,
+              pressed && styles.submitPressed,
+            ]}
             onPress={handleSubmit}
             disabled={!isReady || loading}
-            activeOpacity={0.85}
           >
             <Text style={styles.submitText}>
               {loading ? "Đang chấm..." : "Chấm bài"}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
           {!isReady && wordCount < 50 && (
-            <Text style={styles.hint}>Viết ít nhất 50 từ để nộp</Text>
+            <Text style={styles.hint}>
+              Viết ít nhất 50 từ để nộp
+            </Text>
           )}
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: {
+  flex: { flex: 1 },
+  nav: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: Colors.surface,
-    paddingTop: 52,
-    paddingBottom: 12,
-    paddingHorizontal: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.separator,
   },
-  backBtn: { paddingVertical: 4, paddingRight: 12 },
-  backText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
-  headerTitle: { ...Typography.heading3 },
+  navTitle: { ...Typography.heading3 },
+  navSpacer: { width: 80 },
   scroll: { flex: 1 },
-  content: { padding: Spacing.lg, paddingBottom: 20 },
-  toggleRow: {
+  content: { padding: Spacing.md, paddingBottom: Spacing.sm },
+  segment: {
     flexDirection: "row",
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: Colors.secondaryBackground,
     borderRadius: Radius.md,
-    padding: 3,
-    marginBottom: Spacing.xl,
+    padding: 2,
+    marginBottom: Spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
   },
-  toggleBtn: {
+  segmentItem: {
     flex: 1,
     paddingVertical: Spacing.sm,
     borderRadius: Radius.sm,
     alignItems: "center",
   },
-  toggleActive: { backgroundColor: Colors.surface, ...Shadow.sm },
-  toggleText: {
+  segmentItemActive: {
+    backgroundColor: Colors.surfaceAlt,
+    ...Shadow.sm,
+  },
+  segmentItemPressed: {
+    opacity: 0.8,
+  },
+  segmentText: {
     ...Typography.bodySmall,
     color: Colors.textSecondary,
     fontWeight: "600",
   },
-  toggleTextActive: { color: Colors.primary },
+  segmentTextActive: { color: Colors.text },
   sectionLabel: {
-    ...Typography.caption,
-    letterSpacing: 1,
+    ...Typography.label,
     textTransform: "uppercase",
     marginBottom: Spacing.xs,
     fontWeight: "700",
   },
   promptInput: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.secondaryBackground,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
     padding: Spacing.md,
-    ...Typography.bodySmall,
-    lineHeight: 20,
+    ...Typography.body,
     marginBottom: Spacing.lg,
-    minHeight: 90,
+    minHeight: 100,
   },
   essayHeader: {
     flexDirection: "row",
@@ -254,62 +281,68 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   wordBadge: {
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: Colors.secondaryBackground,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
   },
-  wordCount: { fontSize: 12, fontWeight: "700" },
+  wordCount: { ...Typography.caption, color: Colors.textSecondary },
   barBg: {
-    height: 5,
-    backgroundColor: Colors.surfaceAlt,
+    height: 4,
+    backgroundColor: Colors.separator,
     borderRadius: Radius.full,
     marginBottom: Spacing.sm,
     overflow: "hidden",
   },
-  barFill: { height: "100%", borderRadius: Radius.full },
+  barFill: { height: "100%" },
   essayInput: {
-    backgroundColor: Colors.surface,
+    backgroundColor: Colors.secondaryBackground,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
     padding: Spacing.md,
     ...Typography.body,
-    lineHeight: 24,
     marginBottom: Spacing.md,
+    minHeight: 280,
   },
   tipsRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
     flexWrap: "wrap",
+    gap: Spacing.sm,
     marginBottom: Spacing.sm,
   },
   tipChip: {
-    ...Typography.caption,
-    backgroundColor: Colors.surfaceAlt,
+    backgroundColor: Colors.secondaryBackground,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
   },
+  tipText: { ...Typography.caption, color: Colors.textSecondary },
   footer: {
-    backgroundColor: Colors.surface,
-    padding: Spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    backgroundColor: Colors.background,
+    padding: Spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.separator,
   },
   submitBtn: {
     backgroundColor: Colors.primary,
     borderRadius: Radius.lg,
     paddingVertical: 16,
     alignItems: "center",
-    ...Shadow.md,
   },
-  submitDisabled: { backgroundColor: Colors.textMuted },
-  submitText: { fontSize: 16, fontWeight: "700", color: Colors.surface },
+  submitPressed: {
+    opacity: 0.85,
+  },
+  submitDisabled: { opacity: 0.5 },
+  submitText: { ...Typography.body, color: Colors.onPrimary, fontWeight: "600" },
   hint: {
     ...Typography.caption,
     textAlign: "center",
     marginTop: Spacing.xs,
-    color: Colors.textMuted,
+    color: Colors.textSecondary,
   },
 });

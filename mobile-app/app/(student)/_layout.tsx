@@ -1,31 +1,25 @@
 ﻿import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../../src/context/AuthContext";
+import { Colors } from "../../src/constants/theme";
+import { SFIcon } from "../../src/components/SFIcon";
 
 export default function StudentTabLayout() {
-  const { user } = useAuth();
-  const isCenterStudent = user?.role === "center_student";
-
   return (
-<Tabs
+    <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#4F46E5",
-        tabBarInactiveTintColor: "#9CA3AF",
+        tabBarActiveTintColor: Colors.tint,
+        tabBarInactiveTintColor: Colors.textSecondary,
         tabBarStyle: {
-          backgroundColor: "#FFFFFF",
+          backgroundColor: Colors.background,
           borderTopWidth: 1,
-          borderTopColor: "#E5E7EB",
-          
-          // Chỉnh sửa tại đây:
-          height: 80,          // Tăng từ 60 lên 70 (+10px)
-          paddingBottom: 12,   // Giảm nhẹ paddingBottom để cân đối icon ở giữa (tùy chỉnh theo mắt bạn)
-          paddingTop: 8,       // Tăng nhẹ paddingTop để icon không sát mép trên
+          borderTopColor: Colors.separator,
+          height: 66,
+          paddingBottom: 8,
+          paddingTop: 6,
         },
         tabBarLabelStyle: {
           fontSize: 11,
           fontWeight: "500",
-          marginBottom: 4,     // Thêm một chút margin bottom cho chữ nếu cần
         },
       }}
     >
@@ -34,7 +28,26 @@ export default function StudentTabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+            <SFIcon
+              name="house"
+              size={size}
+              color={color}
+              fallbackName="home-outline"
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="student/assignments/index"
+        options={{
+          title: "Bài tập",
+          tabBarIcon: ({ color, size }) => (
+            <SFIcon
+              name="doc.text"
+              size={size}
+              color={color}
+              fallbackName="clipboard-outline"
+            />
           ),
         }}
       />
@@ -43,7 +56,12 @@ export default function StudentTabLayout() {
         options={{
           title: "Lịch sử",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size} color={color} />
+            <SFIcon
+              name="clock"
+              size={size}
+              color={color}
+              fallbackName="time-outline"
+            />
           ),
         }}
       />
@@ -52,16 +70,26 @@ export default function StudentTabLayout() {
         options={{
           title: "Tiến độ",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bar-chart-outline" size={size} color={color} />
+            <SFIcon
+              name="chart.bar"
+              size={size}
+              color={color}
+              fallbackName="bar-chart-outline"
+            />
           ),
         }}
       />
       <Tabs.Screen
         name="subscription"
         options={{
-          title: "Gói dịch vụ",
+          title: "Nâng cấp",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="star-outline" size={size} color={color} />
+            <SFIcon
+              name="star"
+              size={size}
+              color={color}
+              fallbackName="star-outline"
+            />
           ),
         }}
       />
@@ -70,17 +98,12 @@ export default function StudentTabLayout() {
         options={{
           title: "Tài khoản",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-circle-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="student/assignments/index"
-        options={{
-          title: "Bài tập",
-          href: isCenterStudent ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="clipboard-outline" size={size} color={color} />
+            <SFIcon
+              name="person.crop.circle"
+              size={size}
+              color={color}
+              fallbackName="person-circle-outline"
+            />
           ),
         }}
       />

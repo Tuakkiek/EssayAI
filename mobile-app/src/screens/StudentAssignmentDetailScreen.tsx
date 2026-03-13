@@ -1,21 +1,23 @@
-import React, { useCallback, useEffect, useState } from "react";
+﻿import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Alert,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { studentApi, getErrorMessage } from "../services/api";
 import { Assignment } from "../types";
 import { useRoleGuard } from "../hooks/useRoleGuard";
+import { BackButton } from "../components/BackButton";
 import { useBack } from "../hooks/useBack";
 
 export default function StudentAssignmentDetailScreen() {
@@ -53,7 +55,7 @@ export default function StudentAssignmentDetailScreen() {
   if (!assignment) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color={Colors.primary} />
+        <ActivityIndicator size="large" color={Colors.tint} />
       </View>
     );
   }
@@ -61,17 +63,15 @@ export default function StudentAssignmentDetailScreen() {
   const hasSubmitted = !!assignment.mySubmission;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={goBack}>
-          <Text style={styles.backText}>Quay lại</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi tiết bài tập</Text>
-        <View style={{ width: 60 }} />
+    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+      <View style={styles.nav}>
+        <BackButton label="Bài tập" onPress={goBack} />
+        <Text style={styles.navTitle}>Chi tiết bài tập</Text>
+        <View style={styles.navSpacer} />
       </View>
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
@@ -80,10 +80,15 @@ export default function StudentAssignmentDetailScreen() {
         >
           <Text style={styles.title}>{assignment.title}</Text>
 
-          <Text style={styles.prompt}>{assignment.prompt}</Text>
+          <View style={styles.card}
+          >
+            <Text style={styles.sectionLabel}>Đề bài</Text>
+            <Text style={styles.prompt}>{assignment.prompt}</Text>
+          </View>
 
           {hasSubmitted ? (
-            <View style={styles.submittedCard}>
+            <View style={styles.card}>
+              <Text style={styles.sectionLabel}>Trạng thái</Text>
               <Text style={styles.submittedTitle}>Bạn đã nộp bài</Text>
               <Text style={styles.submittedMeta}>
                 Trạng thái: {assignment.mySubmission?.status}
@@ -95,8 +100,8 @@ export default function StudentAssignmentDetailScreen() {
               )}
             </View>
           ) : (
-            <>
-              <Text style={styles.label}>Bài viết của bạn</Text>
+            <View style={styles.card}>
+              <Text style={styles.sectionLabel}>Bài viết của bạn</Text>
               <TextInput
                 style={styles.input}
                 multiline
@@ -104,71 +109,97 @@ export default function StudentAssignmentDetailScreen() {
                 onChangeText={setText}
                 placeholder="Nhập bài viết..."
                 placeholderTextColor={Colors.textMuted}
+                textAlignVertical="top"
               />
-              <TouchableOpacity
-                style={[styles.submitBtn, submitting && styles.submitDisabled]}
-                onPress={handleSubmit}
-                disabled={submitting}
-              >
-                <Text style={styles.submitText}>Nộp bài</Text>
-              </TouchableOpacity>
-            </>
+            </View>
           )}
         </ScrollView>
+
+        {!hasSubmitted && (
+          <View style={styles.footer}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.submitBtn,
+                submitting && styles.submitDisabled,
+                pressed && styles.submitPressed,
+              ]}
+              onPress={handleSubmit}
+              disabled={submitting}
+            >
+              <Text style={styles.submitText}>Nộp bài</Text>
+            </Pressable>
+          </View>
+        )}
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+  flex: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  header: {
+  nav: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: Colors.surface,
-    paddingTop: 52,
-    paddingBottom: 12,
-    paddingHorizontal: Spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.separator,
   },
-  backText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
-  headerTitle: { ...Typography.heading3 },
-  content: { padding: Spacing.lg, paddingBottom: 40 },
-  title: { ...Typography.heading3, marginBottom: Spacing.sm },
-  prompt: { ...Typography.body, marginBottom: Spacing.md },
-  label: { ...Typography.label, marginBottom: Spacing.xs },
-  input: {
-    backgroundColor: Colors.surface,
+  navTitle: { ...Typography.heading3 },
+  navSpacer: { width: 80 },
+  content: { padding: Spacing.md, paddingBottom: Spacing.xl },
+  title: { ...Typography.heading2, marginBottom: Spacing.md },
+  card: {
+    backgroundColor: Colors.secondaryBackground,
     borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
     padding: Spacing.md,
-    minHeight: 160,
+    marginBottom: Spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
+    ...Shadow.sm,
+  },
+  sectionLabel: {
+    ...Typography.label,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: Spacing.xs,
+  },
+  prompt: { ...Typography.body, color: Colors.textSecondary },
+  input: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: Radius.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
+    padding: Spacing.md,
+    minHeight: 180,
     ...Typography.body,
+  },
+  submittedTitle: { ...Typography.body, fontWeight: "600" },
+  submittedMeta: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
+  footer: {
+    backgroundColor: Colors.background,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.separator,
   },
   submitBtn: {
     backgroundColor: Colors.primary,
     borderRadius: Radius.lg,
     paddingVertical: 14,
     alignItems: "center",
-    marginTop: Spacing.md,
-    ...Shadow.md,
   },
-  submitDisabled: { backgroundColor: Colors.textMuted },
-  submitText: { ...Typography.body, color: Colors.surface, fontWeight: "700" },
-  submittedCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    ...Shadow.sm,
+  submitPressed: {
+    opacity: 0.8,
   },
-  submittedTitle: { ...Typography.body, fontWeight: "700" },
-  submittedMeta: {
-    ...Typography.bodySmall,
-    color: Colors.textSecondary,
-    marginTop: 4,
-  },
+  submitDisabled: { opacity: 0.6 },
+  submitText: { ...Typography.body, color: Colors.onPrimary, fontWeight: "600" },
 });

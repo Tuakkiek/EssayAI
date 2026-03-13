@@ -89,7 +89,6 @@ export const AvatarPicker: React.FC<Props> = ({ userId, currentAvatar, onUploadD
       <Text style={styles.hint}>
         {uploading ? "Uploading…" : "Tap to change photo"}
       </Text>
-      <Text style={styles.sub}>JPEG, PNG, WebP · Max 5 MB</Text>
     </View>
   )
 }
