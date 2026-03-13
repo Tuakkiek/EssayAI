@@ -12,19 +12,78 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { useAuth } from "../context/AuthContext";
 import { AvatarPicker } from "../components/AvatarPicker";
 import { userApi, getErrorMessage } from "../services/api";
 
+// ─── Icon size constants ───────────────────────────────────────────────────────
+const ICON_SM = 16;
+const ICON_MD = 18;
+
+type IconComponent = React.ComponentType<{ size: number; color: string }>;
+
+const UserIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="person-outline" size={size} color={color} />
+);
+const PhoneIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="call-outline" size={size} color={color} />
+);
+const GraduationCapIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="school-outline" size={size} color={color} />
+);
+const PencilIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="pencil-outline" size={size} color={color} />
+);
+const LockIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="lock-closed-outline" size={size} color={color} />
+);
+const BookOpenIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="book-outline" size={size} color={color} />
+);
+const MessageCircleIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="chatbubbles-outline" size={size} color={color} />
+);
+const StarIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="star-outline" size={size} color={color} />
+);
+const ShieldCheckIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="shield-checkmark-outline" size={size} color={color} />
+);
+const FileTextIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="document-text-outline" size={size} color={color} />
+);
+const LogOutIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="log-out-outline" size={size} color={color} />
+);
+const ChevronRightIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="chevron-forward" size={size} color={color} />
+);
+const TrashIcon: IconComponent = ({ size, color }) => (
+  <Ionicons name="trash-outline" size={size} color={color} />
+);
+
+// ─── Section Header ────────────────────────────────────────────────────────────
 function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
-function InfoRow({ label, value, icon }: { label: string; value: string; icon: string }) {
+// ─── Info Row ─────────────────────────────────────────────────────────────────
+function InfoRow({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  icon: IconComponent;
+}) {
   return (
     <View style={styles.infoRow}>
-      <Text style={styles.infoIcon}>{icon}</Text>
+      <View style={styles.infoIconWrap}>
+        <Icon size={ICON_MD} color={Colors.textMuted} />
+      </View>
       <View style={styles.infoContent}>
         <Text style={styles.infoLabel}>{label}</Text>
         <Text style={styles.infoValue}>{value}</Text>
@@ -33,39 +92,53 @@ function InfoRow({ label, value, icon }: { label: string; value: string; icon: s
   );
 }
 
+// ─── Menu Item ────────────────────────────────────────────────────────────────
 function MenuItem({
-  icon,
+  icon: Icon,
+  iconColor,
+  iconBg,
   label,
   sublabel,
   onPress,
   danger,
   showArrow = true,
 }: {
-  icon: string;
+  icon: IconComponent;
+  iconColor?: string;
+  iconBg?: string;
   label: string;
   sublabel?: string;
   onPress: () => void;
   danger?: boolean;
   showArrow?: boolean;
 }) {
+  const resolvedIconColor = danger ? Colors.error : (iconColor ?? Colors.textSecondary);
+  const resolvedIconBg = danger ? "#FEE2E2" : (iconBg ?? Colors.surfaceAlt);
+
   return (
     <TouchableOpacity
       style={[styles.menuItem, danger && styles.menuItemDanger]}
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <View style={[styles.menuIconWrap, danger && styles.menuIconDanger]}>
-        <Text style={styles.menuIcon}>{icon}</Text>
+      <View style={[styles.menuIconWrap, { backgroundColor: resolvedIconBg }]}>
+        <Icon size={ICON_MD} color={resolvedIconColor} />
       </View>
       <View style={styles.menuContent}>
         <Text style={[styles.menuLabel, danger && { color: Colors.error }]}>{label}</Text>
         {sublabel ? <Text style={styles.menuSublabel}>{sublabel}</Text> : null}
       </View>
-      {showArrow && <Text style={[styles.menuArrow, danger && { color: Colors.error }]}>›</Text>}
+      {showArrow && (
+        <ChevronRightIcon
+          size={ICON_SM}
+          color={danger ? Colors.error : Colors.textMuted}
+        />
+      )}
     </TouchableOpacity>
   );
 }
 
+// ─── Edit Name Modal ───────────────────────────────────────────────────────────
 function EditNameModal({
   visible,
   currentName,
@@ -103,7 +176,10 @@ function EditNameModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>Sửa tên</Text>
@@ -128,7 +204,11 @@ function EditNameModal({
               onPress={handleSave}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator size="small" color={Colors.surface} /> : <Text style={styles.modalSaveText}>Lưu</Text>}
+              {loading ? (
+                <ActivityIndicator size="small" color={Colors.surface} />
+              ) : (
+                <Text style={styles.modalSaveText}>Lưu</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -137,7 +217,14 @@ function EditNameModal({
   );
 }
 
-function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+// ─── Change Password Modal ─────────────────────────────────────────────────────
+function ChangePasswordModal({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -170,7 +257,9 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
     setLoading(true);
     try {
       await userApi.changePassword(current, next);
-      Alert.alert("Thành công", "Mật khẩu đã được cập nhật.", [{ text: "OK", onPress: handleClose }]);
+      Alert.alert("Thành công", "Mật khẩu đã được cập nhật.", [
+        { text: "OK", onPress: handleClose },
+      ]);
     } catch (err) {
       Alert.alert("Lỗi", getErrorMessage(err));
     } finally {
@@ -178,21 +267,25 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
     }
   };
 
+  const fields = [
+    { label: "Mật khẩu hiện tại", value: current, set: setCurrent, placeholder: "••••••••" },
+    { label: "Mật khẩu mới", value: next, set: setNext, placeholder: "Ít nhất 8 ký tự" },
+    { label: "Xác nhận mật khẩu mới", value: confirm, set: setConfirm, placeholder: "Nhập lại mật khẩu" },
+  ] as const;
+
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <View style={[styles.modalSheet, { paddingBottom: 40 }]}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>Đổi mật khẩu</Text>
           <Text style={styles.modalSubtitle}>
             Nhập mật khẩu hiện tại để đặt mật khẩu mới.
           </Text>
-
-          {([
-            { label: "Mật khẩu hiện tại", value: current, set: setCurrent, placeholder: "••••••••" },
-            { label: "Mật khẩu mới", value: next, set: setNext, placeholder: "Ít nhất 8 ký tự" },
-            { label: "Xác nhận mật khẩu mới", value: confirm, set: setConfirm, placeholder: "Nhập lại mật khẩu" },
-          ] as const).map((field) => (
+          {fields.map((field) => (
             <View key={field.label} style={styles.pwdField}>
               <Text style={styles.pwdLabel}>{field.label}</Text>
               <TextInput
@@ -205,7 +298,6 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
               />
             </View>
           ))}
-
           <View style={styles.modalActions}>
             <TouchableOpacity style={styles.modalCancelBtn} onPress={handleClose}>
               <Text style={styles.modalCancelText}>Hủy</Text>
@@ -215,7 +307,11 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
               onPress={handleSave}
               disabled={loading}
             >
-              {loading ? <ActivityIndicator size="small" color={Colors.surface} /> : <Text style={styles.modalSaveText}>Cập nhật</Text>}
+              {loading ? (
+                <ActivityIndicator size="small" color={Colors.surface} />
+              ) : (
+                <Text style={styles.modalSaveText}>Cập nhật</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -224,6 +320,7 @@ function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: 
   );
 }
 
+// ─── Profile Screen ────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const { user, logout, refreshUser } = useAuth();
 
@@ -292,8 +389,13 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
+      {/* ── Hero ── */}
       <View style={styles.hero}>
-        <AvatarPicker userId={user?.id ?? ""} currentAvatar={avatarUrl} onUploadDone={setAvatarUrl} />
+        <AvatarPicker
+          userId={user?.id ?? ""}
+          currentAvatar={avatarUrl}
+          onUploadDone={setAvatarUrl}
+        />
         <Text style={styles.heroName}>{displayName}</Text>
         <View style={styles.roleBadge}>
           <Text style={styles.roleText}>{displayRole}</Text>
@@ -301,57 +403,97 @@ export default function ProfileScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* ── Thông tin tài khoản ── */}
         <SectionHeader title="Thông tin tài khoản" />
         <View style={styles.card}>
-          <InfoRow label="Họ và tên" value={displayName} icon="👤" />
+          <InfoRow label="Họ và tên" value={displayName} icon={UserIcon} />
           <View style={styles.rowDivider} />
-          <InfoRow label="Email / Phone" value={displayEmail} icon="✉️" />
+          <InfoRow label="Số điện thoại" value={displayEmail} icon={PhoneIcon} />
           <View style={styles.rowDivider} />
-          <InfoRow label="Vai trò" value={displayRole} icon="🎓" />
+          <InfoRow label="Vai trò" value={displayRole} icon={GraduationCapIcon} />
         </View>
 
+        {/* ── Cài đặt hồ sơ ── */}
         <SectionHeader title="Cài đặt hồ sơ" />
         <View style={styles.card}>
-          <MenuItem icon="✏️" label="Sửa tên" sublabel="Cập nhật tên hiển thị" onPress={() => setEditNameVisible(true)} />
-          <View style={styles.rowDivider} />
-          <MenuItem icon="🔒" label="Đổi mật khẩu" sublabel="Giữ tài khoản an toàn" onPress={() => setChangePwdVisible(true)} />
-        </View>
-
-        <SectionHeader title="Hỗ trợ" />
-        <View style={styles.card}>
           <MenuItem
-            icon="📚"
-            label="Mẹo viết IELTS"
-            sublabel="Tài liệu miễn phí"
-            onPress={() => Alert.alert("Sắp ra mắt", "Kho tài liệu sẽ có trong bản cập nhật tới!")}
+            icon={PencilIcon}
+            iconColor="#0EA5E9"
+            iconBg="#E0F2FE"
+            label="Sửa tên"
+            sublabel="Cập nhật tên hiển thị"
+            onPress={() => setEditNameVisible(true)}
           />
           <View style={styles.rowDivider} />
           <MenuItem
-            icon="💬"
+            icon={LockIcon}
+            iconColor="#8B5CF6"
+            iconBg="#EDE9FE"
+            label="Đổi mật khẩu"
+            sublabel="Giữ tài khoản an toàn"
+            onPress={() => setChangePwdVisible(true)}
+          />
+        </View>
+
+        {/* ── Hỗ trợ ── */}
+        <SectionHeader title="Hỗ trợ" />
+        <View style={styles.card}>
+          <MenuItem
+            icon={BookOpenIcon}
+            iconColor="#10B981"
+            iconBg="#D1FAE5"
+            label="Mẹo viết IELTS"
+            sublabel="Tài liệu miễn phí"
+            onPress={() =>
+              Alert.alert("Sắp ra mắt", "Kho tài liệu sẽ có trong bản cập nhật tới!")
+            }
+          />
+          <View style={styles.rowDivider} />
+          <MenuItem
+            icon={MessageCircleIcon}
+            iconColor="#F59E0B"
+            iconBg="#FEF3C7"
             label="Liên hệ hỗ trợ"
             sublabel="support@essayai.app"
             onPress={() => Alert.alert("Hỗ trợ", "Gửi email tới support@essayai.app")}
           />
           <View style={styles.rowDivider} />
           <MenuItem
-            icon="⭐"
+            icon={StarIcon}
+            iconColor="#F97316"
+            iconBg="#FFEDD5"
             label="Đánh giá ứng dụng"
             sublabel="Giúp chúng tôi cải thiện"
             onPress={() => Alert.alert("Cảm ơn!", "Đang chuyển đến App Store…")}
           />
         </View>
 
+        {/* ── Pháp lý ── */}
         <SectionHeader title="Pháp lý" />
         <View style={styles.card}>
-          <MenuItem icon="🔐" label="Chính sách bảo mật" onPress={() => Alert.alert("Chính sách bảo mật", "Đang mở chính sách bảo mật…")} />
+          <MenuItem
+            icon={ShieldCheckIcon}
+            iconColor="#64748B"
+            iconBg="#F1F5F9"
+            label="Chính sách bảo mật"
+            onPress={() => Alert.alert("Chính sách bảo mật", "Đang mở chính sách bảo mật…")}
+          />
           <View style={styles.rowDivider} />
-          <MenuItem icon="📄" label="Điều khoản dịch vụ" onPress={() => Alert.alert("Điều khoản", "Đang mở điều khoản dịch vụ…")} />
+          <MenuItem
+            icon={FileTextIcon}
+            iconColor="#64748B"
+            iconBg="#F1F5F9"
+            label="Điều khoản dịch vụ"
+            onPress={() => Alert.alert("Điều khoản", "Đang mở điều khoản dịch vụ…")}
+          />
         </View>
 
+        {/* ── Phiên ── */}
         <SectionHeader title="Phiên" />
         <View style={styles.card}>
           <MenuItem
-            icon="🚪"
+            icon={LogOutIcon}
             label={loggingOut ? "Đang đăng xuất…" : "Đăng xuất"}
             onPress={handleLogout}
             danger
@@ -359,12 +501,17 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <TouchableOpacity style={styles.deleteLink} onPress={handleDeleteAccount} activeOpacity={0.7}>
+        {/* ── Xóa tài khoản ── */}
+        <TouchableOpacity
+          style={styles.deleteLink}
+          onPress={handleDeleteAccount}
+          activeOpacity={0.7}
+        >
+          <TrashIcon size={14} color={Colors.error} />
           <Text style={styles.deleteLinkText}>Xóa tài khoản</Text>
         </TouchableOpacity>
 
         <Text style={styles.version}>Essay AI · v1.0.0</Text>
-
         <View style={{ height: 40 }} />
       </ScrollView>
 
@@ -374,13 +521,19 @@ export default function ProfileScreen() {
         onClose={() => setEditNameVisible(false)}
         onSave={handleSaveName}
       />
-      <ChangePasswordModal visible={changePwdVisible} onClose={() => setChangePwdVisible(false)} />
+      <ChangePasswordModal
+        visible={changePwdVisible}
+        onClose={() => setChangePwdVisible(false)}
+      />
     </View>
   );
 }
 
+// ─── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+
+  // Hero
   hero: {
     backgroundColor: Colors.primary,
     paddingTop: 56,
@@ -388,9 +541,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.sm,
   },
-  heroName: { ...Typography.heading2, color: Colors.surface, fontWeight: "800", marginTop: Spacing.sm },
-  roleBadge: { backgroundColor: "rgba(255,255,255,0.2)", borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 4 },
-  roleText: { ...Typography.caption, color: Colors.surface, fontWeight: "700", letterSpacing: 0.5 },
+  heroName: {
+    ...Typography.heading2,
+    color: Colors.surface,
+    fontWeight: "800",
+    marginTop: Spacing.sm,
+  },
+  roleBadge: {
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 4,
+  },
+  roleText: {
+    ...Typography.caption,
+    color: Colors.surface,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+
+  // Content
   content: { padding: Spacing.lg },
   sectionTitle: {
     ...Typography.caption,
@@ -402,30 +572,113 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     paddingHorizontal: Spacing.xs,
   },
-  card: { backgroundColor: Colors.surface, borderRadius: Radius.lg, overflow: "hidden", ...Shadow.sm },
-  rowDivider: { height: 1, backgroundColor: Colors.border, marginHorizontal: Spacing.lg },
-  infoRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, gap: Spacing.md },
-  infoIcon: { fontSize: 18, width: 24, textAlign: "center" },
+  card: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    overflow: "hidden",
+    ...Shadow.sm,
+  },
+  rowDivider: {
+    height: 1,
+    backgroundColor: Colors.border,
+    marginHorizontal: Spacing.lg,
+  },
+
+  // Info Row
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
+  },
+  infoIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.sm,
+    backgroundColor: Colors.surfaceAlt,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   infoContent: { flex: 1 },
-  infoLabel: { ...Typography.caption, color: Colors.textMuted, fontWeight: "600", marginBottom: 2 },
+  infoLabel: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    fontWeight: "600",
+    marginBottom: 2,
+  },
   infoValue: { ...Typography.body, color: Colors.text, fontWeight: "500" },
-  menuItem: { flexDirection: "row", alignItems: "center", paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, gap: Spacing.md },
-  menuItemDanger: { backgroundColor: Colors.errorLight + "20" },
-  menuIconWrap: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.surfaceAlt, alignItems: "center", justifyContent: "center" },
-  menuIconDanger: { backgroundColor: Colors.errorLight },
-  menuIcon: { fontSize: 17 },
+
+  // Menu Item
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    gap: Spacing.md,
+  },
+  menuItemDanger: { backgroundColor: "#FEF2F2" },
+  menuIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   menuContent: { flex: 1 },
   menuLabel: { ...Typography.body, fontWeight: "600", color: Colors.text },
   menuSublabel: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
-  menuArrow: { fontSize: 20, color: Colors.textMuted },
-  deleteLink: { alignItems: "center", marginTop: Spacing.xl, paddingVertical: Spacing.sm },
-  deleteLinkText: { ...Typography.bodySmall, color: Colors.error, fontWeight: "600", textDecorationLine: "underline" },
-  version: { ...Typography.caption, color: Colors.textMuted, textAlign: "center", marginTop: Spacing.md },
-  modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
-  modalSheet: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.xl, paddingTop: Spacing.md, gap: Spacing.md },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: "center", marginBottom: Spacing.sm },
+
+  // Delete
+  deleteLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: Spacing.xl,
+    paddingVertical: Spacing.sm,
+  },
+  deleteLinkText: {
+    ...Typography.bodySmall,
+    color: Colors.error,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+  version: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    textAlign: "center",
+    marginTop: Spacing.md,
+  },
+
+  // Modal
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
+  modalSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: Radius.xl,
+    borderTopRightRadius: Radius.xl,
+    padding: Spacing.xl,
+    paddingTop: Spacing.md,
+    gap: Spacing.md,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.border,
+    alignSelf: "center",
+    marginBottom: Spacing.sm,
+  },
   modalTitle: { ...Typography.heading3 },
-  modalSubtitle: { ...Typography.bodySmall, color: Colors.textSecondary, lineHeight: 18 },
+  modalSubtitle: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    lineHeight: 18,
+  },
   modalInput: {
     backgroundColor: Colors.surfaceAlt,
     borderRadius: Radius.md,
@@ -436,11 +689,41 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.text,
   },
-  modalActions: { flexDirection: "row", gap: Spacing.md, marginTop: Spacing.sm },
-  modalCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1.5, borderColor: Colors.border, alignItems: "center" },
-  modalCancelText: { ...Typography.body, color: Colors.textSecondary, fontWeight: "600" },
-  modalSaveBtn: { flex: 1, paddingVertical: 14, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: "center", ...Shadow.sm },
-  modalSaveText: { ...Typography.body, color: Colors.surface, fontWeight: "700" },
+  modalActions: {
+    flexDirection: "row",
+    gap: Spacing.md,
+    marginTop: Spacing.sm,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: Radius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    alignItems: "center",
+  },
+  modalCancelText: {
+    ...Typography.body,
+    color: Colors.textSecondary,
+    fontWeight: "600",
+  },
+  modalSaveBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    ...Shadow.sm,
+  },
+  modalSaveText: {
+    ...Typography.body,
+    color: Colors.surface,
+    fontWeight: "700",
+  },
   pwdField: { gap: Spacing.xs },
-  pwdLabel: { ...Typography.caption, fontWeight: "700", color: Colors.textSecondary },
+  pwdLabel: {
+    ...Typography.caption,
+    fontWeight: "700",
+    color: Colors.textSecondary,
+  },
 });

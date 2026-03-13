@@ -174,7 +174,7 @@ export default function LoginScreen() {
               style={styles.input}
               value={password}
               onChangeText={setPassword}
-              placeholder={mode === "register" ? "Minimum 6 characters" : "••••••••"}
+              placeholder={mode === "register" ? "Tối thiểu 6 kí tự" : "••••••"}
               placeholderTextColor={Colors.textMuted}
               secureTextEntry
             />

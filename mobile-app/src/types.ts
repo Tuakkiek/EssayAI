@@ -5,7 +5,13 @@ export interface ApiResponse<T> {
 }
 
 // Essay status — add "graded" to match backend, keep "scored" for compatibility
-export type EssayStatus = "pending" | "scoring" | "graded" | "scored" | "error";
+export type EssayStatus =
+  | "pending"
+  | "scoring"
+  | "grading"
+  | "graded"
+  | "scored"
+  | "error";
 
 export interface ScoreBreakdown {
   taskAchievement: number;
@@ -32,10 +38,15 @@ export interface Essay {
   _id: string;
   userId: string;
   centerId?: string | null;
+  assignmentId?:
+    | string
+    | { _id: string; title?: string; taskType?: "task1" | "task2" }
+    | null;
 
   // Backend may return either "text" or "originalText"
   text?: string;
   originalText?: string;
+  textPreview?: string;
 
   prompt?: string;
   wordCount: number;

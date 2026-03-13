@@ -16,6 +16,8 @@ import { HistoryItem } from "../types";
 import { formatDate } from "@/utils/bandColor";
 import { useAuth } from "../context/AuthContext";
 
+const PAGE_SIZE = 20;
+
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   scored: { label: "Đã chấm", color: Colors.success },
   graded: { label: "Đã chấm", color: Colors.success },
@@ -25,7 +27,17 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 function EssayCard({ item, onPress }: { item: HistoryItem; onPress: () => void }) {
-  const status = STATUS_LABELS[item.status] ?? STATUS_LABELS.pending;
+  const normalizedStatus = item.status === "grading" ? "scoring" : item.status;
+  const status = STATUS_LABELS[normalizedStatus] ?? STATUS_LABELS.pending;
+  const displayScore = item.score ?? item.overallScore ?? item.overallBand;
+  const assignmentTitle =
+    typeof item.assignmentId === "object" ? item.assignmentId?.title : undefined;
+  const promptText =
+    item.text ??
+    item.originalText ??
+    item.textPreview ??
+    assignmentTitle ??
+    (item.taskType === "task2" ? "Bài viết Task 2" : "Bài viết Task 1");
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       <View style={styles.cardTop}>
@@ -34,12 +46,12 @@ function EssayCard({ item, onPress }: { item: HistoryItem; onPress: () => void }
           <Text style={styles.statusLabel}>{status.label}</Text>
           <Text style={styles.taskChip}>{item.taskType === "task2" ? "T2" : "T1"}</Text>
         </View>
-        {(item.score ?? item.overallBand) != null && (
-          <ScoreBadge score={(item.score ?? item.overallBand)!} size="sm" />
+        {displayScore != null && (
+          <ScoreBadge score={displayScore} size="sm" />
         )}
       </View>
       <Text style={styles.prompt} numberOfLines={2}>
-        {item.text || item.originalText}
+        {promptText}
       </Text>
       <View style={styles.cardMeta}>
         <Text style={styles.metaText}>📅 {formatDate(item.createdAt)}</Text>
@@ -56,27 +68,48 @@ export default function HistoryScreen() {
   const [essays, setEssays] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState<number | null>(null);
 
-  const load = useCallback(async (isRefresh = false) => {
+  const load = useCallback(async (options?: { refresh?: boolean; nextPage?: number }) => {
+    const isRefresh = options?.refresh ?? false;
+    const nextPage = options?.nextPage ?? 1;
+
     if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+    else if (nextPage === 1) setLoading(true);
+    else setLoadingMore(true);
 
     try {
-      const result = await essayApi.getHistory();
-      const data = result.data?.data?.essays ?? result.data?.data ?? [];
-      setEssays(data);
+      const result = await essayApi.getHistory({ page: nextPage, limit: PAGE_SIZE });
+      const payload = result.data?.data;
+      const list = payload?.essays ?? payload ?? [];
+      const pagination = payload?.pagination ?? null;
+
+      setEssays((prev) => (nextPage === 1 ? list : [...prev, ...list]));
+      if (pagination) {
+        setPage(pagination.page ?? nextPage);
+        setHasMore((pagination.page ?? nextPage) < (pagination.pages ?? nextPage));
+        setTotal(pagination.total ?? null);
+      } else {
+        setPage(nextPage);
+        setHasMore(Array.isArray(list) ? list.length === PAGE_SIZE : false);
+        setTotal(null);
+      }
       setError(null);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
   }, []);
 
   useEffect(() => {
-    load();
+    load({ refresh: true, nextPage: 1 });
   }, [load]);
 
   if (loading) {
@@ -98,7 +131,7 @@ export default function HistoryScreen() {
         <Text style={[Typography.body, { color: Colors.textSecondary, textAlign: "center", marginTop: Spacing.sm }]}>
           {error}
         </Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={() => load()}>
+        <TouchableOpacity style={styles.retryBtn} onPress={() => load({ refresh: true, nextPage: 1 })}>
           <Text style={styles.retryText}>Thử lại</Text>
         </TouchableOpacity>
       </View>
@@ -125,6 +158,13 @@ export default function HistoryScreen() {
     );
   }
 
+  const totalLabel = total ?? essays.length;
+
+  const handleLoadMore = () => {
+    if (loading || refreshing || loadingMore || !hasMore) return;
+    load({ nextPage: page + 1 });
+  };
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -138,9 +178,18 @@ export default function HistoryScreen() {
         )}
         contentContainerStyle={styles.list}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={Colors.primary} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => load({ refresh: true, nextPage: 1 })} tintColor={Colors.primary} />
         }
-        ListHeaderComponent={<Text style={styles.listHeader}>{essays.length} bài</Text>}
+        ListHeaderComponent={<Text style={styles.listHeader}>{totalLabel} bài</Text>}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.6}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={{ paddingVertical: Spacing.md }}>
+              <ActivityIndicator size="small" color={Colors.primary} />
+            </View>
+          ) : null
+        }
         showsVerticalScrollIndicator={false}
       />
     </View>
@@ -201,3 +250,6 @@ const styles = StyleSheet.create({
   },
   retryText: { ...Typography.body, color: Colors.surface, fontWeight: "700" },
 });
+
+
+

@@ -72,6 +72,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     padding: 20,
+    marginBottom: 14, // Thêm dòng này để tạo khoảng cách với card bên dưới
     gap: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },

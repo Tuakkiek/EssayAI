@@ -238,15 +238,27 @@ export const listEssays = async (filter: EssayListFilter) => {
     Essay.find(query)
       .populate("studentId", "name phone")
       .populate("assignmentId", "title taskType")
-      .select("-originalText") // omit full text from list view (expensive payload)
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 }),
+      .sort({ createdAt: -1 })
+      .lean(),
     Essay.countDocuments(query),
   ]);
 
+  // Provide a lightweight preview for history list UI without sending full text.
+  const essaysWithPreview = essays.map((essay: any) => {
+    const text = typeof essay.originalText === "string" ? essay.originalText.trim() : "";
+    const preview =
+      text.length > 0
+        ? text.slice(0, 140) + (text.length > 140 ? "…" : "")
+        : undefined;
+    // Strip full text from response payload
+    const { originalText, ...rest } = essay;
+    return { ...rest, textPreview: preview };
+  });
+
   return {
-    essays,
+    essays: essaysWithPreview,
     pagination: { total, page, limit, pages: Math.ceil(total / limit) },
   };
 };

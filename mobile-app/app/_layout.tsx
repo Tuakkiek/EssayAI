@@ -1,12 +1,10 @@
-import { useEffect } from "react";
+﻿import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { Tabs, router, useRootNavigationState, useSegments } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Stack, router, useRootNavigationState, useSegments } from "expo-router";
 import { AuthProvider, useAuth } from "../src/context/AuthContext";
 import { API_ROOT_URL } from "../src/config/api";
 
-// ─── Auth Guard ───────────────────────────────────────────────────────────────
-
+// --- Auth Guard ----------------------------------------------------------------
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading, user } = useAuth();
   const segments = useSegments();
@@ -15,21 +13,30 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading || !rootNavigationState?.key || segments.length === 0) return;
     const inAuthScreen = segments[0] === "login";
+    const role = user?.role;
+    const roleGroup =
+      role === "admin" ? "(admin)" : role === "teacher" ? "(teacher)" : "(student)";
+    const inRoleGroup = segments[0] === roleGroup;
 
     let timer: ReturnType<typeof setTimeout>;
 
     if (!isAuthenticated && !inAuthScreen) {
       timer = setTimeout(() => router.replace("/login"), 50);
     } else if (isAuthenticated && inAuthScreen) {
-      const role = user?.role;
       timer = setTimeout(() => {
-        if (role === "admin") router.replace("/admin/dashboard");
-        else if (role === "teacher") router.replace("/progress");
-        else router.replace("/");
+        if (role === "admin") router.replace("/(admin)/admin/dashboard");
+        else if (role === "teacher") router.replace("/(teacher)/progress");
+        else router.replace("/(student)");
+      }, 50);
+    } else if (isAuthenticated && !inRoleGroup) {
+      timer = setTimeout(() => {
+        if (role === "admin") router.replace("/(admin)/admin/dashboard");
+        else if (role === "teacher") router.replace("/(teacher)/progress");
+        else router.replace("/(student)");
       }, 50);
     }
 
-    return () => clearTimeout(timer); // cleanup nếu effect chạy lại trước khi timer xong
+    return () => clearTimeout(timer);
   }, [
     isAuthenticated,
     isLoading,
@@ -49,196 +56,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// ─── Tab Navigator ────────────────────────────────────────────────────────────
-
-function TabLayout() {
-  const { user } = useAuth();
-  const segments = useSegments();
-  const inAuthScreen = segments[0] === "login";
-  const role = user?.role ?? "";
-
-  const isAdmin = role === "admin";
-  const isTeacher = role === "teacher";
-  const isCenterStudent = role === "center_student";
-  const isFreeStudent = role === "free_student";
-  const isStudent = isCenterStudent || isFreeStudent;
-
-  const tabBarStyle = inAuthScreen
-    ? { display: "none" }
-    : {
-        backgroundColor: "#FFFFFF",
-        borderTopWidth: 1,
-        borderTopColor: "#E5E7EB",
-        paddingBottom: 8,
-        paddingTop: 4,
-        height: 60,
-      };
-
-  return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: "#4F46E5",
-        tabBarInactiveTintColor: "#9CA3AF",
-        tabBarStyle,
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: "500",
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: "Home",
-          href: isStudent ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: "Lịch sử",
-          href: isStudent ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="time-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="progress"
-        options={{
-          title: "Tiến độ",
-          href: isAdmin ? null : undefined,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bar-chart-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="subscription"
-        options={{
-          title: "Gói dịch vụ",
-          href: isAdmin ? null : undefined,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="star-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "Tài khoản",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-circle-outline" size={size} color={color} />
-          ),
-        }}
-      />
-
-      <Tabs.Screen
-        name="teacher/classes/index"
-        options={{
-          title: "Lớp học",
-          href: isTeacher ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="teacher/assignments/index"
-        options={{
-          title: "Bài tập",
-          href: isTeacher ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="document-text-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="student/assignments/index"
-        options={{
-          title: "Bài tập",
-          href: isCenterStudent ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="clipboard-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="admin/dashboard"
-        options={{
-          title: "Dashboard",
-          href: isAdmin ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="speedometer-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="admin/users/index"
-        options={{
-          title: "Users",
-          href: isAdmin ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-circle-outline" size={size} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="admin/tasks/index"
-        options={{
-          title: "Tasks",
-          href: isAdmin ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons
-              name="checkmark-circle-outline"
-              size={size}
-              color={color}
-            />
-          ),
-        }}
-      />
-
-      {/* Hide these screens from the tab bar */}
-      <Tabs.Screen name="login" options={{ href: null }} />
-      <Tabs.Screen name="improvement" options={{ href: null }} />
-      <Tabs.Screen name="essay/input" options={{ href: null }} />
-      <Tabs.Screen name="essay/result" options={{ href: null }} />
-      <Tabs.Screen name="essay/detail" options={{ href: null }} />
-      <Tabs.Screen name="individualSubscription" options={{ href: null }} />
-      <Tabs.Screen name="teacher/essays/[essayId]" options={{ href: null }} />
-      <Tabs.Screen name="teacher/students/[id]" options={{ href: null }} />
-      <Tabs.Screen name="teacher/students/index" options={{ href: null }} />
-      <Tabs.Screen name="teacher/create-center" options={{ href: null }} />
-      <Tabs.Screen name="teacher/essays/index" options={{ href: null }} />
-      {/* Teacher new screens */}
-      <Tabs.Screen name="teacher/classes/[classId]" options={{ href: null }} />
-      <Tabs.Screen
-        name="teacher/classes/[classId]/create-students"
-        options={{ href: null }}
-      />
-      <Tabs.Screen name="teacher/classes/create" options={{ href: null }} />
-      <Tabs.Screen name="teacher/assignments/[id]" options={{ href: null }} />
-      <Tabs.Screen name="teacher/assignments/create" options={{ href: null }} />
-      <Tabs.Screen
-        name="teacher/assignments/[id]/submissions"
-        options={{ href: null }}
-      />
-
-      {/* Student new screens */}
-      <Tabs.Screen name="student/join-class" options={{ href: null }} />
-      <Tabs.Screen name="student/assignments/[id]" options={{ href: null }} />
-
-      {/* Admin screens */}
-    </Tabs>
-  );
-}
-
-// ─── Root Layout ──────────────────────────────────────────────────────────────
-
+// --- Root Layout ---------------------------------------------------------------
 export default function RootLayout() {
   useEffect(() => {
     const healthUrl = `${API_ROOT_URL}/health`;
@@ -271,8 +89,14 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <AuthGuard>
-        <TabLayout />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="(student)" options={{ headerShown: false }} />
+          <Stack.Screen name="(teacher)" options={{ headerShown: false }} />
+          <Stack.Screen name="(admin)" options={{ headerShown: false }} />
+        </Stack>
       </AuthGuard>
     </AuthProvider>
   );
 }
+

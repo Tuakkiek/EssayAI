@@ -74,7 +74,7 @@ export default function TeacherClassDetailScreen() {
   }, [tab, loadAnalytics]);
 
   const handleBack = useCallback(() => {
-    const target = backTo === "classes" ? "/teacher/classes" : "/teacher/dashboard";
+    const target = backTo === "classes" ? "/teacher/classes" : "/(teacher)/progress";
     router.replace(target);
   }, [backTo, router]);
 

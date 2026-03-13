@@ -285,7 +285,7 @@ function PaymentModal({
           </TouchableOpacity>
 
           <Text style={styles.expiryNote}>
-            ⏰ Lệnh thanh toán này hết hạn lúc {fmtDate(b.expiresAt)}.{"\n"}
+            Lệnh thanh toán này hết hạn lúc {fmtDate(b.expiresAt)}.{"\n"}
             Tài khoản sẽ được kích hoạt tự động trong vài phút sau khi chuyển khoản thành công.
           </Text>
 
@@ -302,7 +302,7 @@ function CenterStudentView({ status }: { status: SubscriptionStatus | null }) {
   return (
     <View style={styles.content}>
       <View style={styles.infoCard}>
-        <Text style={styles.infoIcon}>🏫</Text>
+        <Text style={styles.infoIcon}></Text>
         <Text style={styles.infoTitle}>Tài khoản trung tâm</Text>
         <Text style={styles.infoDesc}>
           Gói dịch vụ của bạn được quản lý bởi trung tâm. Liên hệ giáo viên hoặc quản trị viên để nâng cấp.
@@ -463,7 +463,7 @@ export default function SubscriptionScreen() {
 
         {(role === "teacher" || role === "admin") && (
           <View style={styles.enterpriseCard}>
-            <Text style={styles.enterpriseTitle}>🏫 Dành cho trung tâm</Text>
+            <Text style={styles.enterpriseTitle}>Dành cho trung tâm</Text>
             <Text style={styles.enterpriseDesc}>
               Giá theo thỏa thuận cho trường và trung tâm. Bao gồm bảng điều khiển giáo viên, quản lý học sinh và báo cáo.
             </Text>

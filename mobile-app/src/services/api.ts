@@ -73,7 +73,8 @@ export const authApi = {
 export const essayApi = {
   submit: (text: string, assignmentId?: string) =>
     api.post("/api/essays", { text, assignmentId }),
-  getHistory: () => api.get("/api/essays"),
+  getHistory: (params?: { page?: number; limit?: number }) =>
+    api.get("/api/essays", { params }),
   // Add cache-busting param + headers to prevent 304 Not Modified
   // during polling (304 returns empty body which breaks parsing)
   getById: (id: string) =>

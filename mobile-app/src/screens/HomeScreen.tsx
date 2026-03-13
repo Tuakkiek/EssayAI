@@ -19,7 +19,9 @@ export default function HomeScreen() {
   useRoleGuard(["center_student", "free_student"]);
 
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
+  const isStudent =
+    user?.role === "center_student" || user?.role === "free_student";
   const [myClass, setMyClass] = useState<any>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,11 +44,20 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
+    if (isLoading || !isStudent) return;
     loadData();
-  }, [loadData]);
+  }, [isLoading, isStudent, loadData]);
 
   const firstName = user?.name?.trim().split(" ")[0] || "Bạn";
   const isCenterStudent = user?.role === "center_student";
+
+  if (isLoading || !isStudent) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
 
   if (loading) {
     return (

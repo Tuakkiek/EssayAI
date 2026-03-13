@@ -1,19 +1,25 @@
 import { useEffect } from "react";
-import { router } from "expo-router";
+import { useIsFocused } from "@react-navigation/native";
+import { router, useRootNavigationState, useSegments } from "expo-router";
 import { useAuth, UserRole } from "../context/AuthContext";
 
 const ROLE_HOME: Record<UserRole, string> = {
-  admin: "/admin/dashboard",
-  teacher: "/teacher/dashboard",
-  center_student: "/",
-  free_student: "/",
+  admin: "/(admin)/admin/dashboard",
+  teacher: "/(teacher)/progress",
+  center_student: "/(student)",
+  free_student: "/(student)",
 };
 
 export function useRoleGuard(allowedRoles: UserRole[]) {
   const { user, isAuthenticated, isLoading } = useAuth();
+  const rootNavigationState = useRootNavigationState();
+  const segments = useSegments();
+  const isFocused = useIsFocused();
+  const allowedRolesKey = [...new Set(allowedRoles)].sort().join("|");
 
   useEffect(() => {
-    if (isLoading) return;
+    if (!isFocused) return;
+    if (isLoading || !rootNavigationState?.key || segments.length === 0) return;
 
     if (!isAuthenticated || !user) {
       router.replace("/login");
@@ -28,7 +34,15 @@ export function useRoleGuard(allowedRoles: UserRole[]) {
       );
       router.replace(ROLE_HOME[user.role] as any);
     }
-  }, [isLoading, isAuthenticated, user, allowedRoles]);
+  }, [
+    isFocused,
+    isLoading,
+    isAuthenticated,
+    user,
+    allowedRolesKey,
+    rootNavigationState?.key,
+    segments,
+  ]);
 }
 
 /**
