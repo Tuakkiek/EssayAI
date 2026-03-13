@@ -114,6 +114,7 @@ export const teacherApi = {
 export const classApi = {
   getAll: (params?: object) => api.get("/api/teacher/classes", { params }),
   getById: (id: string) => api.get(`/api/teacher/classes/${id}`),
+  getWithStudents: (id: string) => api.get(`/api/teacher/classes/${id}`),
   create: (data: { name: string; description?: string }) =>
     api.post("/api/teacher/classes", data),
   delete: (id: string) => api.delete(`/api/teacher/classes/${id}`),

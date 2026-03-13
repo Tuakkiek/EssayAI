@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -44,7 +44,7 @@ export default function StudentAssignmentDetailScreen() {
       await load();
       setText("");
     } catch (err) {
-      Alert.alert("L?i", getErrorMessage(err));
+      Alert.alert("Lỗi", getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -65,35 +65,35 @@ export default function StudentAssignmentDetailScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={goBack}>
-          <Text style={styles.backText}>Quay l?i</Text>
+          <Text style={styles.backText}>Quay lại</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi ti?t bài t?p</Text>
+        <Text style={styles.headerTitle}>Chi tiết bài tập</Text>
         <View style={{ width: 60 }} />
       </View>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <Text style={styles.title}>{assignment.title}</Text>
-          <Text style={styles.meta}>D?ng bài: {taskLabel}</Text>
+          <Text style={styles.meta}>Dạng bài: {taskLabel}</Text>
           <Text style={styles.prompt}>{assignment.prompt}</Text>
 
           {hasSubmitted ? (
             <View style={styles.submittedCard}>
-              <Text style={styles.submittedTitle}>B?n dã n?p bài</Text>
-              <Text style={styles.submittedMeta}>Tr?ng thái: {assignment.mySubmission?.status}</Text>
+              <Text style={styles.submittedTitle}>Bạn đã nộp bài</Text>
+              <Text style={styles.submittedMeta}>Trạng thái: {assignment.mySubmission?.status}</Text>
               {assignment.mySubmission?.overallScore != null && (
                 <Text style={styles.submittedMeta}>Band: {assignment.mySubmission?.overallScore?.toFixed(1)}</Text>
               )}
             </View>
           ) : (
             <>
-              <Text style={styles.label}>Bài vi?t c?a b?n</Text>
+              <Text style={styles.label}>Bài viết của bạn</Text>
               <TextInput
                 style={styles.input}
                 multiline
                 value={text}
                 onChangeText={setText}
-                placeholder="Nh?p bài vi?t..."
+                placeholder="Nhập bài viết..."
                 placeholderTextColor={Colors.textMuted}
               />
               <TouchableOpacity
@@ -101,7 +101,7 @@ export default function StudentAssignmentDetailScreen() {
                 onPress={handleSubmit}
                 disabled={submitting}
               >
-                <Text style={styles.submitText}>N?p bài</Text>
+                <Text style={styles.submitText}>Nộp bài</Text>
               </TouchableOpacity>
             </>
           )}

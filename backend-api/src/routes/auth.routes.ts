@@ -17,6 +17,11 @@ router.post("/register", registerHandler)
 // Login for all roles (phone + password)
 router.post("/login", loginHandler)
 
+// Logout (client handles removing token, server just returns 200)
+router.post("/logout", requireAuth, (req, res) => {
+  res.json({ success: true, message: "Logged out" })
+})
+
 // Deprecated: self-registration legacy endpoint
 router.post("/register/student", registerSelfStudentHandler)
 

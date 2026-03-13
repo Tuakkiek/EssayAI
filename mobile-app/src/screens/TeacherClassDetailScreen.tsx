@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -40,11 +40,11 @@ export default function TeacherClassDetailScreen() {
     setLoading(true);
     try {
       const [classRes, assignmentRes] = await Promise.all([
-        classApi.getById(classId),
+        classApi.getWithStudents(classId),
         assignmentApi.getAll({ classId }),
       ]);
       const classData = classRes.data?.data;
-      setCls(classData?.class ?? null);
+      setCls(classData?.class ?? classData?.cls ?? null);
       setStudents(classData?.students ?? []);
       const asg = assignmentRes.data?.data?.assignments ?? assignmentRes.data?.data ?? [];
       setAssignments(asg);

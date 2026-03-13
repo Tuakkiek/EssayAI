@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,14 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { studentApi, getErrorMessage } from "../services/api";
 import { useRoleGuard } from "../hooks/useRoleGuard";
-import { useBack } from "../hooks/useBack";
 
 export default function StudentJoinClassScreen() {
   useRoleGuard(["center_student", "free_student"]);
-  const goBack = useBack("/");
+  const router = useRouter();
   const [classCode, setClassCode] = useState("");
   const [joinedClass, setJoinedClass] = useState<any | null>(null);
   const [teacher, setTeacher] = useState<any | null>(null);
@@ -33,7 +33,7 @@ export default function StudentJoinClassScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={goBack}>
+        <TouchableOpacity onPress={() => router.navigate("/")}>
           <Text style={styles.backText}>Quay lại</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tham gia lớp</Text>
@@ -66,7 +66,7 @@ export default function StudentJoinClassScreen() {
             )}
             <TouchableOpacity
               style={styles.submitBtn}
-              onPress={goBack}
+              onPress={() => router.navigate("/")}
             >
               <Text style={styles.submitText}>OK</Text>
             </TouchableOpacity>

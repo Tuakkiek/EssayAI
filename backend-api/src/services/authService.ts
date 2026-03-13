@@ -1,4 +1,4 @@
-﻿import bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { User, Center } from "../models/index";
 import { IUser, UserRole } from "../models/User";
@@ -199,7 +199,7 @@ const buildAuthResult = (
     phone: user.phone,
     email: user.email ?? null,
     role: user.role,
-    centerId: centerId ?? undefined,
+    ...(centerId ? { centerId } : {}),
   };
   const token = signToken(payload);
 

@@ -178,7 +178,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading: false,
         isAuthenticated: false,
       });
-      
       // We rely on AuthGuard to redirect to /login when isAuthenticated becomes false.
       // Calling router.replace here concurrently with state update causes the navigator to crash.
     }

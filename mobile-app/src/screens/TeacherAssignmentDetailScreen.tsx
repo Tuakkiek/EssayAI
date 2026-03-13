@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -63,8 +63,15 @@ export default function TeacherAssignmentDetailScreen() {
 
       <View style={styles.content}>
         <Text style={styles.title}>{assignment.title}</Text>
-        <Text style={styles.meta}>Trạng thái: {assignment.status}</Text>
-        <Text style={styles.meta}>Hạn nộp: {new Date(assignment.dueDate).toDateString()}</Text>
+        <Text style={styles.meta}>
+          Trạng thái:{" "}
+          {assignment.status === "draft"
+            ? "Nháp"
+            : assignment.status === "published"
+              ? "Đang mở"
+              : "Đã đóng"}
+        </Text>
+        <Text style={styles.meta}>Hạn nộp: {new Date(assignment.dueDate).toLocaleDateString('vi-VN')}</Text>
 
         <TouchableOpacity
           style={styles.primaryBtn}

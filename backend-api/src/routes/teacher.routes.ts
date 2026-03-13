@@ -37,7 +37,7 @@ import {
 const router = Router();
 
 // All routes require Teacher
-router.use(requireTeacher);
+router.use(...requireTeacher)
 
 // Dashboard
 router.get("/dashboard", teacherDashboardHandler);

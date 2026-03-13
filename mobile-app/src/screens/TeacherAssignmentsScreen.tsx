@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
@@ -65,22 +66,47 @@ export default function TeacherAssignmentsScreen() {
         }
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => router.push(`/teacher/assignments/${item._id}`)}
-          >
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.meta}>
-              {item.status === "draft"
-                ? "Nháp"
-                : item.status === "published"
-                  ? "Đang mở"
-                  : "Đã đóng"}
-            </Text>
-            <Text style={styles.meta}>
-              📝 {item.submissionCount ?? (item as any).stats?.submissionCount ?? 0} bài nộp
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={{ flex: 1 }}
+              onPress={() => router.push(`/teacher/assignments/${item._id}`)}
+            >
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.meta}>
+                {item.status === "draft"
+                  ? "Nháp"
+                  : item.status === "published"
+                    ? "Đang mở"
+                    : "Đã đóng"}
+              </Text>
+              <Text style={styles.meta}>
+                📝 {item.submissionCount ?? (item as any).stats?.submissionCount ?? 0} bài nộp
+              </Text>
+            </TouchableOpacity>
+            {item.status === "draft" && (
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() =>
+                  Alert.alert("Xóa", "Xóa bài tập này?", [
+                    { text: "Hủy" },
+                    {
+                      text: "Xóa",
+                      onPress: async () => {
+                        try {
+                          await assignmentApi.delete(item._id);
+                          load();
+                        } catch (err: any) {
+                          Alert.alert("Lỗi", err.message || "Không thể xóa bài tập.");
+                        }
+                      },
+                    },
+                  ])
+                }
+              >
+                <Text style={styles.deleteBtnText}>Xóa</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       />
 
@@ -110,10 +136,23 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
     ...Shadow.sm,
   },
   title: { ...Typography.body, fontWeight: "700" },
   meta: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 4 },
+  deleteBtn: {
+    padding: Spacing.sm,
+    backgroundColor: Colors.error + "20",
+    borderRadius: Radius.md,
+    marginLeft: Spacing.md,
+  },
+  deleteBtnText: {
+    ...Typography.bodySmall,
+    color: Colors.error,
+    fontWeight: "700",
+  },
   fab: {
     position: "absolute",
     right: Spacing.lg,

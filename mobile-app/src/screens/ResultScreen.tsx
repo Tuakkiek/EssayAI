@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -14,12 +14,13 @@ import { ScoreBadge } from "../components/ScoreBadge";
 import ScoreBreakdownCard from "../components/ScoreBreakdownCard";
 import { GrammarErrorCard } from "../components/GrammarErrorCard";
 import { SuggestionsCard } from "../components/SuggestionsCard";
-import { essayApi, getErrorMessage, extractEssay } from "../services/api";
+import { essayApi, getErrorMessage, extractEssay, submissionApi } from "../services/api";
 import { Essay } from "../types";
 import { useBack } from "../hooks/useBack";
+import { useAuth } from "../context/AuthContext";
 
 const POLL_INTERVAL_MS = 3000;
-const MAX_POLL_ATTEMPTS = 40; // ~2 minutes max
+const MAX_POLL_ATTEMPTS = 40; // Tối đa khoảng 2 phút
 
 export default function ResultScreen() {
   const router = useRouter();
@@ -29,6 +30,7 @@ export default function ResultScreen() {
     score: string;
   }>();
 
+  const { user } = useAuth();
   const [essay, setEssay] = useState<Essay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,21 +41,15 @@ export default function ResultScreen() {
   const fetchEssay = useCallback(
     async (attempt = 0) => {
       try {
-        const res = await essayApi.getById(essayId);
+        const isTeacher = user?.role === "teacher" || user?.role === "admin";
+        const res = isTeacher 
+          ? await submissionApi.getById(essayId) 
+          : await essayApi.getById(essayId);
 
-        // Guard: 304 Not Modified returns empty body â€” skip and retry
-        // res.data can be "", null, or {} depending on axios version
         const raw = res.data;
         const data = extractEssay(raw);
 
-        if (data) {
-          console.log("[ResultScreen] Extracted essay data:", JSON.stringify(data, null, 2));
-        } else {
-          console.log("[ResultScreen] Could not extract essay. Raw response:", JSON.stringify(raw, null, 2));
-        }
-
         if (!data) {
-          // Empty body â€” essay likely hasn't changed yet, poll again
           if (attempt < MAX_POLL_ATTEMPTS) {
             setIsPolling(true);
             setPollCount(attempt + 1);
@@ -64,7 +60,7 @@ export default function ResultScreen() {
           } else {
             setLoading(false);
             setError(
-              "Grading is taking longer than expected. Please check your History in a few minutes.",
+              "Quá trình chấm điểm đang mất nhiều thời gian hơn dự kiến. Vui lòng kiểm tra lại trong mục Lịch sử sau ít phút.",
             );
           }
           return;
@@ -77,11 +73,9 @@ export default function ResultScreen() {
           data.status === "graded" ||
           data.status === "error"
         ) {
-          // Grading finished â€” stop polling
           setIsPolling(false);
           setLoading(false);
         } else if (attempt < MAX_POLL_ATTEMPTS) {
-          // Still grading â€” poll again
           setIsPolling(true);
           setPollCount(attempt + 1);
           pollRef.current = setTimeout(
@@ -92,7 +86,7 @@ export default function ResultScreen() {
           setIsPolling(false);
           setLoading(false);
           setError(
-            "Grading is taking longer than expected. Please check your History in a few minutes.",
+            "Hệ thống đang bận. Vui lòng kiểm tra kết quả trong mục Lịch sử sau.",
           );
         }
       } catch (err) {
@@ -101,7 +95,7 @@ export default function ResultScreen() {
         setIsPolling(false);
       }
     },
-    [essayId],
+    [essayId, user?.role],
   );
 
   useEffect(() => {
@@ -112,28 +106,27 @@ export default function ResultScreen() {
   }, [fetchEssay]);
 
   const handleShare = async () => {
-    const finalScore =
-      essay?.score ?? essay?.overallScore ?? essay?.overallBand;
+    const finalScore = essay?.score ?? essay?.overallScore ?? essay?.overallBand;
     if (!finalScore) return;
     await Share.share({
-      message: `I just scored ${finalScore.toFixed(1)} on my IELTS essay using Essay AI! ðŸŽ¯`,
+      message: `Tôi vừa đạt được ${finalScore.toFixed(1)} điểm cho bài viết IELTS của mình nhờ Essay AI! 🎯`,
     });
   };
 
-  // â”€â”€ Grading in progress â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Trạng thái đang chấm điểm ──────────────────────────────────────────
   if (loading || isPolling) {
     const dots = ".".repeat((pollCount % 3) + 1);
     const elapsed = Math.round((pollCount * POLL_INTERVAL_MS) / 1000);
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 52, marginBottom: Spacing.xl }}>ðŸ¤–</Text>
+        <Text style={{ fontSize: 52, marginBottom: Spacing.xl }}>🤖</Text>
         <ActivityIndicator
           size="large"
           color={Colors.primary}
           style={{ marginBottom: Spacing.lg }}
         />
         <Text style={[Typography.heading3, { textAlign: "center" }]}>
-          Grading your essay{dots}
+          Đang chấm bài viết của bạn{dots}
         </Text>
         <Text
           style={[
@@ -145,8 +138,7 @@ export default function ResultScreen() {
             },
           ]}
         >
-          Our AI examiner is reading through your essay.{"\n"}This usually takes
-          15â€“40 seconds.
+          Giám khảo AI đang phân tích bài viết.{"\n"}Quá trình này thường mất từ 15–40 giây.
         </Text>
         {elapsed > 10 && (
           <Text
@@ -155,19 +147,19 @@ export default function ResultScreen() {
               { color: Colors.textMuted, marginTop: Spacing.md },
             ]}
           >
-            {elapsed}s elapsedâ€¦
+            Đã trôi qua {elapsed} giây...
           </Text>
         )}
       </View>
     );
   }
 
-  // â”€â”€ Error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Trạng thái lỗi ───────────────────────────────────────────────────
   if (error || !essay) {
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 48, marginBottom: Spacing.lg }}>ðŸ˜•</Text>
-        <Text style={Typography.heading3}>Something went wrong</Text>
+        <Text style={{ fontSize: 48, marginBottom: Spacing.lg }}>😟</Text>
+        <Text style={Typography.heading3}>Đã có lỗi xảy ra</Text>
         <Text
           style={[
             Typography.body,
@@ -178,13 +170,13 @@ export default function ResultScreen() {
             },
           ]}
         >
-          {error ?? "Could not load results"}
+          {error ?? "Không thể tải kết quả bài viết"}
         </Text>
         <TouchableOpacity
           style={styles.retryBtn}
           onPress={() => router.push("/history" as any)}
         >
-          <Text style={styles.retryText}>Check History</Text>
+          <Text style={styles.retryText}>Xem Lịch sử</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -201,12 +193,12 @@ export default function ResultScreen() {
     );
   }
 
-  // â”€â”€ AI grading failed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Lỗi từ AI Grader ────────────────────────────────────────────────
   if (essay.status === "error") {
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 48, marginBottom: Spacing.lg }}>âš ï¸</Text>
-        <Text style={Typography.heading3}>Grading Failed</Text>
+        <Text style={{ fontSize: 48, marginBottom: Spacing.lg }}>⚠️</Text>
+        <Text style={Typography.heading3}>Chấm điểm thất bại</Text>
         <Text
           style={[
             Typography.body,
@@ -219,13 +211,13 @@ export default function ResultScreen() {
           ]}
         >
           {essay.errorMessage ??
-            "The AI grader encountered an error. Please try submitting your essay again."}
+            "Giám khảo AI gặp sự cố kỹ thuật. Vui lòng thử gửi lại bài viết của bạn."}
         </Text>
         <TouchableOpacity
           style={styles.retryBtn}
           onPress={() => router.navigate("/essay/input" as any)}
         >
-          <Text style={styles.retryText}>Try Again</Text>
+          <Text style={styles.retryText}>Thử lại</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -235,7 +227,7 @@ export default function ResultScreen() {
           onPress={() => router.push("/history" as any)}
         >
           <Text style={[styles.retryText, { color: Colors.primary }]}>
-            View History
+            Xem Lịch sử
           </Text>
         </TouchableOpacity>
       </View>
@@ -251,7 +243,7 @@ export default function ResultScreen() {
         : Colors.error
     : Colors.textMuted;
 
-  // â”€â”€ Result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Hiển thị kết quả ─────────────────────────────────────────────────
   return (
     <View style={styles.container}>
       <View style={[styles.header, { borderBottomColor: Colors.border }]}>
@@ -259,11 +251,11 @@ export default function ResultScreen() {
           onPress={() => router.push("/")}
           style={styles.doneBtn}
         >
-          <Text style={styles.doneBtnText}>â† Home</Text>
+          <Text style={styles.doneBtnText}>← Trang chủ</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Your Results</Text>
+        <Text style={styles.headerTitle}>Kết quả</Text>
         <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
-          <Text style={styles.shareText}>Share</Text>
+          <Text style={styles.shareText}>Chia sẻ</Text>
         </TouchableOpacity>
       </View>
 
@@ -277,24 +269,24 @@ export default function ResultScreen() {
             { borderTopColor: scoreColor, borderTopWidth: 4 },
           ]}
         >
-          <Text style={styles.heroLabel}>IELTS Band Score</Text>
+          <Text style={styles.heroLabel}>Điểm IELTS Ước Tính</Text>
           {finalScore != null ? (
             <ScoreBadge score={finalScore} size="lg" />
           ) : (
             <Text style={[Typography.body, { color: Colors.textMuted }]}>
-              Score not available
+              Không có dữ liệu điểm
             </Text>
           )}
           <View style={styles.metaRow}>
-            <Text style={styles.metaChip}>ðŸ“ {essay.wordCount} words</Text>
+            <Text style={styles.metaChip}>📝 {essay.wordCount} từ</Text>
             <Text style={styles.metaChip}>
               {essay.taskType === "task2"
-                ? "Task 2 Essay"
-                : "Task 1 Description"}
+                ? "Bài viết Task 2"
+                : "Bài viết Task 1"}
             </Text>
             {essay.processingTimeMs && (
               <Text style={styles.metaChip}>
-                â± {(essay.processingTimeMs / 1000).toFixed(1)}s
+                ⏱️ {(essay.processingTimeMs / 1000).toFixed(1)} giây
               </Text>
             )}
           </View>
@@ -302,7 +294,7 @@ export default function ResultScreen() {
 
         {(essay.aiFeedback || essay.feedback) && (
           <View style={styles.feedbackCard}>
-            <Text style={styles.feedbackTitle}>ðŸ“‹ Examiner Feedback</Text>
+            <Text style={styles.feedbackTitle}>📋 Nhận xét từ Giám khảo</Text>
             <Text style={styles.feedbackText}>{essay.aiFeedback ?? essay.feedback}</Text>
           </View>
         )}
@@ -328,7 +320,7 @@ export default function ResultScreen() {
             }
             activeOpacity={0.85}
           >
-            <Text style={styles.improveBtnText}>ðŸš€ AI Improvement Tools</Text>
+            <Text style={styles.improveBtnText}>🚀 Công cụ cải thiện bài viết AI</Text>
           </TouchableOpacity>
         )}
 
@@ -337,7 +329,7 @@ export default function ResultScreen() {
           onPress={() => router.push("/essay/input")}
           activeOpacity={0.85}
         >
-          <Text style={styles.tryAgainText}>âœï¸ Write Another Essay</Text>
+          <Text style={styles.tryAgainText}>✍️ Viết bài mới</Text>
         </TouchableOpacity>
 
         <View style={{ height: 32 }} />
@@ -441,6 +433,3 @@ const styles = StyleSheet.create({
   },
   tryAgainText: { fontSize: 16, fontWeight: "700", color: Colors.surface },
 });
-
-
-

@@ -262,6 +262,8 @@ export default function ProfileScreen() {
           try {
             await logout();
           } catch {
+            // ignore
+          } finally {
             setLoggingOut(false);
           }
         },

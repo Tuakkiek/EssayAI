@@ -116,6 +116,10 @@ export const requireCenter = (req: Request, res: Response, next: NextFunction): 
     sendUnauthorized(res, "Not authenticated")
     return
   }
+
+  // THÊM TẠM DÒNG NÀY ĐỂ DEBUG:
+  console.log("[requireCenter] user:", JSON.stringify(req.user))
+
   if (!req.user.centerId) {
     sendForbidden(res, "This route requires a center-scoped account")
     return
@@ -180,7 +184,7 @@ export const requireAdmin = [requireAuth, requireRole("admin")]
 
 export const requireCenterAdmin = [requireAuth, requireRole("admin")]
 
-export const requireTeacher = [requireAuth, requireRole("teacher"), requireCenter]
+export const requireTeacher = [requireAuth, requireActiveAccount, requireRole("teacher"), requireCenter]
 
 export const requireCenterStudent = [
   requireAuth,

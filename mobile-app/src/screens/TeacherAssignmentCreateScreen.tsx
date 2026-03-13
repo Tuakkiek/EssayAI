@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -16,7 +16,6 @@ import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { assignmentApi, classApi, getErrorMessage } from "../services/api";
 import { Class, GradingCriteria, RequiredVocabulary, BandDescriptor } from "../types";
 import { useRoleGuard } from "../hooks/useRoleGuard";
-import { useBack } from "../hooks/useBack";
 
 const BAND_LEVELS = [4.0, 5.0, 6.0, 7.0, 8.0];
 
@@ -24,7 +23,6 @@ export default function TeacherAssignmentCreateScreen() {
   useRoleGuard(["teacher", "admin"]);
 
   const router = useRouter();
-  const goBack = useBack("/teacher/assignments");
   const [classes, setClasses] = useState<Class[]>([]);
   const [classId, setClassId] = useState("");
   const [showClassPicker, setShowClassPicker] = useState(false);
@@ -121,7 +119,7 @@ export default function TeacherAssignmentCreateScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={goBack}>
+        <TouchableOpacity onPress={() => router.navigate("/teacher/assignments")}>
           <Text style={styles.backText}>Quay lại</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tạo bài tập</Text>

@@ -228,7 +228,6 @@ export const bulkCreateStudentsToClass = async (input: {
     const student = await User.create({
       name,
       phone,
-      email: null,
       passwordHash,
       role: "center_student",
       centerId: centerObjectId,

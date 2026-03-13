@@ -15,14 +15,21 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading || !rootNavigationState?.key || segments.length === 0) return;
     const inAuthScreen = segments[0] === "login";
+
+    let timer: ReturnType<typeof setTimeout>;
+
     if (!isAuthenticated && !inAuthScreen) {
-      router.replace("/login");
+      timer = setTimeout(() => router.replace("/login"), 50);
     } else if (isAuthenticated && inAuthScreen) {
       const role = user?.role;
-      if (role === "admin") router.replace("/admin/dashboard");
-      else if (role === "teacher") router.replace("/teacher/dashboard");
-      else router.replace("/");
+      timer = setTimeout(() => {
+        if (role === "admin") router.replace("/admin/dashboard");
+        else if (role === "teacher") router.replace("/teacher/dashboard");
+        else router.replace("/");
+      }, 50);
     }
+
+    return () => clearTimeout(timer); // cleanup nếu effect chạy lại trước khi timer xong
   }, [
     isAuthenticated,
     isLoading,
