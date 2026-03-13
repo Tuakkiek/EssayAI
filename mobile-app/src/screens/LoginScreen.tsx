@@ -174,7 +174,7 @@ export default function LoginScreen() {
               style={styles.input}
               value={password}
               onChangeText={setPassword}
-              placeholder={mode === "register" ? "Minimum 8 characters" : "••••••••"}
+              placeholder={mode === "register" ? "Minimum 6 characters" : "••••••••"}
               placeholderTextColor={Colors.textMuted}
               secureTextEntry
             />

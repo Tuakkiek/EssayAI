@@ -40,7 +40,7 @@ export default function StudentAssignmentDetailScreen() {
     if (!assignment || !text.trim()) return;
     setSubmitting(true);
     try {
-      await studentApi.submitAssignment(assignment._id, text.trim(), assignment.taskType);
+      await studentApi.submitAssignment(assignment._id, text.trim());
       await load();
       setText("");
     } catch (err) {
@@ -59,7 +59,6 @@ export default function StudentAssignmentDetailScreen() {
   }
 
   const hasSubmitted = !!assignment.mySubmission;
-  const taskLabel = assignment.taskType === "task2" ? "Task 2" : "Task 1";
 
   return (
     <View style={styles.container}>
@@ -71,18 +70,28 @@ export default function StudentAssignmentDetailScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           <Text style={styles.title}>{assignment.title}</Text>
-          <Text style={styles.meta}>Dạng bài: {taskLabel}</Text>
+
           <Text style={styles.prompt}>{assignment.prompt}</Text>
 
           {hasSubmitted ? (
             <View style={styles.submittedCard}>
               <Text style={styles.submittedTitle}>Bạn đã nộp bài</Text>
-              <Text style={styles.submittedMeta}>Trạng thái: {assignment.mySubmission?.status}</Text>
+              <Text style={styles.submittedMeta}>
+                Trạng thái: {assignment.mySubmission?.status}
+              </Text>
               {assignment.mySubmission?.overallScore != null && (
-                <Text style={styles.submittedMeta}>Band: {assignment.mySubmission?.overallScore?.toFixed(1)}</Text>
+                <Text style={styles.submittedMeta}>
+                  Band: {assignment.mySubmission?.overallScore?.toFixed(1)}
+                </Text>
               )}
             </View>
           ) : (
@@ -129,7 +138,6 @@ const styles = StyleSheet.create({
   headerTitle: { ...Typography.heading3 },
   content: { padding: Spacing.lg, paddingBottom: 40 },
   title: { ...Typography.heading3, marginBottom: Spacing.sm },
-  meta: { ...Typography.bodySmall, color: Colors.textSecondary, marginBottom: Spacing.sm },
   prompt: { ...Typography.body, marginBottom: Spacing.md },
   label: { ...Typography.label, marginBottom: Spacing.xs },
   input: {
@@ -158,7 +166,9 @@ const styles = StyleSheet.create({
     ...Shadow.sm,
   },
   submittedTitle: { ...Typography.body, fontWeight: "700" },
-  submittedMeta: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 4 },
+  submittedMeta: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
+    marginTop: 4,
+  },
 });
-
-

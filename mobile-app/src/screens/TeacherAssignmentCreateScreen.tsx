@@ -29,9 +29,10 @@ export default function TeacherAssignmentCreateScreen() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [taskType, setTaskType] = useState<"task1" | "task2">("task2");
   const [prompt, setPrompt] = useState("");
-  const [dueDate, setDueDate] = useState<Date>(new Date(Date.now() + 7 * 86400000));
+  const [dueDate, setDueDate] = useState<Date>(
+    new Date(Date.now() + 7 * 86400000),
+  );
   const [dueDateText, setDueDateText] = useState(
     new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
   );
@@ -101,7 +102,6 @@ export default function TeacherAssignmentCreateScreen() {
         classId,
         title: title.trim(),
         description: description.trim() || undefined,
-        taskType,
         prompt: prompt.trim(),
         dueDate: dueDate.toISOString(),
         maxAttempts: Number(maxAttempts) || 1,
@@ -148,20 +148,7 @@ export default function TeacherAssignmentCreateScreen() {
           placeholderTextColor={Colors.textMuted}
         />
 
-        <Text style={styles.label}>Loại bài</Text>
-        <View style={styles.toggleRow}>
-          {(["task1", "task2"] as const).map((t) => (
-            <TouchableOpacity
-              key={t}
-              style={[styles.toggleBtn, taskType === t && styles.toggleActive]}
-              onPress={() => setTaskType(t)}
-            >
-              <Text style={[styles.toggleText, taskType === t && styles.toggleTextActive]}>
-                {t === "task1" ? "Task 1" : "Task 2"}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+
 
         <Text style={styles.label}>Đề bài *</Text>
         <TextInput
@@ -452,7 +439,6 @@ const styles = StyleSheet.create({
   modalCancel: { marginTop: Spacing.md, alignItems: "center" },
   modalCancelText: { ...Typography.body, color: Colors.textSecondary },
 });
-
 
 
 

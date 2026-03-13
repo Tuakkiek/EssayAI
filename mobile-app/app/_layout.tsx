@@ -24,7 +24,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       const role = user?.role;
       timer = setTimeout(() => {
         if (role === "admin") router.replace("/admin/dashboard");
-        else if (role === "teacher") router.replace("/teacher/dashboard");
+        else if (role === "teacher") router.replace("/progress");
         else router.replace("/");
       }, 50);
     }
@@ -137,16 +137,6 @@ function TabLayout() {
         }}
       />
 
-      <Tabs.Screen
-        name="teacher/dashboard"
-        options={{
-          title: "Dashboard",
-          href: isTeacher ? undefined : null,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
-          ),
-        }}
-      />
       <Tabs.Screen
         name="teacher/classes/index"
         options={{

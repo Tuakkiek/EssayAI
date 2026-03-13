@@ -15,6 +15,16 @@ export class AppError extends Error {
   }
 }
 
+const formatDuplicateKey = (rawKey?: string): string | null => {
+  if (!rawKey) return null
+  const cleaned = rawKey
+    .replace(/_/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .trim()
+  if (!cleaned) return null
+  return `${cleaned.charAt(0).toUpperCase()}${cleaned.slice(1)}`
+}
+
 export const errorHandler = (
   err: Error | AppError,
   req: Request,
@@ -34,7 +44,8 @@ export const errorHandler = (
   } else if ((err as any)?.name === "MongoServerError" && (err as any)?.code === 11000) {
     statusCode = 409
     const key = Object.keys((err as any)?.keyValue ?? {})[0]
-    message = key ? `${key} already exists` : "Duplicate key"
+    const label = formatDuplicateKey(key)
+    message = label ? `${label} already exists` : "Duplicate key"
   }
 
   logger.error(`${req.method} ${req.originalUrl} — ${message}`, {

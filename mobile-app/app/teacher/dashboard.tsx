@@ -1,2 +1,1 @@
-﻿export { default } from "../../src/screens/TeacherDashboardScreen";
-
+﻿/* File deleted: Teacher dashboard removed */

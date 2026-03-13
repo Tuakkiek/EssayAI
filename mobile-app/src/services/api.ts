@@ -71,8 +71,8 @@ export const authApi = {
 
 // ─── Essays ───────────────────────────────────────────────────────────────────
 export const essayApi = {
-  submit: (text: string, taskType: "task1" | "task2", assignmentId?: string) =>
-    api.post("/api/essays", { text, taskType, assignmentId }),
+  submit: (text: string, assignmentId?: string) =>
+    api.post("/api/essays", { text, assignmentId }),
   getHistory: () => api.get("/api/essays"),
   // Add cache-busting param + headers to prevent 304 Not Modified
   // during polling (304 returns empty body which breaks parsing)
@@ -161,10 +161,9 @@ export const studentApi = {
   getMyClass: () => api.get("/api/student/my-class"),
   getAssignments: () => api.get("/api/student/assignments"),
   getAssignmentById: (id: string) => api.get(`/api/student/assignments/${id}`),
-  submitAssignment: (assignmentId: string, text: string, taskType: string) =>
+  submitAssignment: (assignmentId: string, text: string) =>
     api.post(`/api/student/assignments/${assignmentId}/submit`, {
       text,
-      taskType,
     }),
 };
 

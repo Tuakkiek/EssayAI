@@ -4,8 +4,6 @@ export interface ApiResponse<T> {
   data?: T;
 }
 
-export type EssayTaskType = "task1" | "task2";
-
 // Essay status — add "graded" to match backend, keep "scored" for compatibility
 export type EssayStatus = "pending" | "scoring" | "graded" | "scored" | "error";
 
@@ -41,7 +39,6 @@ export interface Essay {
 
   prompt?: string;
   wordCount: number;
-  taskType: EssayTaskType;
   status: EssayStatus;
 
   // Backend may return "overallBand", "score", or "overallScore"
@@ -103,7 +100,6 @@ export interface Assignment {
   _id: string;
   title: string;
   description?: string;
-  taskType: EssayTaskType;
   prompt: string;
   gradingCriteria?: GradingCriteria;
   classId: string;
@@ -127,7 +123,11 @@ export interface ClassAnalytics {
   submissionRate: number;
   scoreDistribution: { band: string; count: number }[];
   topStudents: { name: string; averageScore: number }[];
-  recentSubmissions: { studentName: string; score: number; createdAt: string }[];
+  recentSubmissions: {
+    studentName: string;
+    score: number;
+    createdAt: string;
+  }[];
 }
 
 /** Used in History list */
@@ -146,7 +146,6 @@ export interface PaginatedHistory {
 export interface ScoreRequest {
   essayText: string;
   prompt?: string;
-  taskType?: EssayTaskType;
   userId?: string;
   centerId?: string;
 }
@@ -159,7 +158,6 @@ export interface ScoreResponse {
   suggestions: Suggestion[];
   aiFeedback: string;
   wordCount: number;
-  taskType: EssayTaskType;
   processingTimeMs: number;
   createdAt: string;
 }

@@ -51,9 +51,10 @@ export const registerUser = async (
   const existingPhone = await User.findOne({ phone });
   if (existingPhone) throw new AppError("Phone already registered", 409);
 
-  const normalizedEmail = email?.trim().toLowerCase() ?? null;
-  if (normalizedEmail) {
-    const existingEmail = await User.findOne({ email: normalizedEmail });
+  const normalizedEmail = (email ?? "").trim().toLowerCase();
+  const emailValue = normalizedEmail.length > 0 ? normalizedEmail : undefined;
+  if (role === "teacher" && emailValue) {
+    const existingEmail = await User.findOne({ email: emailValue });
     if (existingEmail) throw new AppError("Email already registered", 409);
   }
 
@@ -72,24 +73,25 @@ export const registerUser = async (
     const slugExists = await Center.findOne({ slug });
     if (slugExists) slug = `${slug}-${Date.now().toString().slice(-4)}`;
 
-    const center = await Center.create({
+    const centerPayload = {
       name: centerName.trim(),
       slug,
-      contactEmail: normalizedEmail,
       ownerId: new mongoose.Types.ObjectId(), // temp placeholder, updated below
       subscription: { plan: "free", isActive: true },
       teachers: [],
       teacherCount: 0,
       studentCount: 0,
-    });
+    } as Record<string, unknown>;
+    if (emailValue) centerPayload.contactEmail = emailValue;
+
+    const center = await Center.create(centerPayload);
 
     centerId = center._id as mongoose.Types.ObjectId;
     resolvedCenterName = center.name;
 
-    const teacher = await User.create({
+    const teacherPayload = {
       name: name.trim(),
       phone,
-      email: normalizedEmail,
       passwordHash,
       role: "teacher",
       centerId,
@@ -97,7 +99,10 @@ export const registerUser = async (
       registrationMode: "self",
       mustChangePassword: false,
       isActive: true,
-    });
+    } as Record<string, unknown>;
+    if (emailValue) teacherPayload.email = emailValue;
+
+    const teacher = await User.create(teacherPayload);
 
     await Center.findByIdAndUpdate(center._id, {
       ownerId: teacher._id,
@@ -110,13 +115,16 @@ export const registerUser = async (
       centerId: center._id,
     });
 
-    return buildAuthResult(teacher, teacher.centerId?.toString(), resolvedCenterName);
+    return buildAuthResult(
+      teacher,
+      teacher.centerId?.toString(),
+      resolvedCenterName,
+    );
   }
 
-  const user = await User.create({
+  const userPayload = {
     name: name.trim(),
     phone,
-    email: normalizedEmail,
     passwordHash,
     role: "free_student",
     centerId: null,
@@ -127,18 +135,22 @@ export const registerUser = async (
       plan: "individual_free",
       isActive: true,
     },
-  });
+  } as Record<string, unknown>;
+  if (emailValue) userPayload.email = emailValue;
+
+  const user = await User.create(userPayload);
 
   logger.info("Free student registered", { userId: user._id, phone });
   return buildAuthResult(user, null, null);
 };
 
 // â”€â”€ Login (all roles) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-export const login = async (rawPhone: string, password: string): Promise<AuthResult> => {
+export const login = async (
+  rawPhone: string,
+  password: string,
+): Promise<AuthResult> => {
   const phone = normalizePhone(rawPhone);
-  const user = await User.findOne({ phone }).select(
-    "+passwordHash",
-  );
+  const user = await User.findOne({ phone }).select("+passwordHash");
   if (!user) throw new AppError("Invalid phone or password", 401);
   if (!user.isActive)
     throw new AppError("Your account has been disabled. Contact admin.", 403);
@@ -153,7 +165,11 @@ export const login = async (rawPhone: string, password: string): Promise<AuthRes
     role: user.role,
   });
 
-  return buildAuthResult(user, user.centerId?.toString(), user.centerName ?? null);
+  return buildAuthResult(
+    user,
+    user.centerId?.toString(),
+    user.centerName ?? null,
+  );
 };
 
 // â”€â”€ Get profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
