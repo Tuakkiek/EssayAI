@@ -5,6 +5,7 @@ import { IUser, UserRole } from "../models/User";
 import { AppError } from "../middlewares/errorHandler";
 import { signToken, JwtPayload } from "../middlewares/auth";
 import { logger } from "../utils/logger";
+import { normalizePhone } from "../utils/textUtils";
 
 const SALT_ROUNDS = 12;
 
@@ -15,7 +16,7 @@ export interface AuthResult {
     id: string;
     name: string;
     email: string | null;
-    phone?: string | null;
+    phone: string;
     role: UserRole;
     centerId: string | null;
     centerName?: string | null;
@@ -26,7 +27,8 @@ export interface AuthResult {
 
 export interface RegisterUserInput {
   name: string;
-  email: string;
+  phone: string;
+  email?: string | null;
   password: string;
   role: "free_student" | "teacher";
   centerName?: string;
@@ -35,14 +37,25 @@ export interface RegisterUserInput {
 export const registerUser = async (
   input: RegisterUserInput,
 ): Promise<AuthResult> => {
-  const { name, email, password, role, centerName } = input;
+  const { name, phone: rawPhone, email, password, role, centerName } = input;
+
+  const phone = normalizePhone(rawPhone);
+  if (!phone) {
+    throw new AppError("Phone is required", 400);
+  }
 
   if (password.length < 6) {
     throw new AppError("M?t kh?u ph?i c� �t nh?t 6 k� t?", 400);
   }
 
-  const existing = await User.findOne({ email: email.toLowerCase() });
-  if (existing) throw new AppError("Email d� du?c dang k�", 409);
+  const existingPhone = await User.findOne({ phone });
+  if (existingPhone) throw new AppError("Phone already registered", 409);
+
+  const normalizedEmail = email?.trim().toLowerCase() ?? null;
+  if (normalizedEmail) {
+    const existingEmail = await User.findOne({ email: normalizedEmail });
+    if (existingEmail) throw new AppError("Email already registered", 409);
+  }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
@@ -62,7 +75,7 @@ export const registerUser = async (
     const center = await Center.create({
       name: centerName.trim(),
       slug,
-      contactEmail: email.toLowerCase(),
+      contactEmail: normalizedEmail,
       ownerId: new mongoose.Types.ObjectId(), // temp placeholder, updated below
       subscription: { plan: "free", isActive: true },
       teachers: [],
@@ -75,7 +88,8 @@ export const registerUser = async (
 
     const teacher = await User.create({
       name: name.trim(),
-      email: email.toLowerCase(),
+      phone,
+      email: normalizedEmail,
       passwordHash,
       role: "teacher",
       centerId,
@@ -101,7 +115,8 @@ export const registerUser = async (
 
   const user = await User.create({
     name: name.trim(),
-    email: email.toLowerCase(),
+    phone,
+    email: normalizedEmail,
     passwordHash,
     role: "free_student",
     centerId: null,
@@ -114,26 +129,27 @@ export const registerUser = async (
     },
   });
 
-  logger.info("Free student registered", { userId: user._id, email });
+  logger.info("Free student registered", { userId: user._id, phone });
   return buildAuthResult(user, null, null);
 };
 
 // ── Login (all roles) ────────────────────────────────
-export const login = async (email: string, password: string): Promise<AuthResult> => {
-  const user = await User.findOne({ email: email.toLowerCase() }).select(
+export const login = async (rawPhone: string, password: string): Promise<AuthResult> => {
+  const phone = normalizePhone(rawPhone);
+  const user = await User.findOne({ phone }).select(
     "+passwordHash",
   );
-  if (!user) throw new AppError("Invalid email or password", 401);
+  if (!user) throw new AppError("Invalid phone or password", 401);
   if (!user.isActive)
     throw new AppError("Your account has been disabled. Contact admin.", 403);
 
   const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) throw new AppError("Invalid email or password", 401);
+  if (!valid) throw new AppError("Invalid phone or password", 401);
 
   await User.findByIdAndUpdate(user._id, { "stats.lastActiveAt": new Date() });
   logger.info("User logged in", {
     userId: user._id,
-    email: user.email,
+    phone: user.phone,
     role: user.role,
   });
 
@@ -180,7 +196,8 @@ const buildAuthResult = (
 ): AuthResult => {
   const payload: JwtPayload = {
     userId: (user._id as mongoose.Types.ObjectId).toString(),
-    email: user.email ?? user.phone ?? "",
+    phone: user.phone,
+    email: user.email ?? null,
     role: user.role,
     centerId: centerId ?? undefined,
   };
@@ -192,7 +209,7 @@ const buildAuthResult = (
       id: payload.userId,
       name: user.name,
       email: user.email ?? null,
-      phone: user.phone ?? null,
+      phone: user.phone,
       role: user.role,
       centerId: centerId ?? null,
       centerName: centerName ?? user.centerName ?? null,
@@ -205,12 +222,13 @@ const buildAuthResult = (
 // Backwards-compatible alias (deprecated)
 export const registerSelfStudent = async (input: {
   name: string;
-  email: string;
+  phone: string;
+  email?: string;
   password: string;
-  phone?: string;
 }): Promise<AuthResult> => {
   return registerUser({
     name: input.name,
+    phone: input.phone,
     email: input.email,
     password: input.password,
     role: "free_student",

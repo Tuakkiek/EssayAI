@@ -18,6 +18,7 @@ import {
   getTeacherClassDetailHandler,
   deleteTeacherClassHandler,
   inviteStudentHandler,
+  bulkCreateStudentsHandler,
   removeStudentFromClassHandler,
   classAnalyticsHandler,
   createTeacherAssignmentHandler,
@@ -47,6 +48,7 @@ router.get("/classes", listTeacherClassesHandler);
 router.get("/classes/:classId", getTeacherClassDetailHandler);
 router.delete("/classes/:classId", deleteTeacherClassHandler);
 router.post("/classes/:classId/invite", inviteStudentHandler);
+router.post("/classes/:classId/students/bulk-create", bulkCreateStudentsHandler);
 router.delete(
   "/classes/:classId/students/:studentId",
   removeStudentFromClassHandler,

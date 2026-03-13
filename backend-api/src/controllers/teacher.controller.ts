@@ -40,10 +40,11 @@ export const getStudentsHandler = async (req: Request, res: Response, next: Next
 export const addStudentHandler = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const centerId = await getCenterId(req)
-    const { email } = req.body
-    if (!email) { sendBadRequest(res, "Email is required"); return }
+    const { email, phone } = req.body
+    const identifier = phone ?? email
+    if (!identifier) { sendBadRequest(res, "Email or phone is required"); return }
 
-    const user = await teacherService.addStudentToCenter(centerId, email)
+    const user = await teacherService.addStudentToCenter(centerId, identifier)
     sendSuccess(res, { user }, "Student added to center")
   } catch (err) {
     next(err)
@@ -131,7 +132,7 @@ export const addCommentHandler = async (req: Request, res: Response, next: NextF
     if (!comment) { sendBadRequest(res, "Comment text is required"); return }
 
     const result = await teacherService.addTeacherComment({
-      essayId, centerId, teacherId: req.user!.userId, teacherName: req.user!.email, comment
+      essayId, centerId, teacherId: req.user!.userId, teacherName: req.user!.phone ?? req.user!.email ?? "", comment
     })
     sendSuccess(res, { essay: result }, "Comment added")
   } catch (err) {

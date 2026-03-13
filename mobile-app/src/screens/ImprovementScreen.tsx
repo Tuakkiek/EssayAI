@@ -1,13 +1,14 @@
-import React, { useState } from "react"
+﻿import React, { useState } from "react"
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert
 } from "react-native"
-import { useRouter, useLocalSearchParams } from "expo-router"
+import { useLocalSearchParams } from "expo-router"
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme"
 import api from "../services/api"
+import { useBack } from "../hooks/useBack"
 
-// ── Types ─────────────────────────────────────────────────────────
+// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type Tool = "rewrite" | "vocabulary" | "grammar"
 
 interface RewriteResult {
@@ -38,7 +39,7 @@ interface GrammarResult {
   grammarBandNote: string
 }
 
-// ── API helpers ───────────────────────────────────────────────────
+// â”€â”€ API helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const callImprovement = async (tool: Tool, essayId: string): Promise<unknown> => {
   const res = await api.post(`/improvement/${tool}`, { essayId })
   const data = res.data
@@ -46,7 +47,7 @@ const callImprovement = async (tool: Tool, essayId: string): Promise<unknown> =>
   return data.data || data
 }
 
-// ── Tool Button ───────────────────────────────────────────────────
+// â”€â”€ Tool Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ToolButton({ icon, label, desc, active, loading, onPress }: {
   icon: string; label: string; desc: string; active: boolean; loading: boolean; onPress: () => void
 }) {
@@ -63,12 +64,12 @@ function ToolButton({ icon, label, desc, active, loading, onPress }: {
         <Text style={[styles.toolDesc,  active && { color: "rgba(255,255,255,0.75)" }]}>{desc}</Text>
       </View>
       {loading && active && <ActivityIndicator size="small" color={Colors.surface} />}
-      {!loading && <Text style={[styles.toolArrow, active && { color: Colors.surface }]}>›</Text>}
+      {!loading && <Text style={[styles.toolArrow, active && { color: Colors.surface }]}>â€º</Text>}
     </TouchableOpacity>
   )
 }
 
-// ── Rewrite result panel ──────────────────────────────────────────
+// â”€â”€ Rewrite result panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function RewritePanel({ result }: { result: RewriteResult }) {
   const [showChanges, setShowChanges] = useState(false)
   const typeColors: Record<string, string> = {
@@ -81,7 +82,7 @@ function RewritePanel({ result }: { result: RewriteResult }) {
       {/* Key improvements */}
       <View style={styles.resultCard}>
         <View style={styles.resultHeader}>
-          <Text style={styles.resultTitle}>✨ Key Improvements</Text>
+          <Text style={styles.resultTitle}>âœ¨ Key Improvements</Text>
           <View style={[styles.bandEstimate, { backgroundColor: Colors.successLight }]}>
             <Text style={[styles.bandEstimateText, { color: Colors.success }]}>
               Est. Band {result.bandEstimate}
@@ -90,7 +91,7 @@ function RewritePanel({ result }: { result: RewriteResult }) {
         </View>
         {result.keyImprovements?.map((imp, i) => (
           <View key={i} style={styles.bulletRow}>
-            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.bullet}>â€¢</Text>
             <Text style={styles.bulletText}>{imp}</Text>
           </View>
         ))}
@@ -98,7 +99,7 @@ function RewritePanel({ result }: { result: RewriteResult }) {
 
       {/* Rewritten essay */}
       <View style={styles.resultCard}>
-        <Text style={styles.resultTitle}>📄 Rewritten Essay</Text>
+        <Text style={styles.resultTitle}>ðŸ“„ Rewritten Essay</Text>
         <Text style={styles.essayText}>{result.rewrittenEssay}</Text>
       </View>
 
@@ -110,9 +111,9 @@ function RewritePanel({ result }: { result: RewriteResult }) {
             onPress={() => setShowChanges((v) => !v)}
           >
             <Text style={styles.resultTitle}>
-              🔍 Changes Explained ({result.changesExplained.length})
+              ðŸ” Changes Explained ({result.changesExplained.length})
             </Text>
-            <Text style={styles.expandChevron}>{showChanges ? "▲" : "▼"}</Text>
+            <Text style={styles.expandChevron}>{showChanges ? "â–²" : "â–¼"}</Text>
           </TouchableOpacity>
           {showChanges && result.changesExplained.map((c, i) => (
             <View key={i} style={styles.changeItem}>
@@ -123,8 +124,8 @@ function RewritePanel({ result }: { result: RewriteResult }) {
                   </Text>
                 </View>
               </View>
-              <Text style={styles.changeOrig}>❌ {"\""}{c.original}{"\""}</Text>
-              <Text style={styles.changeNew}>✅ {"\""}{c.rewritten}{"\""}</Text>
+              <Text style={styles.changeOrig}>âŒ {"\""}{c.original}{"\""}</Text>
+              <Text style={styles.changeNew}>âœ… {"\""}{c.rewritten}{"\""}</Text>
               <Text style={styles.changeReason}>{c.reason}</Text>
               {i < result.changesExplained.length - 1 && <View style={styles.divider} />}
             </View>
@@ -135,12 +136,12 @@ function RewritePanel({ result }: { result: RewriteResult }) {
   )
 }
 
-// ── Vocabulary result panel ───────────────────────────────────────
+// â”€â”€ Vocabulary result panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function VocabPanel({ result }: { result: VocabResult }) {
   return (
     <View>
       <View style={styles.resultCard}>
-        <Text style={styles.resultTitle}>📊 Vocabulary Assessment</Text>
+        <Text style={styles.resultTitle}>ðŸ“Š Vocabulary Assessment</Text>
         <Text style={styles.bodyText}>{result.overallFeedback}</Text>
         <View style={[styles.bandEstimate, { backgroundColor: Colors.infoLight, marginTop: Spacing.sm }]}>
           <Text style={[styles.bandEstimateText, { color: Colors.info }]}>
@@ -153,7 +154,7 @@ function VocabPanel({ result }: { result: VocabResult }) {
         <View key={i} style={styles.resultCard}>
           <View style={styles.vocabHeader}>
             <Text style={styles.vocabOriginal}>{"\""}{s.original}{"\""}</Text>
-            <Text style={styles.vocabArrow}>→ better options:</Text>
+            <Text style={styles.vocabArrow}>â†’ better options:</Text>
           </View>
           <View style={styles.altList}>
             {s.alternatives?.map((alt, j) => (
@@ -167,19 +168,19 @@ function VocabPanel({ result }: { result: VocabResult }) {
             ))}
           </View>
           <Text style={styles.vocabExpl}>{s.explanation}</Text>
-          <Text style={styles.bandImpact}>📈 {s.bandImpact}</Text>
+          <Text style={styles.bandImpact}>ðŸ“ˆ {s.bandImpact}</Text>
         </View>
       ))}
     </View>
   )
 }
 
-// ── Grammar result panel ──────────────────────────────────────────
+// â”€â”€ Grammar result panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function GrammarPanel({ result }: { result: GrammarResult }) {
   return (
     <View>
       <View style={styles.resultCard}>
-        <Text style={styles.resultTitle}>📋 Pattern Analysis</Text>
+        <Text style={styles.resultTitle}>ðŸ“‹ Pattern Analysis</Text>
         <Text style={styles.bodyText}>Most common error type: <Text style={{ fontWeight: "700" }}>{result.topPattern}</Text></Text>
         <Text style={[styles.bodyText, { marginTop: Spacing.xs }]}>{result.grammarBandNote}</Text>
       </View>
@@ -192,8 +193,8 @@ function GrammarPanel({ result }: { result: GrammarResult }) {
             </View>
           </View>
           <View style={styles.correctionRow}>
-            <Text style={styles.errorText}>❌ {exp.errorPhrase}</Text>
-            <Text style={styles.correctedText}>✅ {exp.corrected}</Text>
+            <Text style={styles.errorText}>âŒ {exp.errorPhrase}</Text>
+            <Text style={styles.correctedText}>âœ… {exp.corrected}</Text>
           </View>
           <Text style={styles.ruleExpl}>{exp.fullExplanation}</Text>
           {exp.examples?.length > 0 && (
@@ -201,14 +202,14 @@ function GrammarPanel({ result }: { result: GrammarResult }) {
               <Text style={styles.examplesTitle}>More examples:</Text>
               {exp.examples.map((ex, j) => (
                 <View key={j}>
-                  <Text style={styles.exWrong}>✗ {ex.wrong}</Text>
-                  <Text style={styles.exRight}>✓ {ex.right}</Text>
+                  <Text style={styles.exWrong}>âœ— {ex.wrong}</Text>
+                  <Text style={styles.exRight}>âœ“ {ex.right}</Text>
                 </View>
               ))}
             </View>
           )}
           <View style={styles.tipBox}>
-            <Text style={styles.tipText}>💡 {exp.tip}</Text>
+            <Text style={styles.tipText}>ðŸ’¡ {exp.tip}</Text>
           </View>
         </View>
       ))}
@@ -216,9 +217,9 @@ function GrammarPanel({ result }: { result: GrammarResult }) {
   )
 }
 
-// ── Main Screen ───────────────────────────────────────────────────
+// â”€â”€ Main Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function ImprovementScreen() {
-  const router = useRouter()
+  const goBack = useBack("/")
   const { essayId } = useLocalSearchParams<{ essayId: string }>()
 
   const [activeTool, setActiveTool]     = useState<Tool | null>(null)
@@ -242,16 +243,16 @@ export default function ImprovementScreen() {
   }
 
   const TOOLS = [
-    { id: "rewrite"    as Tool, icon: "✍️", label: "Essay Rewrite",     desc: "See a band 7.5+ version with changes explained" },
-    { id: "vocabulary" as Tool, icon: "📚", label: "Vocabulary Boost",  desc: "Replace weak words with academic alternatives" },
-    { id: "grammar"    as Tool, icon: "🔍", label: "Grammar Deep-Dive", desc: "Understand every error with rules and examples" },
+    { id: "rewrite"    as Tool, icon: "âœï¸", label: "Essay Rewrite",     desc: "See a band 7.5+ version with changes explained" },
+    { id: "vocabulary" as Tool, icon: "ðŸ“š", label: "Vocabulary Boost",  desc: "Replace weak words with academic alternatives" },
+    { id: "grammar"    as Tool, icon: "ðŸ”", label: "Grammar Deep-Dive", desc: "Understand every error with rules and examples" },
   ]
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
+        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
+          <Text style={styles.backText}>← Quay lại</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>AI Improvement Tools</Text>
         <View style={{ width: 60 }} />
@@ -259,7 +260,7 @@ export default function ImprovementScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.intro}>
-          Choose a tool to get targeted AI feedback on your essay. Each analysis takes ~20–40 seconds.
+          Choose a tool to get targeted AI feedback on your essay. Each analysis takes ~20â€“40 seconds.
         </Text>
 
         {/* Tool selector */}
@@ -284,7 +285,7 @@ export default function ImprovementScreen() {
                 : loadingTool === "vocabulary" ? "Analysing vocabulary range..."
                 : "Deep-diving into grammar rules..."}
             </Text>
-            <Text style={styles.loadingHint}>This usually takes 20–40 seconds</Text>
+            <Text style={styles.loadingHint}>This usually takes 20â€“40 seconds</Text>
           </View>
         )}
 
@@ -292,9 +293,9 @@ export default function ImprovementScreen() {
         {activeTool && !loadingTool && Boolean(results[activeTool]) && (
           <View style={styles.resultSection}>
             <Text style={styles.resultSectionTitle}>
-              {activeTool === "rewrite" ? "✍️ Rewrite Results"
-                : activeTool === "vocabulary" ? "📚 Vocabulary Results"
-                : "🔍 Grammar Results"}
+              {activeTool === "rewrite" ? "âœï¸ Rewrite Results"
+                : activeTool === "vocabulary" ? "ðŸ“š Vocabulary Results"
+                : "ðŸ” Grammar Results"}
             </Text>
 
             {activeTool === "rewrite"    && <RewritePanel    result={results.rewrite    as RewriteResult} />}
@@ -378,5 +379,8 @@ const styles = StyleSheet.create({
   tipBox:       { backgroundColor: Colors.warningLight, borderRadius: Radius.md, padding: Spacing.md },
   tipText:      { ...Typography.bodySmall, color: Colors.warning, fontWeight: "600", lineHeight: 18 },
 })
+
+
+
 
 

@@ -10,9 +10,14 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { assignmentApi, getErrorMessage } from "../services/api";
 import { Assignment } from "../types";
+import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useBack } from "../hooks/useBack";
 
 export default function TeacherAssignmentDetailScreen() {
+  useRoleGuard(["teacher", "admin"]);
+
   const router = useRouter();
+  const goBack = useBack("/teacher/assignments");
   const { id } = useLocalSearchParams<{ id: string }>();
   const [assignment, setAssignment] = useState<Assignment | null>(null);
 
@@ -49,8 +54,8 @@ export default function TeacherAssignmentDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>Back</Text>
+        <TouchableOpacity onPress={goBack}>
+          <Text style={styles.backText}>Quay lại</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Chi tiết bài tập</Text>
         <View style={{ width: 60 }} />
@@ -141,4 +146,6 @@ const styles = StyleSheet.create({
   },
   actionBtnText: { ...Typography.body, fontWeight: "700" },
 });
+
+
 

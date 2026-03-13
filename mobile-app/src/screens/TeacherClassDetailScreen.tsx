@@ -6,14 +6,13 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
-  Modal,
-  TextInput,
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { assignmentApi, classApi, getErrorMessage } from "../services/api";
 import { Assignment, ClassAnalytics, Class } from "../types";
+import { useRoleGuard } from "../hooks/useRoleGuard";
 
 const TABS = [
   { key: "students", label: "Học sinh" },
@@ -22,6 +21,8 @@ const TABS = [
 ];
 
 export default function TeacherClassDetailScreen() {
+  useRoleGuard(["teacher", "admin"]);
+
   const router = useRouter();
   const { classId, backTo } = useLocalSearchParams<{
     classId: string;
@@ -33,9 +34,6 @@ export default function TeacherClassDetailScreen() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [analytics, setAnalytics] = useState<ClassAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [inviteVisible, setInviteVisible] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviting, setInviting] = useState(false);
 
   const load = useCallback(async () => {
     if (!classId) return;
@@ -80,25 +78,6 @@ export default function TeacherClassDetailScreen() {
     router.replace(target);
   }, [backTo, router]);
 
-  const handleInvite = async () => {
-    if (!classId || !inviteEmail.trim()) return;
-    setInviting(true);
-    try {
-      const res = await classApi.inviteStudent(classId, inviteEmail.trim());
-      const tempPwd = res?.data?.data?.plainPassword;
-      if (tempPwd) {
-        Alert.alert("Tạo tài khoản", `Mật khẩu tạm: ${tempPwd}`);
-      }
-      setInviteEmail("");
-      setInviteVisible(false);
-      load();
-    } catch (err) {
-      Alert.alert("Error", getErrorMessage(err));
-    } finally {
-      setInviting(false);
-    }
-  };
-
   const handleRemoveStudent = async (studentId: string) => {
     if (!classId) return;
     try {
@@ -121,7 +100,7 @@ export default function TeacherClassDetailScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBack}>
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>Quay lại</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{cls?.name ?? "Lớp học"}</Text>
         <View style={{ width: 60 }} />
@@ -168,9 +147,14 @@ export default function TeacherClassDetailScreen() {
           ListHeaderComponent={
             <TouchableOpacity
               style={styles.inviteBtn}
-              onPress={() => setInviteVisible(true)}
+              onPress={() =>
+                router.push({
+                  pathname: "/teacher/classes/[classId]/create-students",
+                  params: { classId },
+                })
+              }
             >
-              <Text style={styles.inviteText}>Mời học sinh</Text>
+              <Text style={styles.inviteText}>Thêm học sinh</Text>
             </TouchableOpacity>
           }
         />
@@ -228,38 +212,6 @@ export default function TeacherClassDetailScreen() {
         </View>
       )}
 
-      <Modal visible={inviteVisible} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Mời học sinh</Text>
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Email học sinh"
-              placeholderTextColor={Colors.textMuted}
-              value={inviteEmail}
-              onChangeText={setInviteEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-            />
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalCancel}
-                onPress={() => setInviteVisible(false)}
-                disabled={inviting}
-              >
-                <Text style={styles.modalCancelText}>Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalConfirm}
-                onPress={handleInvite}
-                disabled={inviting}
-              >
-                <Text style={styles.modalConfirmText}>Gửi lời mời</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -349,34 +301,8 @@ const styles = StyleSheet.create({
   chartBarBg: { flex: 1, height: 8, backgroundColor: Colors.surfaceAlt, borderRadius: Radius.full, overflow: "hidden" },
   chartBarFill: { height: "100%", backgroundColor: Colors.primary },
   chartValue: { width: 30, textAlign: "right", ...Typography.caption },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: Spacing.lg,
-  },
-  modalCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    width: "100%",
-    ...Shadow.md,
-  },
-  modalTitle: { ...Typography.heading3, marginBottom: Spacing.md },
-  modalInput: {
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Typography.body,
-  },
-  modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: Spacing.md, marginTop: Spacing.md },
-  modalCancel: { paddingVertical: 10, paddingHorizontal: 14 },
-  modalCancelText: { ...Typography.body, color: Colors.textSecondary },
-  modalConfirm: { backgroundColor: Colors.primary, borderRadius: Radius.md, paddingVertical: 10, paddingHorizontal: 14 },
-  modalConfirmText: { ...Typography.body, color: Colors.surface, fontWeight: "700" },
 });
+
+
 
 

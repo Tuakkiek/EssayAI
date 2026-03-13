@@ -18,7 +18,7 @@ import {
 } from "../services/assignmentService";
 import { getEssay, reviewEssay } from "../services/essayService";
 import {
-  inviteStudentToClass,
+  bulkCreateStudentsToClass,
   getClassAnalytics,
   listAssignmentSubmissions,
   getTeacherDashboard,
@@ -134,18 +134,41 @@ export const inviteStudentHandler = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { email } = req.body;
-    if (!email) {
-      sendBadRequest(res, "Email is required");
+    const { name, phone } = req.body;
+    if (!name || !phone) {
+      sendBadRequest(res, "name and phone are required (use bulk-create)");
       return;
     }
-    const result = await inviteStudentToClass({
-      email,
+    const result = await bulkCreateStudentsToClass({
       classId: req.params.classId as string,
       centerId: req.centerFilter!.centerId,
       teacherId: req.user!.userId,
+      students: [{ name, phone }],
     });
-    sendCreated(res, result, "Student invited");
+    sendCreated(res, result, "Student created");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const bulkCreateStudentsHandler = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { students } = req.body;
+    if (!Array.isArray(students) || students.length === 0) {
+      sendBadRequest(res, "students must be a non-empty array");
+      return;
+    }
+    const result = await bulkCreateStudentsToClass({
+      classId: req.params.classId as string,
+      centerId: req.centerFilter!.centerId,
+      teacherId: req.user!.userId,
+      students,
+    });
+    sendSuccess(res, result, `Processed ${result.total} students`);
   } catch (err) {
     next(err);
   }

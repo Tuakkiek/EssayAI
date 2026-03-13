@@ -1,0 +1,4 @@
+root = true
+
+[*.{ts,tsx}]
+charset = utf-8

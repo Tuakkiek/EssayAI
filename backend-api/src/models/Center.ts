@@ -9,7 +9,7 @@ export interface ICenter extends Document {
   slug: string;
   description?: string;
   logoUrl?: string;
-  contactEmail: string;
+  contactEmail?: string | null;
   contactPhone?: string;
   address?: string;
 
@@ -70,10 +70,10 @@ const CenterSchema = new Schema<ICenter>(
     logoUrl: { type: String, default: null },
     contactEmail: {
       type: String,
-      required: [true, "Contact email is required"],
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, "Please provide a valid email"],
+      default: null,
     },
     contactPhone: { type: String, default: null, trim: true },
     address: { type: String, default: null, trim: true },

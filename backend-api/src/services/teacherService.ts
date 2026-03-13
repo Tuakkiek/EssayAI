@@ -3,6 +3,7 @@ import { Essay, User, Center } from "../models/index";
 import { IEssay } from "../models/Essay";
 import { AppError } from "../middlewares/errorHandler";
 import { logger } from "../utils/logger";
+import { normalizePhone } from "../utils/textUtils";
 
 // ── Student essay list (for teacher review) ───────────────────────
 export interface TeacherEssayQuery {
@@ -49,7 +50,7 @@ export const getEssaysForTeacher = async (
 
   const [essays, total] = await Promise.all([
     Essay.find(filter)
-      .populate("studentId", "name email avatarUrl")
+      .populate("studentId", "name email phone avatarUrl")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -79,7 +80,7 @@ export const getEssayForTeacher = async (
   const essay = await Essay.findOne({
     _id: new mongoose.Types.ObjectId(essayId),
     centerId: new mongoose.Types.ObjectId(centerId),
-  }).populate("studentId", "name email avatarUrl stats");
+  }).populate("studentId", "name email phone avatarUrl stats");
 
   if (!essay) throw new AppError("Essay not found in your center", 404);
   return essay;
@@ -362,12 +363,13 @@ export const getCenterStudents = async (
     query.$or = [
       { name: new RegExp(search, "i") },
       { email: new RegExp(search, "i") },
+      { phone: new RegExp(search, "i") },
     ];
   }
 
   const [students, total] = await Promise.all([
     User.find(query)
-      .select("name email avatarUrl stats createdAt")
+      .select("name email phone avatarUrl stats createdAt")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -388,8 +390,11 @@ export const getCenterStudents = async (
   };
 };
 
-export const addStudentToCenter = async (centerId: string, email: string) => {
-  const user = await User.findOne({ email: email.toLowerCase() });
+export const addStudentToCenter = async (centerId: string, identifier: string) => {
+  const raw = identifier.trim();
+  const isEmail = raw.includes("@");
+  const query = isEmail ? { email: raw.toLowerCase() } : { phone: normalizePhone(raw) };
+  const user = await User.findOne(query);
   if (!user) throw new AppError("User not found", 404);
   if (user.role !== "center_student")
     throw new AppError("Only students can be added to center", 400);

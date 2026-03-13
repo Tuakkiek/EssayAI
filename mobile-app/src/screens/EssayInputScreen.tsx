@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { LoadingOverlay } from "../components/LoadingOverlay";
 import { essayApi, getErrorMessage, extractEssay } from "../services/api";
 import { EssayTaskType } from "../types";
+import { useBack } from "../hooks/useBack";
+import { useRoleGuard } from "../hooks/useRoleGuard";
 
 const WORD_TARGET: Record<EssayTaskType, number> = { task2: 250, task1: 150 };
 
@@ -26,7 +28,10 @@ const SAMPLE_PROMPTS: Record<EssayTaskType, string> = {
 };
 
 export default function EssayInputScreen() {
+  useRoleGuard(["center_student", "free_student"]);
+
   const router = useRouter();
+  const goBack = useBack("/");
   const params = useLocalSearchParams<{ taskType?: string }>();
 
   const [taskType, setTaskType] = useState<EssayTaskType>(
@@ -50,23 +55,18 @@ export default function EssayInputScreen() {
 
   const handleSubmit = async () => {
     if (!isReady) return;
-
     setLoading(true);
     try {
       const res = await essayApi.submit(essayText, taskType);
-
-      const resData = res.data;
-
-      const essay = extractEssay(resData);
+      const essay = extractEssay(res.data);
       const essayId = essay?._id;
-
       if (!essayId) {
-        Alert.alert("Error", "Server khÃ´ng tráº£ vá» essay ID. Vui lÃ²ng thá»­ láº¡i.");
+        Alert.alert("Lỗi", "Server không trả về essay ID. Vui lòng thử lại.");
         return;
       }
       router.navigate({ pathname: "/essay/result", params: { essayId } });
     } catch (err) {
-      Alert.alert("Scoring Failed", getErrorMessage(err), [{ text: "OK" }]);
+      Alert.alert("Chấm bài thất bại", getErrorMessage(err), [{ text: "OK" }]);
     } finally {
       setLoading(false);
     }
@@ -81,14 +81,13 @@ export default function EssayInputScreen() {
 
   return (
     <View style={styles.container}>
-      <LoadingOverlay visible={loading} message="Scoring your essay" />
+      <LoadingOverlay visible={loading} message="Đang chấm bài..." />
 
-      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backText}>Back</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={goBack}>
+          <Text style={styles.backText}>Quay lại</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Write Essay</Text>
+        <Text style={styles.headerTitle}>Viết bài</Text>
         <View style={{ width: 60 }} />
       </View>
 
@@ -101,15 +100,11 @@ export default function EssayInputScreen() {
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Task type toggle */}
           <View style={styles.toggleRow}>
             {(["task2", "task1"] as EssayTaskType[]).map((t) => (
               <TouchableOpacity
                 key={t}
-                style={[
-                  styles.toggleBtn,
-                  taskType === t && styles.toggleActive,
-                ]}
+                style={[styles.toggleBtn, taskType === t && styles.toggleActive]}
                 onPress={() => switchTask(t)}
               >
                 <Text
@@ -118,35 +113,32 @@ export default function EssayInputScreen() {
                     taskType === t && styles.toggleTextActive,
                   ]}
                 >
-                  {t === "task2" ? "Task 2 â€” Essay" : "Task 1 â€” Data"}
+                  {t === "task2" ? "Task 2 — Bài luận" : "Task 1 — Dữ liệu"}
                 </Text>
               </TouchableOpacity>
             ))}
           </View>
 
-          {/* Prompt */}
-          <Text style={styles.sectionLabel}>ESSAY PROMPT</Text>
+          <Text style={styles.sectionLabel}>ĐỀ BÀI</Text>
           <TextInput
             style={styles.promptInput}
             value={prompt}
             onChangeText={setPrompt}
             multiline
-            placeholder="Enter or paste the essay prompt here..."
+            placeholder="Nhập hoặc dán đề bài ở đây..."
             placeholderTextColor={Colors.textMuted}
             textAlignVertical="top"
           />
 
-          {/* Essay */}
           <View style={styles.essayHeader}>
-            <Text style={styles.sectionLabel}>YOUR ESSAY</Text>
+            <Text style={styles.sectionLabel}>BÀI VIẾT</Text>
             <View style={styles.wordBadge}>
               <Text style={[styles.wordCount, { color: wordBarColor }]}>
-                {wordCount} / {target} words
+                {wordCount} / {target} từ
               </Text>
             </View>
           </View>
 
-          {/* Word count bar */}
           <View style={styles.barBg}>
             <View
               style={[
@@ -164,21 +156,21 @@ export default function EssayInputScreen() {
             value={essayText}
             onChangeText={setEssayText}
             multiline
-            placeholder={`Start writing your ${taskType === "task2" ? "academic essay" : "graph description"} here...\n\nMinimum 50 words to submit, ${target}+ words recommended.`}
+            placeholder={`Bắt đầu viết ${
+              taskType === "task2" ? "bài luận học thuật" : "mô tả biểu đồ"
+            } ở đây...\n\nTối thiểu 50 từ để nộp, khuyến nghị ${target}+ từ.`}
             placeholderTextColor={Colors.textMuted}
             textAlignVertical="top"
             autoCapitalize="sentences"
             autoCorrect
           />
 
-          {/* Tips row */}
           <View style={styles.tipsRow}>
-            <Text style={styles.tipChip}>ðŸŽ¯ {target}+ words recommended</Text>
-            <Text style={styles.tipChip}>âœï¸ Check spelling</Text>
+            <Text style={styles.tipChip}>🎯 Khuyến nghị {target}+ từ</Text>
+            <Text style={styles.tipChip}>✏️ Kiểm tra chính tả</Text>
           </View>
         </ScrollView>
 
-        {/* Submit */}
         <View style={styles.footer}>
           <TouchableOpacity
             style={[styles.submitBtn, !isReady && styles.submitDisabled]}
@@ -187,11 +179,11 @@ export default function EssayInputScreen() {
             activeOpacity={0.85}
           >
             <Text style={styles.submitText}>
-              {loading ? "Scoring..." : "Score My Essay"}
+              {loading ? "Đang chấm..." : "Chấm bài"}
             </Text>
           </TouchableOpacity>
           {!isReady && wordCount < 50 && (
-            <Text style={styles.hint}>Write at least 50 words to submit</Text>
+            <Text style={styles.hint}>Viết ít nhất 50 từ để nộp</Text>
           )}
         </View>
       </KeyboardAvoidingView>

@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { classApi, getErrorMessage } from "../services/api";
+import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useBack } from "../hooks/useBack";
 
 export default function TeacherClassCreateScreen() {
-  const router = useRouter();
+  useRoleGuard(["teacher", "admin"]);
+  const goBack = useBack("/teacher/classes");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,7 +27,7 @@ export default function TeacherClassCreateScreen() {
     setLoading(true);
     try {
       await classApi.create({ name: name.trim(), description: description.trim() || undefined });
-      router.back();
+      goBack();
     } catch (err) {
       Alert.alert("Error", getErrorMessage(err));
     } finally {
@@ -36,8 +38,8 @@ export default function TeacherClassCreateScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>Back</Text>
+        <TouchableOpacity onPress={goBack}>
+          <Text style={styles.backText}>Quay lại</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tạo lớp mới</Text>
         <View style={{ width: 60 }} />
@@ -113,4 +115,6 @@ const styles = StyleSheet.create({
   submitDisabled: { backgroundColor: Colors.textMuted },
   submitText: { ...Typography.body, color: Colors.surface, fontWeight: "700" },
 });
+
+
 

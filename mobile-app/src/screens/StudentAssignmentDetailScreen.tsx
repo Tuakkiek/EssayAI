@@ -7,14 +7,20 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { studentApi, getErrorMessage } from "../services/api";
 import { Assignment } from "../types";
+import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useBack } from "../hooks/useBack";
 
 export default function StudentAssignmentDetailScreen() {
-  const router = useRouter();
+  useRoleGuard(["center_student", "free_student"]);
+  const goBack = useBack("/student/assignments");
   const { id } = useLocalSearchParams<{ id: string }>();
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [text, setText] = useState("");
@@ -38,7 +44,7 @@ export default function StudentAssignmentDetailScreen() {
       await load();
       setText("");
     } catch (err) {
-      Alert.alert("Error", getErrorMessage(err));
+      Alert.alert("L?i", getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
@@ -53,53 +59,54 @@ export default function StudentAssignmentDetailScreen() {
   }
 
   const hasSubmitted = !!assignment.mySubmission;
+  const taskLabel = assignment.taskType === "task2" ? "Task 2" : "Task 1";
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>Back</Text>
+        <TouchableOpacity onPress={goBack}>
+          <Text style={styles.backText}>Quay l?i</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Chi tiết bài tập</Text>
+        <Text style={styles.headerTitle}>Chi ti?t bài t?p</Text>
         <View style={{ width: 60 }} />
       </View>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>{assignment.title}</Text>
-        <Text style={styles.meta}>Task: {assignment.taskType}</Text>
-        <Text style={styles.prompt}>{assignment.prompt}</Text>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <Text style={styles.title}>{assignment.title}</Text>
+          <Text style={styles.meta}>D?ng bài: {taskLabel}</Text>
+          <Text style={styles.prompt}>{assignment.prompt}</Text>
 
-        {hasSubmitted ? (
-          <View style={styles.submittedCard}>
-            <Text style={styles.submittedTitle}>Bạn đã nộp bài</Text>
-            <Text style={styles.submittedMeta}>Trạng thái: {assignment.mySubmission?.status}</Text>
-            {assignment.mySubmission?.overallScore != null && (
-              <Text style={styles.submittedMeta}>
-                Band: {assignment.mySubmission?.overallScore?.toFixed(1)}
-              </Text>
-            )}
-          </View>
-        ) : (
-          <>
-            <Text style={styles.label}>Bài viết của bạn</Text>
-            <TextInput
-              style={styles.input}
-              multiline
-              value={text}
-              onChangeText={setText}
-              placeholder="Nhập bài viết..."
-              placeholderTextColor={Colors.textMuted}
-            />
-            <TouchableOpacity
-              style={[styles.submitBtn, submitting && styles.submitDisabled]}
-              onPress={handleSubmit}
-              disabled={submitting}
-            >
-              <Text style={styles.submitText}>Nộp bài</Text>
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
+          {hasSubmitted ? (
+            <View style={styles.submittedCard}>
+              <Text style={styles.submittedTitle}>B?n dã n?p bài</Text>
+              <Text style={styles.submittedMeta}>Tr?ng thái: {assignment.mySubmission?.status}</Text>
+              {assignment.mySubmission?.overallScore != null && (
+                <Text style={styles.submittedMeta}>Band: {assignment.mySubmission?.overallScore?.toFixed(1)}</Text>
+              )}
+            </View>
+          ) : (
+            <>
+              <Text style={styles.label}>Bài vi?t c?a b?n</Text>
+              <TextInput
+                style={styles.input}
+                multiline
+                value={text}
+                onChangeText={setText}
+                placeholder="Nh?p bài vi?t..."
+                placeholderTextColor={Colors.textMuted}
+              />
+              <TouchableOpacity
+                style={[styles.submitBtn, submitting && styles.submitDisabled]}
+                onPress={handleSubmit}
+                disabled={submitting}
+              >
+                <Text style={styles.submitText}>N?p bài</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -120,7 +127,7 @@ const styles = StyleSheet.create({
   },
   backText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   headerTitle: { ...Typography.heading3 },
-  content: { padding: Spacing.lg },
+  content: { padding: Spacing.lg, paddingBottom: 40 },
   title: { ...Typography.heading3, marginBottom: Spacing.sm },
   meta: { ...Typography.bodySmall, color: Colors.textSecondary, marginBottom: Spacing.sm },
   prompt: { ...Typography.body, marginBottom: Spacing.md },
@@ -153,4 +160,5 @@ const styles = StyleSheet.create({
   submittedTitle: { ...Typography.body, fontWeight: "700" },
   submittedMeta: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 4 },
 });
+
 

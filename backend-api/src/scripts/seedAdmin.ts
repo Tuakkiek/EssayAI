@@ -6,6 +6,7 @@ const seedAdmin = async () => {
   await connectDB();
 
   const email = "admin@gmail.com";
+  const phone = "999";
   const existing = await User.findOne({ email });
   if (existing) {
     // eslint-disable-next-line no-console
@@ -17,6 +18,7 @@ const seedAdmin = async () => {
 
   await User.create({
     email,
+    phone,
     passwordHash,
     name: "System Administrator",
     role: "admin",

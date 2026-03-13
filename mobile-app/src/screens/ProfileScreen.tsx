@@ -17,21 +17,11 @@ import { useAuth } from "../context/AuthContext";
 import { AvatarPicker } from "../components/AvatarPicker";
 import { userApi, getErrorMessage } from "../services/api";
 
-// ─── Section Header ────────────────────────────────────────────────────────────
 function SectionHeader({ title }: { title: string }) {
   return <Text style={styles.sectionTitle}>{title}</Text>;
 }
 
-// ─── Info Row ──────────────────────────────────────────────────────────────────
-function InfoRow({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon: string;
-}) {
+function InfoRow({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoIcon}>{icon}</Text>
@@ -43,7 +33,6 @@ function InfoRow({
   );
 }
 
-// ─── Menu Item ─────────────────────────────────────────────────────────────────
 function MenuItem({
   icon,
   label,
@@ -69,23 +58,14 @@ function MenuItem({
         <Text style={styles.menuIcon}>{icon}</Text>
       </View>
       <View style={styles.menuContent}>
-        <Text style={[styles.menuLabel, danger && { color: Colors.error }]}>
-          {label}
-        </Text>
-        {sublabel ? (
-          <Text style={styles.menuSublabel}>{sublabel}</Text>
-        ) : null}
+        <Text style={[styles.menuLabel, danger && { color: Colors.error }]}>{label}</Text>
+        {sublabel ? <Text style={styles.menuSublabel}>{sublabel}</Text> : null}
       </View>
-      {showArrow && (
-        <Text style={[styles.menuArrow, danger && { color: Colors.error }]}>
-          ›
-        </Text>
-      )}
+      {showArrow && <Text style={[styles.menuArrow, danger && { color: Colors.error }]}>›</Text>}
     </TouchableOpacity>
   );
 }
 
-// ─── Edit Name Modal ───────────────────────────────────────────────────────────
 function EditNameModal({
   visible,
   currentName,
@@ -103,7 +83,7 @@ function EditNameModal({
   const handleSave = async () => {
     const trimmed = name.trim();
     if (!trimmed) {
-      Alert.alert("Error", "Name cannot be empty.");
+      Alert.alert("Lỗi", "Tên không được để trống.");
       return;
     }
     if (trimmed === currentName) {
@@ -115,52 +95,40 @@ function EditNameModal({
       await onSave(trimmed);
       onClose();
     } catch (err) {
-      Alert.alert("Error", getErrorMessage(err));
+      Alert.alert("Lỗi", getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}
-    >
-      <KeyboardAvoidingView
-        style={styles.modalOverlay}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Edit Name</Text>
+          <Text style={styles.modalTitle}>Sửa tên</Text>
           <Text style={styles.modalSubtitle}>
-            This name will be displayed to your teacher and in your profile.
+            Tên này sẽ hiển thị cho giáo viên và trong hồ sơ của bạn.
           </Text>
           <TextInput
             style={styles.modalInput}
             value={name}
             onChangeText={setName}
-            placeholder="Your full name"
+            placeholder="Họ và tên"
             placeholderTextColor={Colors.textMuted}
             autoFocus
             autoCapitalize="words"
           />
           <View style={styles.modalActions}>
             <TouchableOpacity style={styles.modalCancelBtn} onPress={onClose}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
+              <Text style={styles.modalCancelText}>Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modalSaveBtn, loading && { opacity: 0.6 }]}
               onPress={handleSave}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator size="small" color={Colors.surface} />
-              ) : (
-                <Text style={styles.modalSaveText}>Save</Text>
-              )}
+              {loading ? <ActivityIndicator size="small" color={Colors.surface} /> : <Text style={styles.modalSaveText}>Lưu</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -169,14 +137,7 @@ function EditNameModal({
   );
 }
 
-// ─── Change Password Modal ─────────────────────────────────────────────────────
-function ChangePasswordModal({
-  visible,
-  onClose,
-}: {
-  visible: boolean;
-  onClose: () => void;
-}) {
+function ChangePasswordModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -195,70 +156,43 @@ function ChangePasswordModal({
 
   const handleSave = async () => {
     if (!current || !next || !confirm) {
-      Alert.alert("Missing fields", "Please fill in all fields.");
+      Alert.alert("Thiếu thông tin", "Vui lòng điền đầy đủ.");
       return;
     }
     if (next.length < 8) {
-      Alert.alert("Weak password", "New password must be at least 8 characters.");
+      Alert.alert("Mật khẩu yếu", "Mật khẩu mới phải ít nhất 8 ký tự.");
       return;
     }
     if (next !== confirm) {
-      Alert.alert("Mismatch", "New password and confirmation do not match.");
+      Alert.alert("Không khớp", "Mật khẩu mới và xác nhận không khớp.");
       return;
     }
     setLoading(true);
     try {
       await userApi.changePassword(current, next);
-      Alert.alert("Success", "Your password has been updated.", [
-        { text: "OK", onPress: handleClose },
-      ]);
+      Alert.alert("Thành công", "Mật khẩu đã được cập nhật.", [{ text: "OK", onPress: handleClose }]);
     } catch (err) {
-      Alert.alert("Error", getErrorMessage(err));
+      Alert.alert("Lỗi", getErrorMessage(err));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={handleClose}
-    >
-      <KeyboardAvoidingView
-        style={styles.modalOverlay}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
+      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={[styles.modalSheet, { paddingBottom: 40 }]}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>Change Password</Text>
+          <Text style={styles.modalTitle}>Đổi mật khẩu</Text>
           <Text style={styles.modalSubtitle}>
-            Enter your current password to set a new one.
+            Nhập mật khẩu hiện tại để đặt mật khẩu mới.
           </Text>
 
-          {(
-            [
-              {
-                label: "Current Password",
-                value: current,
-                set: setCurrent,
-                placeholder: "••••••••",
-              },
-              {
-                label: "New Password",
-                value: next,
-                set: setNext,
-                placeholder: "At least 8 characters",
-              },
-              {
-                label: "Confirm New Password",
-                value: confirm,
-                set: setConfirm,
-                placeholder: "Repeat new password",
-              },
-            ] as const
-          ).map((field) => (
+          {([
+            { label: "Mật khẩu hiện tại", value: current, set: setCurrent, placeholder: "••••••••" },
+            { label: "Mật khẩu mới", value: next, set: setNext, placeholder: "Ít nhất 8 ký tự" },
+            { label: "Xác nhận mật khẩu mới", value: confirm, set: setConfirm, placeholder: "Nhập lại mật khẩu" },
+          ] as const).map((field) => (
             <View key={field.label} style={styles.pwdField}>
               <Text style={styles.pwdLabel}>{field.label}</Text>
               <TextInput
@@ -273,22 +207,15 @@ function ChangePasswordModal({
           ))}
 
           <View style={styles.modalActions}>
-            <TouchableOpacity
-              style={styles.modalCancelBtn}
-              onPress={handleClose}
-            >
-              <Text style={styles.modalCancelText}>Cancel</Text>
+            <TouchableOpacity style={styles.modalCancelBtn} onPress={handleClose}>
+              <Text style={styles.modalCancelText}>Hủy</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modalSaveBtn, loading && { opacity: 0.6 }]}
               onPress={handleSave}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator size="small" color={Colors.surface} />
-              ) : (
-                <Text style={styles.modalSaveText}>Update</Text>
-              )}
+              {loading ? <ActivityIndicator size="small" color={Colors.surface} /> : <Text style={styles.modalSaveText}>Cập nhật</Text>}
             </TouchableOpacity>
           </View>
         </View>
@@ -297,9 +224,8 @@ function ChangePasswordModal({
   );
 }
 
-// ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
-  const { user, logout } = useAuth();
+  const { user, logout, refreshUser } = useAuth();
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [editNameVisible, setEditNameVisible] = useState(false);
@@ -307,26 +233,29 @@ export default function ProfileScreen() {
   const [loggingOut, setLoggingOut] = useState(false);
 
   const displayName = user?.name ?? "—";
-  const displayEmail = user?.email ?? "—";
+  const displayEmail = user?.email ?? user?.phone ?? "—";
   const displayRole =
     user?.role === "admin"
-      ? "Admin"
+      ? "Quản trị"
       : user?.role === "teacher"
-        ? "Teacher"
+        ? "Giáo viên"
         : user?.role === "center_student"
-          ? "Center Student"
-          : "Free Student";
+          ? "Học sinh trung tâm"
+          : "Học sinh tự do";
 
-  const handleSaveName = useCallback(async (newName: string) => {
-    await userApi.updateProfile({ name: newName });
-    // In a real app you'd also refresh the user in AuthContext here
-  }, []);
+  const handleSaveName = useCallback(
+    async (newName: string) => {
+      await userApi.updateProfile({ name: newName });
+      await refreshUser({ name: newName });
+    },
+    [refreshUser],
+  );
 
   const handleLogout = () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert("Đăng xuất", "Bạn có chắc muốn đăng xuất?", [
+      { text: "Hủy", style: "cancel" },
       {
-        text: "Sign Out",
+        text: "Đăng xuất",
         style: "destructive",
         onPress: async () => {
           setLoggingOut(true);
@@ -342,17 +271,17 @@ export default function ProfileScreen() {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      "Delete Account",
-      "This action is permanent and cannot be undone. All your essays and progress will be lost.",
+      "Xóa tài khoản",
+      "Hành động này không thể hoàn tác. Tất cả bài luận và tiến độ sẽ bị xóa.",
       [
-        { text: "Cancel", style: "cancel" },
+        { text: "Hủy", style: "cancel" },
         {
-          text: "Delete",
+          text: "Xóa",
           style: "destructive",
           onPress: () =>
             Alert.alert(
-              "Contact Support",
-              "To permanently delete your account, please contact support@essayai.app",
+              "Liên hệ hỗ trợ",
+              "Để xóa tài khoản vĩnh viễn, vui lòng liên hệ support@essayai.app",
             ),
         },
       ],
@@ -361,121 +290,75 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header hero */}
       <View style={styles.hero}>
-        <AvatarPicker
-          userId={user?.id ?? ""}
-          currentAvatar={avatarUrl}
-          onUploadDone={setAvatarUrl}
-        />
+        <AvatarPicker userId={user?.id ?? ""} currentAvatar={avatarUrl} onUploadDone={setAvatarUrl} />
         <Text style={styles.heroName}>{displayName}</Text>
         <View style={styles.roleBadge}>
           <Text style={styles.roleText}>{displayRole}</Text>
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Account info */}
-        <SectionHeader title="Account Info" />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <SectionHeader title="Thông tin tài khoản" />
         <View style={styles.card}>
-          <InfoRow label="Full Name" value={displayName} icon="👤" />
+          <InfoRow label="Họ và tên" value={displayName} icon="👤" />
           <View style={styles.rowDivider} />
-          <InfoRow label="Email" value={displayEmail} icon="✉️" />
+          <InfoRow label="Email / Phone" value={displayEmail} icon="✉️" />
           <View style={styles.rowDivider} />
-          <InfoRow label="Role" value={displayRole} icon="🎓" />
+          <InfoRow label="Vai trò" value={displayRole} icon="🎓" />
         </View>
 
-        {/* Profile settings */}
-        <SectionHeader title="Profile Settings" />
+        <SectionHeader title="Cài đặt hồ sơ" />
         <View style={styles.card}>
-          <MenuItem
-            icon="✏️"
-            label="Edit Name"
-            sublabel="Update your display name"
-            onPress={() => setEditNameVisible(true)}
-          />
+          <MenuItem icon="✏️" label="Sửa tên" sublabel="Cập nhật tên hiển thị" onPress={() => setEditNameVisible(true)} />
           <View style={styles.rowDivider} />
-          <MenuItem
-            icon="🔒"
-            label="Change Password"
-            sublabel="Keep your account secure"
-            onPress={() => setChangePwdVisible(true)}
-          />
+          <MenuItem icon="🔒" label="Đổi mật khẩu" sublabel="Giữ tài khoản an toàn" onPress={() => setChangePwdVisible(true)} />
         </View>
 
-        {/* Support */}
-        <SectionHeader title="Support" />
+        <SectionHeader title="Hỗ trợ" />
         <View style={styles.card}>
           <MenuItem
-            icon="📖"
-            label="IELTS Writing Tips"
-            sublabel="Free guides & resources"
-            onPress={() =>
-              Alert.alert("Coming soon", "Tips library coming in next update!")
-            }
+            icon="📚"
+            label="Mẹo viết IELTS"
+            sublabel="Tài liệu miễn phí"
+            onPress={() => Alert.alert("Sắp ra mắt", "Kho tài liệu sẽ có trong bản cập nhật tới!")}
           />
           <View style={styles.rowDivider} />
           <MenuItem
             icon="💬"
-            label="Contact Support"
+            label="Liên hệ hỗ trợ"
             sublabel="support@essayai.app"
-            onPress={() =>
-              Alert.alert("Support", "Email us at support@essayai.app")
-            }
+            onPress={() => Alert.alert("Hỗ trợ", "Gửi email tới support@essayai.app")}
           />
           <View style={styles.rowDivider} />
           <MenuItem
             icon="⭐"
-            label="Rate This App"
-            sublabel="Help us improve"
-            onPress={() =>
-              Alert.alert("Thank you!", "Redirecting to App Store…")
-            }
+            label="Đánh giá ứng dụng"
+            sublabel="Giúp chúng tôi cải thiện"
+            onPress={() => Alert.alert("Cảm ơn!", "Đang chuyển đến App Store…")}
           />
         </View>
 
-        {/* Legal */}
-        <SectionHeader title="Legal" />
+        <SectionHeader title="Pháp lý" />
         <View style={styles.card}>
-          <MenuItem
-            icon="📄"
-            label="Privacy Policy"
-            onPress={() =>
-              Alert.alert("Privacy Policy", "Opening privacy policy…")
-            }
-          />
+          <MenuItem icon="🔐" label="Chính sách bảo mật" onPress={() => Alert.alert("Chính sách bảo mật", "Đang mở chính sách bảo mật…")} />
           <View style={styles.rowDivider} />
-          <MenuItem
-            icon="📋"
-            label="Terms of Service"
-            onPress={() =>
-              Alert.alert("Terms", "Opening terms of service…")
-            }
-          />
+          <MenuItem icon="📄" label="Điều khoản dịch vụ" onPress={() => Alert.alert("Điều khoản", "Đang mở điều khoản dịch vụ…")} />
         </View>
 
-        {/* Session */}
-        <SectionHeader title="Session" />
+        <SectionHeader title="Phiên" />
         <View style={styles.card}>
           <MenuItem
             icon="🚪"
-            label={loggingOut ? "Signing out…" : "Sign Out"}
+            label={loggingOut ? "Đang đăng xuất…" : "Đăng xuất"}
             onPress={handleLogout}
             danger
             showArrow={false}
           />
         </View>
 
-        {/* Danger zone */}
-        <TouchableOpacity
-          style={styles.deleteLink}
-          onPress={handleDeleteAccount}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.deleteLinkText}>Delete Account</Text>
+        <TouchableOpacity style={styles.deleteLink} onPress={handleDeleteAccount} activeOpacity={0.7}>
+          <Text style={styles.deleteLinkText}>Xóa tài khoản</Text>
         </TouchableOpacity>
 
         <Text style={styles.version}>Essay AI · v1.0.0</Text>
@@ -483,26 +366,19 @@ export default function ProfileScreen() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* Modals */}
       <EditNameModal
         visible={editNameVisible}
         currentName={displayName}
         onClose={() => setEditNameVisible(false)}
         onSave={handleSaveName}
       />
-      <ChangePasswordModal
-        visible={changePwdVisible}
-        onClose={() => setChangePwdVisible(false)}
-      />
+      <ChangePasswordModal visible={changePwdVisible} onClose={() => setChangePwdVisible(false)} />
     </View>
   );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-
-  // Hero
   hero: {
     backgroundColor: Colors.primary,
     paddingTop: 56,
@@ -510,26 +386,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.sm,
   },
-  heroName: {
-    ...Typography.heading2,
-    color: Colors.surface,
-    fontWeight: "800",
-    marginTop: Spacing.sm,
-  },
-  roleBadge: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 4,
-  },
-  roleText: {
-    ...Typography.caption,
-    color: Colors.surface,
-    fontWeight: "700",
-    letterSpacing: 0.5,
-  },
-
-  // Content
+  heroName: { ...Typography.heading2, color: Colors.surface, fontWeight: "800", marginTop: Spacing.sm },
+  roleBadge: { backgroundColor: "rgba(255,255,255,0.2)", borderRadius: Radius.full, paddingHorizontal: Spacing.md, paddingVertical: 4 },
+  roleText: { ...Typography.caption, color: Colors.surface, fontWeight: "700", letterSpacing: 0.5 },
   content: { padding: Spacing.lg },
   sectionTitle: {
     ...Typography.caption,
@@ -541,103 +400,30 @@ const styles = StyleSheet.create({
     marginTop: Spacing.lg,
     paddingHorizontal: Spacing.xs,
   },
-  card: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    overflow: "hidden",
-    ...Shadow.sm,
-  },
-  rowDivider: {
-    height: 1,
-    backgroundColor: Colors.border,
-    marginHorizontal: Spacing.lg,
-  },
-
-  // Info row
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    gap: Spacing.md,
-  },
+  card: { backgroundColor: Colors.surface, borderRadius: Radius.lg, overflow: "hidden", ...Shadow.sm },
+  rowDivider: { height: 1, backgroundColor: Colors.border, marginHorizontal: Spacing.lg },
+  infoRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, gap: Spacing.md },
   infoIcon: { fontSize: 18, width: 24, textAlign: "center" },
   infoContent: { flex: 1 },
-  infoLabel: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
+  infoLabel: { ...Typography.caption, color: Colors.textMuted, fontWeight: "600", marginBottom: 2 },
   infoValue: { ...Typography.body, color: Colors.text, fontWeight: "500" },
-
-  // Menu item
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    gap: Spacing.md,
-  },
+  menuItem: { flexDirection: "row", alignItems: "center", paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, gap: Spacing.md },
   menuItemDanger: { backgroundColor: Colors.errorLight + "20" },
-  menuIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: Radius.sm,
-    backgroundColor: Colors.surfaceAlt,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  menuIconWrap: { width: 36, height: 36, borderRadius: Radius.sm, backgroundColor: Colors.surfaceAlt, alignItems: "center", justifyContent: "center" },
   menuIconDanger: { backgroundColor: Colors.errorLight },
   menuIcon: { fontSize: 17 },
   menuContent: { flex: 1 },
   menuLabel: { ...Typography.body, fontWeight: "600", color: Colors.text },
   menuSublabel: { ...Typography.caption, color: Colors.textMuted, marginTop: 1 },
   menuArrow: { fontSize: 20, color: Colors.textMuted },
-
-  // Delete + version
   deleteLink: { alignItems: "center", marginTop: Spacing.xl, paddingVertical: Spacing.sm },
-  deleteLinkText: {
-    ...Typography.bodySmall,
-    color: Colors.error,
-    fontWeight: "600",
-    textDecorationLine: "underline",
-  },
-  version: {
-    ...Typography.caption,
-    color: Colors.textMuted,
-    textAlign: "center",
-    marginTop: Spacing.md,
-  },
-
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0,0,0,0.4)",
-  },
-  modalSheet: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: Radius.xl,
-    borderTopRightRadius: Radius.xl,
-    padding: Spacing.xl,
-    paddingTop: Spacing.md,
-    gap: Spacing.md,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: Colors.border,
-    alignSelf: "center",
-    marginBottom: Spacing.sm,
-  },
+  deleteLinkText: { ...Typography.bodySmall, color: Colors.error, fontWeight: "600", textDecorationLine: "underline" },
+  version: { ...Typography.caption, color: Colors.textMuted, textAlign: "center", marginTop: Spacing.md },
+  modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.4)" },
+  modalSheet: { backgroundColor: Colors.surface, borderTopLeftRadius: Radius.xl, borderTopRightRadius: Radius.xl, padding: Spacing.xl, paddingTop: Spacing.md, gap: Spacing.md },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: Colors.border, alignSelf: "center", marginBottom: Spacing.sm },
   modalTitle: { ...Typography.heading3 },
-  modalSubtitle: {
-    ...Typography.bodySmall,
-    color: Colors.textSecondary,
-    lineHeight: 18,
-  },
+  modalSubtitle: { ...Typography.bodySmall, color: Colors.textSecondary, lineHeight: 18 },
   modalInput: {
     backgroundColor: Colors.surfaceAlt,
     borderRadius: Radius.md,
@@ -648,31 +434,11 @@ const styles = StyleSheet.create({
     ...Typography.body,
     color: Colors.text,
   },
-  modalActions: {
-    flexDirection: "row",
-    gap: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: Radius.md,
-    borderWidth: 1.5,
-    borderColor: Colors.border,
-    alignItems: "center",
-  },
+  modalActions: { flexDirection: "row", gap: Spacing.md, marginTop: Spacing.sm },
+  modalCancelBtn: { flex: 1, paddingVertical: 14, borderRadius: Radius.md, borderWidth: 1.5, borderColor: Colors.border, alignItems: "center" },
   modalCancelText: { ...Typography.body, color: Colors.textSecondary, fontWeight: "600" },
-  modalSaveBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.primary,
-    alignItems: "center",
-    ...Shadow.sm,
-  },
+  modalSaveBtn: { flex: 1, paddingVertical: 14, borderRadius: Radius.md, backgroundColor: Colors.primary, alignItems: "center", ...Shadow.sm },
   modalSaveText: { ...Typography.body, color: Colors.surface, fontWeight: "700" },
-
-  // Change password
   pwdField: { gap: Spacing.xs },
   pwdLabel: { ...Typography.caption, fontWeight: "700", color: Colors.textSecondary },
 });

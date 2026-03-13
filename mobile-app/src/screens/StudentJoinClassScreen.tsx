@@ -7,12 +7,14 @@ import {
   TouchableOpacity,
   Alert,
 } from "react-native";
-import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { studentApi, getErrorMessage } from "../services/api";
+import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useBack } from "../hooks/useBack";
 
 export default function StudentJoinClassScreen() {
-  const router = useRouter();
+  useRoleGuard(["center_student", "free_student"]);
+  const goBack = useBack("/");
   const [classCode, setClassCode] = useState("");
   const [joinedClass, setJoinedClass] = useState<any | null>(null);
   const [teacher, setTeacher] = useState<any | null>(null);
@@ -31,8 +33,8 @@ export default function StudentJoinClassScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>Back</Text>
+        <TouchableOpacity onPress={goBack}>
+          <Text style={styles.backText}>Quay lại</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Tham gia lớp</Text>
         <View style={{ width: 60 }} />
@@ -64,7 +66,7 @@ export default function StudentJoinClassScreen() {
             )}
             <TouchableOpacity
               style={styles.submitBtn}
-              onPress={() => router.back()}
+              onPress={goBack}
             >
               <Text style={styles.submitText}>OK</Text>
             </TouchableOpacity>
@@ -119,4 +121,5 @@ const styles = StyleSheet.create({
   successTitle: { ...Typography.heading3, marginBottom: Spacing.sm },
   successText: { ...Typography.body, marginBottom: Spacing.xs },
 });
+
 

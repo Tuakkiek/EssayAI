@@ -2,7 +2,8 @@ import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import { Assignment, Class, Essay, User } from "../models/index";
 import { AppError } from "../middlewares/errorHandler";
-import { generateTempPassword } from "../utils/textUtils";
+import { generateTempPassword, generateStudentCredentials, normalizePhone } from "../utils/textUtils";
+import { addStudentsToClass } from "./classService";
 
 const SALT_ROUNDS = 12;
 
@@ -74,6 +75,203 @@ export const inviteStudentToClass = async (input: {
   return {
     student,
     plainPassword,
+  };
+};
+
+export interface BulkCreateStudentRow {
+  name: string;
+  phone: string;
+}
+
+export interface BulkCreateStudentResultRow {
+  rowNumber: number;
+  name: string;
+  phone: string;
+  status: "created" | "linked" | "error";
+  userId?: string;
+  tempPassword?: string;
+  reason?: string;
+}
+
+export interface BulkCreateStudentsResult {
+  total: number;
+  createdCount: number;
+  linkedCount: number;
+  errorCount: number;
+  results: BulkCreateStudentResultRow[];
+}
+
+export const bulkCreateStudentsToClass = async (input: {
+  centerId: string;
+  teacherId: string;
+  classId: string;
+  students: BulkCreateStudentRow[];
+}): Promise<BulkCreateStudentsResult> => {
+  const { centerId, teacherId, classId, students } = input;
+
+  await assertClassOwnedByTeacher(classId, centerId, teacherId);
+
+  const results: BulkCreateStudentResultRow[] = [];
+  const seen = new Map<string, number>();
+  const toAddIds: mongoose.Types.ObjectId[] = [];
+
+  const centerObjectId = toObjectId(centerId);
+  const classObjectId = toObjectId(classId);
+  const teacherObjectId = toObjectId(teacherId);
+
+  for (let i = 0; i < students.length; i += 1) {
+    const row = students[i];
+    const rowNumber = i + 1;
+    const name = (row?.name ?? "").trim();
+    const phone = normalizePhone(row?.phone ?? "");
+
+    if (!name) {
+      results.push({
+        rowNumber,
+        name: row?.name ?? "",
+        phone: row?.phone ?? "",
+        status: "error",
+        reason: "Name is required",
+      });
+      continue;
+    }
+
+    if (!phone) {
+      results.push({
+        rowNumber,
+        name,
+        phone: row?.phone ?? "",
+        status: "error",
+        reason: "Phone is required",
+      });
+      continue;
+    }
+
+    if (seen.has(phone)) {
+      results.push({
+        rowNumber,
+        name,
+        phone,
+        status: "error",
+        reason: `Duplicate phone (first at row ${seen.get(phone)})`,
+      });
+      continue;
+    }
+    seen.set(phone, rowNumber);
+
+    const existing = await User.findOne({ phone });
+    if (existing) {
+      if (!existing.isActive) {
+        results.push({
+          rowNumber,
+          name,
+          phone,
+          status: "error",
+          reason: "Account is disabled",
+        });
+        continue;
+      }
+      if (existing.role === "teacher" || existing.role === "admin") {
+        results.push({
+          rowNumber,
+          name,
+          phone,
+          status: "error",
+          reason: "Phone belongs to a staff account",
+        });
+        continue;
+      }
+
+      if (
+        existing.role === "center_student" &&
+        existing.centerId &&
+        existing.centerId.toString() !== centerId
+      ) {
+        results.push({
+          rowNumber,
+          name,
+          phone,
+          status: "error",
+          reason: "Phone already registered in another center",
+        });
+        continue;
+      }
+
+      let shouldSave = false;
+      if (existing.role === "free_student") {
+        existing.role = "center_student";
+        shouldSave = true;
+      }
+      if (!existing.centerId || existing.centerId.toString() !== centerId) {
+        existing.centerId = centerObjectId;
+        shouldSave = true;
+      }
+      if (existing.registrationMode !== "invited") {
+        existing.registrationMode = "invited";
+        shouldSave = true;
+      }
+      if (shouldSave) await existing.save();
+
+      toAddIds.push(existing._id as mongoose.Types.ObjectId);
+      results.push({
+        rowNumber,
+        name: existing.name ?? name,
+        phone,
+        status: "linked",
+        userId: (existing._id as mongoose.Types.ObjectId).toString(),
+      });
+      continue;
+    }
+
+    const { password: plainPassword } = generateStudentCredentials(name, phone);
+    const passwordHash = await bcrypt.hash(plainPassword, SALT_ROUNDS);
+    const student = await User.create({
+      name,
+      phone,
+      email: null,
+      passwordHash,
+      role: "center_student",
+      centerId: centerObjectId,
+      classIds: [],
+      classId: null,
+      teacherId: teacherObjectId,
+      registrationMode: "invited",
+      mustChangePassword: true,
+      isActive: true,
+      createdBy: teacherObjectId,
+      stats: { essaysSubmitted: 0, averageScore: 0 },
+    });
+
+    toAddIds.push(student._id as mongoose.Types.ObjectId);
+    results.push({
+      rowNumber,
+      name,
+      phone,
+      status: "created",
+      userId: (student._id as mongoose.Types.ObjectId).toString(),
+      tempPassword: plainPassword,
+    });
+  }
+
+  if (toAddIds.length > 0) {
+    const idStrings = toAddIds.map((id) => id.toString());
+    await addStudentsToClass(classId, idStrings, centerId);
+    await User.updateMany(
+      { _id: { $in: toAddIds } },
+      { $set: { classId: classObjectId, teacherId: teacherObjectId } },
+    );
+  }
+
+  const createdCount = results.filter((r) => r.status === "created").length;
+  const linkedCount = results.filter((r) => r.status === "linked").length;
+  const errorCount = results.filter((r) => r.status === "error").length;
+
+  return {
+    total: results.length,
+    createdCount,
+    linkedCount,
+    errorCount,
+    results,
   };
 };
 

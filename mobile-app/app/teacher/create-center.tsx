@@ -11,9 +11,10 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { teacherApi } from "@/src/services/api";
+import { useRoleGuard } from "@/src/hooks/useRoleGuard";
+import { useBack } from "@/src/hooks/useBack";
 
 interface FormData {
   centerName: string;
@@ -29,6 +30,9 @@ interface FormErrors {
 }
 
 export default function CreateCenterScreen() {
+  useRoleGuard(["teacher", "admin"]);
+
+  const goBack = useBack("/teacher/dashboard");
   const [form, setForm] = useState<FormData>({
     centerName: "",
     address: "",
@@ -40,9 +44,9 @@ export default function CreateCenterScreen() {
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
-    if (!form.centerName.trim()) newErrors.centerName = "Center name is required";
-    if (!form.address.trim()) newErrors.address = "Address is required";
-    if (!form.phone.trim()) newErrors.phone = "Phone number is required";
+    if (!form.centerName.trim()) newErrors.centerName = "Vui lòng nhập tên trung tâm";
+    if (!form.address.trim()) newErrors.address = "Vui lòng nhập địa chỉ";
+    if (!form.phone.trim()) newErrors.phone = "Vui lòng nhập số điện thoại";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -57,13 +61,13 @@ export default function CreateCenterScreen() {
         phone: form.phone.trim(),
         description: form.description.trim(),
       });
-      Alert.alert("Success", "Center created successfully!", [
-        { text: "OK", onPress: () => router.back() },
+      Alert.alert("Thành công", "Đã tạo trung tâm thành công!", [
+        { text: "OK", onPress: goBack },
       ]);
     } catch (err: any) {
       const msg =
-        err?.response?.data?.message ?? "Failed to create center. Please try again.";
-      Alert.alert("Error", msg);
+        err?.response?.data?.message ?? "Không thể tạo trung tâm. Vui lòng thử lại.";
+      Alert.alert("Lỗi", msg);
     } finally {
       setIsLoading(false);
     }
@@ -84,26 +88,24 @@ export default function CreateCenterScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <TouchableOpacity onPress={goBack} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create Center</Text>
+          <Text style={styles.headerTitle}>Tạo trung tâm</Text>
         </View>
 
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.subtitle}>
-            Set up a new learning center for your students.
-          </Text>
+          <Text style={styles.subtitle}>Thiết lập trung tâm học tập mới cho học viên.</Text>
 
           {/* Center Name */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Center Name *</Text>
+            <Text style={styles.label}>Tên trung tâm *</Text>
             <TextInput
               style={[styles.input, errors.centerName && styles.inputError]}
-              placeholder="e.g. Sunrise IELTS Center"
+              placeholder="VD: Trung tâm IELTS Sunrise"
               placeholderTextColor="#9CA3AF"
               value={form.centerName}
               onChangeText={setField("centerName")}
@@ -115,10 +117,10 @@ export default function CreateCenterScreen() {
 
           {/* Address */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Address *</Text>
+            <Text style={styles.label}>Địa chỉ *</Text>
             <TextInput
               style={[styles.input, errors.address && styles.inputError]}
-              placeholder="Full address of the center"
+              placeholder="Địa chỉ đầy đủ của trung tâm"
               placeholderTextColor="#9CA3AF"
               value={form.address}
               onChangeText={setField("address")}
@@ -131,10 +133,10 @@ export default function CreateCenterScreen() {
 
           {/* Phone */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Phone Number *</Text>
+            <Text style={styles.label}>Số điện thoại *</Text>
             <TextInput
               style={[styles.input, errors.phone && styles.inputError]}
-              placeholder="e.g. 0901 234 567"
+              placeholder="VD: 0901 234 567"
               placeholderTextColor="#9CA3AF"
               value={form.phone}
               onChangeText={setField("phone")}
@@ -147,10 +149,10 @@ export default function CreateCenterScreen() {
 
           {/* Description */}
           <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Description (optional)</Text>
+            <Text style={styles.label}>Mô tả (không bắt buộc)</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Brief description of your center..."
+              placeholder="Mô tả ngắn về trung tâm..."
               placeholderTextColor="#9CA3AF"
               value={form.description}
               onChangeText={setField("description")}
@@ -172,7 +174,7 @@ export default function CreateCenterScreen() {
             ) : (
               <>
                 <Ionicons name="add-circle-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.submitText}>Create Center</Text>
+                <Text style={styles.submitText}>Tạo trung tâm</Text>
               </>
             )}
           </TouchableOpacity>

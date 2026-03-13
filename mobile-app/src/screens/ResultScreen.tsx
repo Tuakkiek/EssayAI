@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -16,12 +16,14 @@ import { GrammarErrorCard } from "../components/GrammarErrorCard";
 import { SuggestionsCard } from "../components/SuggestionsCard";
 import { essayApi, getErrorMessage, extractEssay } from "../services/api";
 import { Essay } from "../types";
+import { useBack } from "../hooks/useBack";
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 40; // ~2 minutes max
 
 export default function ResultScreen() {
   const router = useRouter();
+  const goBack = useBack("/");
   const { essayId } = useLocalSearchParams<{
     essayId: string;
     score: string;
@@ -39,7 +41,7 @@ export default function ResultScreen() {
       try {
         const res = await essayApi.getById(essayId);
 
-        // Guard: 304 Not Modified returns empty body — skip and retry
+        // Guard: 304 Not Modified returns empty body â€” skip and retry
         // res.data can be "", null, or {} depending on axios version
         const raw = res.data;
         const data = extractEssay(raw);
@@ -51,7 +53,7 @@ export default function ResultScreen() {
         }
 
         if (!data) {
-          // Empty body — essay likely hasn't changed yet, poll again
+          // Empty body â€” essay likely hasn't changed yet, poll again
           if (attempt < MAX_POLL_ATTEMPTS) {
             setIsPolling(true);
             setPollCount(attempt + 1);
@@ -75,11 +77,11 @@ export default function ResultScreen() {
           data.status === "graded" ||
           data.status === "error"
         ) {
-          // Grading finished — stop polling
+          // Grading finished â€” stop polling
           setIsPolling(false);
           setLoading(false);
         } else if (attempt < MAX_POLL_ATTEMPTS) {
-          // Still grading — poll again
+          // Still grading â€” poll again
           setIsPolling(true);
           setPollCount(attempt + 1);
           pollRef.current = setTimeout(
@@ -114,17 +116,17 @@ export default function ResultScreen() {
       essay?.score ?? essay?.overallScore ?? essay?.overallBand;
     if (!finalScore) return;
     await Share.share({
-      message: `I just scored ${finalScore.toFixed(1)} on my IELTS essay using Essay AI! 🎯`,
+      message: `I just scored ${finalScore.toFixed(1)} on my IELTS essay using Essay AI! ðŸŽ¯`,
     });
   };
 
-  // ── Grading in progress ──────────────────────────────────────────
+  // â”€â”€ Grading in progress â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (loading || isPolling) {
     const dots = ".".repeat((pollCount % 3) + 1);
     const elapsed = Math.round((pollCount * POLL_INTERVAL_MS) / 1000);
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 52, marginBottom: Spacing.xl }}>🤖</Text>
+        <Text style={{ fontSize: 52, marginBottom: Spacing.xl }}>ðŸ¤–</Text>
         <ActivityIndicator
           size="large"
           color={Colors.primary}
@@ -144,7 +146,7 @@ export default function ResultScreen() {
           ]}
         >
           Our AI examiner is reading through your essay.{"\n"}This usually takes
-          15–40 seconds.
+          15â€“40 seconds.
         </Text>
         {elapsed > 10 && (
           <Text
@@ -153,18 +155,18 @@ export default function ResultScreen() {
               { color: Colors.textMuted, marginTop: Spacing.md },
             ]}
           >
-            {elapsed}s elapsed…
+            {elapsed}s elapsedâ€¦
           </Text>
         )}
       </View>
     );
   }
 
-  // ── Error state ──────────────────────────────────────────────────
+  // â”€â”€ Error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (error || !essay) {
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 48, marginBottom: Spacing.lg }}>😕</Text>
+        <Text style={{ fontSize: 48, marginBottom: Spacing.lg }}>ðŸ˜•</Text>
         <Text style={Typography.heading3}>Something went wrong</Text>
         <Text
           style={[
@@ -189,21 +191,21 @@ export default function ResultScreen() {
             styles.retryBtn,
             { backgroundColor: Colors.surfaceAlt, marginTop: Spacing.sm },
           ]}
-          onPress={() => router.back()}
+          onPress={goBack}
         >
           <Text style={[styles.retryText, { color: Colors.primary }]}>
-            Go Back
+            Quay lại
           </Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  // ── AI grading failed ────────────────────────────────────────────
+  // â”€â”€ AI grading failed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (essay.status === "error") {
     return (
       <View style={styles.center}>
-        <Text style={{ fontSize: 48, marginBottom: Spacing.lg }}>⚠️</Text>
+        <Text style={{ fontSize: 48, marginBottom: Spacing.lg }}>âš ï¸</Text>
         <Text style={Typography.heading3}>Grading Failed</Text>
         <Text
           style={[
@@ -249,7 +251,7 @@ export default function ResultScreen() {
         : Colors.error
     : Colors.textMuted;
 
-  // ── Result ───────────────────────────────────────────────────────
+  // â”€â”€ Result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   return (
     <View style={styles.container}>
       <View style={[styles.header, { borderBottomColor: Colors.border }]}>
@@ -257,7 +259,7 @@ export default function ResultScreen() {
           onPress={() => router.push("/")}
           style={styles.doneBtn}
         >
-          <Text style={styles.doneBtnText}>← Home</Text>
+          <Text style={styles.doneBtnText}>â† Home</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Your Results</Text>
         <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
@@ -284,7 +286,7 @@ export default function ResultScreen() {
             </Text>
           )}
           <View style={styles.metaRow}>
-            <Text style={styles.metaChip}>📝 {essay.wordCount} words</Text>
+            <Text style={styles.metaChip}>ðŸ“ {essay.wordCount} words</Text>
             <Text style={styles.metaChip}>
               {essay.taskType === "task2"
                 ? "Task 2 Essay"
@@ -292,7 +294,7 @@ export default function ResultScreen() {
             </Text>
             {essay.processingTimeMs && (
               <Text style={styles.metaChip}>
-                ⏱ {(essay.processingTimeMs / 1000).toFixed(1)}s
+                â± {(essay.processingTimeMs / 1000).toFixed(1)}s
               </Text>
             )}
           </View>
@@ -300,7 +302,7 @@ export default function ResultScreen() {
 
         {(essay.aiFeedback || essay.feedback) && (
           <View style={styles.feedbackCard}>
-            <Text style={styles.feedbackTitle}>📋 Examiner Feedback</Text>
+            <Text style={styles.feedbackTitle}>ðŸ“‹ Examiner Feedback</Text>
             <Text style={styles.feedbackText}>{essay.aiFeedback ?? essay.feedback}</Text>
           </View>
         )}
@@ -326,7 +328,7 @@ export default function ResultScreen() {
             }
             activeOpacity={0.85}
           >
-            <Text style={styles.improveBtnText}>🚀 AI Improvement Tools</Text>
+            <Text style={styles.improveBtnText}>ðŸš€ AI Improvement Tools</Text>
           </TouchableOpacity>
         )}
 
@@ -335,7 +337,7 @@ export default function ResultScreen() {
           onPress={() => router.push("/essay/input")}
           activeOpacity={0.85}
         >
-          <Text style={styles.tryAgainText}>✍️ Write Another Essay</Text>
+          <Text style={styles.tryAgainText}>âœï¸ Write Another Essay</Text>
         </TouchableOpacity>
 
         <View style={{ height: 32 }} />
@@ -439,3 +441,6 @@ const styles = StyleSheet.create({
   },
   tryAgainText: { fontSize: 16, fontWeight: "700", color: Colors.surface },
 });
+
+
+

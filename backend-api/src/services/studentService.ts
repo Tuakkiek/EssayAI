@@ -66,14 +66,11 @@ export const createStudent = async (
     throw new AppError(`Invalid phone number: ${rawPhone}`, 400);
   }
 
-  // Unique within this center
-  const existing = await User.findOne({
-    phone,
-    centerId: new mongoose.Types.ObjectId(centerId),
-  });
+  // Unique across the system
+  const existing = await User.findOne({ phone });
   if (existing) {
     throw new AppError(
-      `Phone ${phone} is already registered in this center`,
+      `Phone ${phone} is already registered`,
       409,
     );
   }
@@ -204,7 +201,6 @@ export const updateStudent = async (
     }
     const conflict = await User.findOne({
       phone: normalized,
-      centerId: new mongoose.Types.ObjectId(centerId),
       _id: { $ne: new mongoose.Types.ObjectId(studentId) },
     });
     if (conflict)

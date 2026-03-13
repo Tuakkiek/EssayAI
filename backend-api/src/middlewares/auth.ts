@@ -7,7 +7,8 @@ import { UserRole, isTeacherOrAbove, isAdminOrAbove } from "../models/User"
 // ── Augment express Request ────────────────────────────────────────
 export interface AuthUser {
   userId:    string
-  email:     string   // may be the phone number for student tokens
+  email?:    string | null
+  phone?:    string | null
   role:      UserRole
   centerId?: string   // always present except for super_admin
 }
@@ -30,7 +31,8 @@ declare global {
 // ── JWT payload ───────────────────────────────────────────────────
 export interface JwtPayload {
   userId:    string
-  email:     string   // or phone for students
+  email?:    string | null
+  phone?:    string | null
   role:      UserRole
   centerId?: string
   iat?:      number
@@ -64,6 +66,7 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
     req.user = {
       userId:   payload.userId,
       email:    payload.email,
+      phone:    payload.phone,
       role:     payload.role,
       centerId: payload.centerId,
     }

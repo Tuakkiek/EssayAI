@@ -10,9 +10,14 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { assignmentApi } from "../services/api";
+import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useBack } from "../hooks/useBack";
 
 export default function TeacherAssignmentSubmissionsScreen() {
+  useRoleGuard(["teacher", "admin"]);
+
   const router = useRouter();
+  const goBack = useBack("/teacher/assignments");
   const { id } = useLocalSearchParams<{ id: string }>();
   const [submissions, setSubmissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,8 +49,8 @@ export default function TeacherAssignmentSubmissionsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>Back</Text>
+        <TouchableOpacity onPress={goBack}>
+          <Text style={styles.backText}>Quay lại</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Bài nộp</Text>
         <View style={{ width: 60 }} />
@@ -56,11 +61,15 @@ export default function TeacherAssignmentSubmissionsScreen() {
         keyExtractor={(item, idx) => String(item._id ?? idx)}
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
-          <View style={styles.card}>
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => router.push({ pathname: "/essay/result", params: { essayId: item._id } })}
+            activeOpacity={0.8}
+          >
             <Text style={styles.title}>{item.studentId?.name ?? "Học sinh"}</Text>
             <Text style={styles.meta}>Trạng thái: {item.status}</Text>
             <Text style={styles.meta}>Điểm: {item.overallScore ?? "-"}</Text>
-          </View>
+          </TouchableOpacity>
         )}
       />
     </View>
@@ -94,4 +103,6 @@ const styles = StyleSheet.create({
   title: { ...Typography.body, fontWeight: "700" },
   meta: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 4 },
 });
+
+
 

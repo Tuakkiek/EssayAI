@@ -48,16 +48,24 @@ export const getErrorMessage = (error: unknown): string => {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 export const authApi = {
-  login: (email: string, password: string) =>
-    api.post("/api/auth/login", { email, password }),
+  login: (phone: string, password: string) =>
+    api.post("/api/auth/login", { phone, password }),
   register: (
     name: string,
-    email: string,
+    phone: string,
     password: string,
+    confirmPassword: string,
     role: "free_student" | "teacher",
     centerName?: string,
   ) =>
-    api.post("/api/auth/register", { name, email, password, role, centerName }),
+    api.post("/api/auth/register", {
+      name,
+      phone,
+      password,
+      confirmPassword,
+      role,
+      centerName,
+    }),
   logout: () => api.post("/api/auth/logout"),
 };
 
@@ -79,7 +87,7 @@ export const essayApi = {
 export const subscriptionApi = {
   getPlans: () => api.get("/api/subscription/plans"),
   checkout: (planId: string) =>
-    api.post("/api/subscription/checkout", { planId }),
+    api.post("/api/subscription/checkout", { plan: planId }),
   getStatus: () => api.get("/api/subscription"),
 };
 
@@ -110,8 +118,15 @@ export const classApi = {
     api.post("/api/teacher/classes", data),
   delete: (id: string) => api.delete(`/api/teacher/classes/${id}`),
   getAnalytics: (id: string) => api.get(`/api/teacher/classes/${id}/analytics`),
-  inviteStudent: (classId: string, email: string) =>
-    api.post(`/api/teacher/classes/${classId}/invite`, { email }),
+  inviteStudent: (classId: string, name: string, phone: string) =>
+    api.post(`/api/teacher/classes/${classId}/invite`, { name, phone }),
+  bulkCreateStudents: (
+    classId: string,
+    students: { name: string; phone: string }[],
+  ) =>
+    api.post(`/api/teacher/classes/${classId}/students/bulk-create`, {
+      students,
+    }),
   removeStudent: (classId: string, studentId: string) =>
     api.delete(`/api/teacher/classes/${classId}/students/${studentId}`),
 };

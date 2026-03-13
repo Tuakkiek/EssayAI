@@ -4,6 +4,7 @@ import { AppError } from "../middlewares/errorHandler";
 import { logger } from "../utils/logger";
 import type { IUser } from "../models/User";
 import bcrypt from "bcryptjs";
+import { normalizePhone } from "../utils/textUtils";
 
 // ── Types ──────────────────────────────────────────────────────────
 export interface CreateTeacherInput {
@@ -96,6 +97,13 @@ export const createTeacher = async (
   });
   if (existingEmail) throw new AppError("Email already registered", 409);
 
+  const phone = normalizePhone(input.phone);
+  if (!phone) {
+    throw new AppError("Phone is required", 400);
+  }
+  const existingPhone = await User.findOne({ phone });
+  if (existingPhone) throw new AppError("Phone already registered", 409);
+
   // Generate temp password (force change)
   const tempPassword = Math.random().toString(36).slice(-8);
   const passwordHash = await bcrypt.hash(tempPassword, 12);
@@ -103,6 +111,7 @@ export const createTeacher = async (
   const teacher = await User.create({
     ...input,
     email: input.email.toLowerCase(),
+    phone,
     passwordHash,
     role: "teacher",
     centerId,

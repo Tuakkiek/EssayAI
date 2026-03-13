@@ -19,10 +19,23 @@ export const registerHandler = async (
 ): Promise<void> => {
   try {
     const allowedRoles = ["free_student", "teacher"] as const;
-    const { name, email, password, role = "free_student", centerName } = req.body;
+    const {
+      name,
+      phone,
+      email,
+      password,
+      confirmPassword,
+      role = "free_student",
+      centerName,
+    } = req.body;
 
-    if (!name || !email || !password) {
-      sendBadRequest(res, "Missing required fields: name, email, password");
+    if (!name || !phone || !password || !confirmPassword) {
+      sendBadRequest(res, "Missing required fields: name, phone, password");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      sendBadRequest(res, "Password confirmation does not match");
       return;
     }
 
@@ -38,6 +51,7 @@ export const registerHandler = async (
 
     const result = await registerUser({
       name,
+      phone,
       email,
       password,
       role,
@@ -57,12 +71,12 @@ export const loginHandler = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { email, password } = req.body;
-    if (!email || !password) {
-      sendBadRequest(res, "Missing email or password");
+    const { phone, password } = req.body;
+    if (!phone || !password) {
+      sendBadRequest(res, "Missing phone or password");
       return;
     }
-    const result = await login(email, password);
+    const result = await login(phone, password);
     sendSuccess(res, result, "Login successful");
   } catch (err) {
     next(err);
@@ -109,12 +123,12 @@ export const registerSelfStudentHandler = async (
   next: NextFunction,
 ): Promise<void> => {
   try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      sendBadRequest(res, "Thi?u thông tin b?t bu?c: name, email, password");
+    const { name, phone, password } = req.body;
+    if (!name || !phone || !password) {
+      sendBadRequest(res, "Thi?u thông tin b?t bu?c: name, phone, password");
       return;
     }
-    const result = await registerSelfStudent({ name, email, password });
+    const result = await registerSelfStudent({ name, phone, password });
     sendCreated(res, result, "Ðang ký thành công!");
   } catch (err) {
     next(err);

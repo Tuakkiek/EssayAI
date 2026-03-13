@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+﻿import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { teacherApi } from "@/src/services/api";
+import { useRoleGuard } from "@/src/hooks/useRoleGuard";
+import { useBack } from "@/src/hooks/useBack";
 
 interface Essay {
   _id: string;
@@ -23,6 +25,9 @@ interface Essay {
 }
 
 export default function TeacherEssaysScreen() {
+  useRoleGuard(["teacher", "admin"]);
+
+  const goBack = useBack("/teacher/dashboard");
   const [essays, setEssays] = useState<Essay[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -54,7 +59,7 @@ export default function TeacherEssaysScreen() {
     >
       <View style={styles.cardHeader}>
         <Text style={styles.studentName}>
-          {item.studentName ?? "Unknown Student"}
+          {item.studentName ?? "Học sinh"}
         </Text>
         <View style={styles.bandBadge}>
           <Text style={styles.bandText}>{item.overallBand.toFixed(1)}</Text>
@@ -87,10 +92,10 @@ export default function TeacherEssaysScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>All Essays</Text>
+        <Text style={styles.headerTitle}>Bài luận</Text>
         <Text style={styles.count}>{essays.length}</Text>
       </View>
 
@@ -109,7 +114,7 @@ export default function TeacherEssaysScreen() {
         ListEmptyComponent={
           <View style={styles.center}>
             <Ionicons name="document-text-outline" size={48} color="#D1D5DB" />
-            <Text style={styles.emptyText}>No essays yet</Text>
+            <Text style={styles.emptyText}>Chưa có bài luận</Text>
           </View>
         }
       />
@@ -172,3 +177,5 @@ const styles = StyleSheet.create({
   date: { fontSize: 11, color: "#D1D5DB" },
   emptyText: { fontSize: 14, color: "#9CA3AF" },
 });
+
+

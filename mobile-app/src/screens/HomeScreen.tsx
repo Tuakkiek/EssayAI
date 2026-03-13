@@ -18,9 +18,8 @@ const TASK_CARDS = [
   {
     type: "task2",
     title: "Task 2",
-    subtitle: "Academic Essay",
-    description:
-      "Argue a position, discuss a topic, or evaluate ideas. 250+ words.",
+    subtitle: "Bài luận học thuật",
+    description: "Trình bày quan điểm, thảo luận chủ đề hoặc đánh giá ý tưởng. 250+ từ.",
     icon: "✍️",
     color: Colors.primary,
     bg: Colors.primaryLight,
@@ -28,8 +27,8 @@ const TASK_CARDS = [
   {
     type: "task1",
     title: "Task 1",
-    subtitle: "Data Description",
-    description: "Describe a graph, chart, map, or diagram. 150+ words.",
+    subtitle: "Mô tả dữ liệu",
+    description: "Mô tả biểu đồ, bản đồ, quy trình hoặc số liệu. 150+ từ.",
     icon: "📊",
     color: Colors.info,
     bg: Colors.infoLight,
@@ -37,10 +36,10 @@ const TASK_CARDS = [
 ];
 
 const TIPS = [
-  { icon: "🎯", text: "Write at least 250 words for Task 2" },
-  { icon: "🔗", text: "Use linking words to improve coherence" },
-  { icon: "📚", text: "Vary your vocabulary — avoid repetition" },
-  { icon: "✅", text: "Always re-read for grammar errors" },
+  { icon: "🎯", text: "Viết ít nhất 250 từ cho Task 2" },
+  { icon: "🔗", text: "Dùng từ nối để tăng mạch lạc" },
+  { icon: "📚", text: "Đa dạng từ vựng — tránh lặp" },
+  { icon: "✅", text: "Luôn đọc lại để sửa lỗi ngữ pháp" },
 ];
 
 export default function HomeScreen() {
@@ -61,41 +60,31 @@ export default function HomeScreen() {
       });
   }, [user?.role]);
 
+  const firstName = user?.name?.trim().split(" ")[0] || "Bạn";
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
       <View style={styles.header}>
-        <Text style={styles.greeting}>Hello, Writer</Text>
-        <Text style={styles.headerSub}>Ready to improve your IELTS score?</Text>
+        <Text style={styles.greeting}>Xin chào, {firstName}</Text>
+        <Text style={styles.headerSub}>Sẵn sàng cải thiện điểm IELTS?</Text>
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Quick action */}
-        <TouchableOpacity
-          style={styles.mainCta}
-          onPress={() => router.push("/essay/input")}
-          activeOpacity={0.85}
-        >
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity style={styles.mainCta} onPress={() => router.push("/essay/input")} activeOpacity={0.85}>
           <View style={styles.ctaText}>
-            <Text style={styles.ctaTitle}>Score My Essay</Text>
-            <Text style={styles.ctaSubtitle}>
-              Get AI feedback in under a minute
-            </Text>
+            <Text style={styles.ctaTitle}>Chấm bài ngay</Text>
+            <Text style={styles.ctaSubtitle}>Nhận phản hồi AI trong dưới 1 phút</Text>
           </View>
           <Text style={styles.ctaArrow}>→</Text>
         </TouchableOpacity>
 
-        {/* Task type selector */}
-        <Text style={styles.sectionTitle}>Choose Your Task</Text>
+        <Text style={styles.sectionTitle}>Chọn dạng bài</Text>
         <View style={styles.taskRow}>
-          {TASK_CARDS.map((card) => (
+          {TASK_CARDS.map((card, idx) => (
             <TouchableOpacity
               key={card.type}
-              style={[styles.taskCard, { borderColor: card.color }]}
+              style={[styles.taskCard, { borderColor: card.color }, idx === TASK_CARDS.length - 1 && styles.taskCardLast]}
               onPress={() =>
                 router.push({
                   pathname: "/essay/input",
@@ -107,23 +96,17 @@ export default function HomeScreen() {
               <View style={[styles.taskIcon, { backgroundColor: card.bg }]}>
                 <Text style={{ fontSize: 22 }}>{card.icon}</Text>
               </View>
-              <Text style={[styles.taskTitle, { color: card.color }]}>
-                {card.title}
-              </Text>
+              <Text style={[styles.taskTitle, { color: card.color }]}>{card.title}</Text>
               <Text style={styles.taskSubtitle}>{card.subtitle}</Text>
               <Text style={styles.taskDesc}>{card.description}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* Tips */}
-        <Text style={styles.sectionTitle}>Quick Tips</Text>
+        <Text style={styles.sectionTitle}>Mẹo nhanh</Text>
         <View style={styles.tipsCard}>
           {TIPS.map((tip, i) => (
-            <View
-              key={i}
-              style={[styles.tipRow, i < TIPS.length - 1 && styles.tipBorder]}
-            >
+            <View key={i} style={[styles.tipRow, i < TIPS.length - 1 && styles.tipBorder]}>
               <Text style={styles.tipIcon}>{tip.icon}</Text>
               <Text style={styles.tipText}>{tip.text}</Text>
             </View>
@@ -144,22 +127,17 @@ export default function HomeScreen() {
                   <Text
                     style={[
                       styles.assignmentDue,
-                      new Date(a.dueDate) <
-                        new Date(Date.now() + 86400000) && {
-                        color: Colors.error,
-                      },
+                      new Date(a.dueDate) < new Date(Date.now() + 86400000) && { color: Colors.error },
                     ]}
                   >
                     ⏰ Hạn: {formatDate(a.dueDate)}
                   </Text>
                   {a.mySubmission ? (
                     <Text style={styles.assignmentSubmitted}>
-                      ✅ Đã nộp · Band{" "}
-                      {a.mySubmission.score?.toFixed(1) ??
-                        a.mySubmission.overallScore?.toFixed(1)}
+                      ✅ Đã nộp · Band {a.mySubmission.score?.toFixed(1) ?? a.mySubmission.overallScore?.toFixed(1)}
                     </Text>
                   ) : (
-                    <Text style={styles.assignmentPending}>📝 Chưa nộp</Text>
+                    <Text style={styles.assignmentPending}>⏳ Chưa nộp</Text>
                   )}
                 </TouchableOpacity>
               ))
@@ -181,16 +159,8 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     paddingHorizontal: Spacing.xl,
   },
-  greeting: {
-    ...Typography.heading1,
-    color: Colors.surface,
-    fontWeight: "800",
-  },
-  headerSub: {
-    ...Typography.body,
-    color: "rgba(255,255,255,0.8)",
-    marginTop: 4,
-  },
+  greeting: { ...Typography.heading1, color: Colors.surface, fontWeight: "800" },
+  headerSub: { ...Typography.body, color: "rgba(255,255,255,0.8)", marginTop: 4 },
   scroll: { flex: 1 },
   content: { padding: Spacing.xl, paddingBottom: 40 },
   mainCta: {
@@ -202,20 +172,11 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl,
     ...Shadow.md,
   },
-  ctaIcon: { fontSize: 28, marginRight: Spacing.md },
   ctaText: { flex: 1 },
   ctaTitle: { fontSize: 17, fontWeight: "700", color: Colors.surface },
-  ctaSubtitle: {
-    ...Typography.bodySmall,
-    color: "rgba(255,255,255,0.75)",
-    marginTop: 2,
-  },
+  ctaSubtitle: { ...Typography.bodySmall, color: "rgba(255,255,255,0.75)", marginTop: 2 },
   ctaArrow: { fontSize: 20, color: Colors.surface },
-  sectionTitle: {
-    ...Typography.heading3,
-    marginBottom: Spacing.md,
-    marginTop: Spacing.xs,
-  },
+  sectionTitle: { ...Typography.heading3, marginBottom: Spacing.md, marginTop: Spacing.xs },
   taskRow: { flexDirection: "row", marginBottom: Spacing.xl },
   taskCard: {
     flex: 1,
@@ -226,9 +187,7 @@ const styles = StyleSheet.create({
     marginRight: Spacing.md,
     ...Shadow.sm,
   },
-  taskCardLast: {
-    marginRight: 0,
-  },
+  taskCardLast: { marginRight: 0 },
   taskIcon: {
     width: 44,
     height: 44,
@@ -240,38 +199,15 @@ const styles = StyleSheet.create({
   taskTitle: { fontSize: 17, fontWeight: "700", marginBottom: 2 },
   taskSubtitle: { ...Typography.label, marginBottom: Spacing.xs },
   taskDesc: { ...Typography.bodySmall, lineHeight: 18 },
-  tipsCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    ...Shadow.sm,
-  },
-  tipRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: Spacing.sm,
-  },
+  tipsCard: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.lg, ...Shadow.sm },
+  tipRow: { flexDirection: "row", alignItems: "center", paddingVertical: Spacing.sm },
   tipBorder: { borderBottomWidth: 1, borderBottomColor: Colors.border },
   tipIcon: { fontSize: 18, marginRight: Spacing.md, width: 28 },
   tipText: { ...Typography.body, flex: 1 },
-  assignmentCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    marginBottom: Spacing.md,
-    ...Shadow.sm,
-  },
+  assignmentCard: { backgroundColor: Colors.surface, borderRadius: Radius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadow.sm },
   assignmentTitle: { ...Typography.body, fontWeight: "700" },
   assignmentDue: { ...Typography.bodySmall, marginTop: 4 },
-  assignmentSubmitted: {
-    ...Typography.caption,
-    color: Colors.success,
-    marginTop: 4,
-  },
-  assignmentPending: {
-    ...Typography.caption,
-    color: Colors.textSecondary,
-    marginTop: 4,
-  },
+  assignmentSubmitted: { ...Typography.caption, color: Colors.success, marginTop: 4 },
+  assignmentPending: { ...Typography.caption, color: Colors.textSecondary, marginTop: 4 },
   emptyText: { ...Typography.bodySmall, color: Colors.textMuted },
 });

@@ -9,14 +9,15 @@ import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { authApi } from "../services/api";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type UserRole = "admin" | "teacher" | "center_student" | "free_student";
 
 export interface User {
   id: string;
   name: string;
-  email: string | null;
+  phone: string;
+  email?: string | null;
   role: UserRole;
   centerId?: string | null;
   centerName?: string | null;
@@ -32,29 +33,31 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
-  login: (email: string, password: string) => Promise<User>;
+  login: (phone: string, password: string) => Promise<User>;
   register: (
     name: string,
-    email: string,
+    phone: string,
     password: string,
+    confirmPassword: string,
     role: "free_student" | "teacher",
     centerName?: string,
   ) => Promise<User>;
   redirectAfterLogin: (role: UserRole) => void;
+  refreshUser: (partial?: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
   getToken: () => Promise<string | null>;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const AUTH_TOKEN_KEY = "authToken";
 const AUTH_USER_KEY = "authUser";
 
-// ─── Context ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Provider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
@@ -92,8 +95,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = useCallback(async (email: string, password: string) => {
-    const response = await authApi.login(email, password);
+  const login = useCallback(async (phone: string, password: string) => {
+    const response = await authApi.login(phone, password);
     const { token, user } = response.data.data;
 
     await Promise.all([
@@ -113,15 +116,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = useCallback(
     async (
       name: string,
-      email: string,
+      phone: string,
       password: string,
+      confirmPassword: string,
       role: "free_student" | "teacher",
       centerName?: string,
     ) => {
       const response = await authApi.register(
         name,
-        email,
+        phone,
         password,
+        confirmPassword,
         role,
         centerName,
       );
@@ -144,17 +149,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const redirectAfterLogin = useCallback((role: UserRole) => {
-    switch (role) {
-      case "admin":
-        router.navigate("/admin/dashboard");
-        break;
-      case "teacher":
-        router.navigate("/teacher/dashboard");
-        break;
-      case "center_student":
-      case "free_student":
-      default:
-        router.navigate("/");
+    // Slight delay to allow Keyboard.dismiss() layout animation to finish before unmounting LoginScreen
+    setTimeout(() => {
+      switch (role) {
+        case "admin":
+          router.replace("/admin/dashboard");
+          break;
+        case "teacher":
+          router.replace("/teacher/dashboard");
+          break;
+        case "center_student":
+        case "free_student":
+        default:
+          router.replace("/");
+      }
+    }, 100);
+  }, []);
+
+  const refreshUser = useCallback(async (partial: Partial<User> = {}) => {
+    let nextUser: User | null = null;
+
+    setState((prev) => {
+      if (!prev.user) return prev;
+      nextUser = { ...prev.user, ...partial };
+      return { ...prev, user: nextUser };
+    });
+
+    if (nextUser) {
+      await SecureStore.setItemAsync(AUTH_USER_KEY, JSON.stringify(nextUser));
     }
   }, []);
 
@@ -175,8 +197,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading: false,
         isAuthenticated: false,
       });
-
-      router.navigate("/login");
+      
+      // We rely on AuthGuard to redirect to /login when isAuthenticated becomes false.
+      // Calling router.replace here concurrently with state update causes the navigator to crash.
     }
   }, []);
 
@@ -186,14 +209,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ ...state, login, register, redirectAfterLogin, logout, getToken }}
+      value={{
+        ...state,
+        login,
+        register,
+        redirectAfterLogin,
+        refreshUser,
+        logout,
+        getToken,
+      }}
     >
       {children}
     </AuthContext.Provider>
   );
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Hook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
@@ -204,3 +235,4 @@ export function useAuth(): AuthContextValue {
 }
 
 export default AuthContext;
+

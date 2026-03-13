@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+﻿import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { getBandColor } from "@/utils/bandColor";
 import { teacherApi } from "../services/api";
+import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useBack } from "../hooks/useBack";
 
 
 
@@ -19,7 +21,8 @@ interface StudentDetailData {
   student: {
     _id: string;
     name: string;
-    email: string;
+    email?: string;
+    phone?: string;
     avatarUrl: string | null;
     stats: {
       essaysSubmitted: number;
@@ -42,8 +45,11 @@ interface StudentDetailData {
 }
 
 export default function StudentDetailScreen() {
+  useRoleGuard(["teacher", "admin"]);
+
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const goBack = useBack("/teacher/students");
   const [data, setData] = useState<StudentDetailData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -51,10 +57,10 @@ export default function StudentDetailScreen() {
     try {
       const res = await teacherApi.getStudentById(id);
       const body = res.data;
-      if (!body.success) throw new Error(body.message || "Failed to load student");
+      if (!body.success) throw new Error(body.message || "Không thể tải thông tin học sinh");
       setData(body.data);
     } catch (err) {
-      Alert.alert("Error", err instanceof Error ? err.message : "Load failed");
+      Alert.alert("Lỗi", err instanceof Error ? err.message : "Tải dữ liệu thất bại");
     } finally {
       setLoading(false);
     }
@@ -73,18 +79,20 @@ export default function StudentDetailScreen() {
   if (!data)
     return (
       <View style={styles.center}>
-        <Text>No student found</Text>
+        <Text>Không tìm thấy học sinh</Text>
       </View>
     );
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backBtnText}>← Back</Text>
+        <TouchableOpacity style={styles.backBtn} onPress={goBack}>
+          <Text style={styles.backBtnText}>← Quay lại</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{data.student.name}</Text>
-        <Text style={styles.headerSub}>{data.student.email}</Text>
+        <Text style={styles.headerSub}>
+          {data.student.email ?? data.student.phone ?? "—"}
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
@@ -93,28 +101,28 @@ export default function StudentDetailScreen() {
             <Text style={styles.statVal}>
               {data.student.stats.averageScore.toFixed(1)}
             </Text>
-            <Text style={styles.statLabel}>Avg Band</Text>
+            <Text style={styles.statLabel}>Điểm TB</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statVal}>
               {data.student.stats.essaysSubmitted}
             </Text>
-            <Text style={styles.statLabel}>Essays Written</Text>
+            <Text style={styles.statLabel}>Bài đã viết</Text>
           </View>
         </View>
 
         <View style={styles.flexRowStyle}>
           <View style={styles.statCardSmall}>
             <Text style={styles.statValSmall}>{data.pendingReviews}</Text>
-            <Text style={styles.statLabel}>Pending Reviews</Text>
+            <Text style={styles.statLabel}>Chờ nhận xét</Text>
           </View>
           <View style={styles.statCardSmall}>
             <Text style={styles.statValSmall}>{data.totalReviewed}</Text>
-            <Text style={styles.statLabel}>Total Reviewed</Text>
+            <Text style={styles.statLabel}>Đã nhận xét</Text>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Recent Essays</Text>
+        <Text style={styles.sectionTitle}>Bài gần đây</Text>
 
         {data.recentEssays.map((essay) => (
           <TouchableOpacity
@@ -159,7 +167,7 @@ export default function StudentDetailScreen() {
                     : styles.unreviewedTag
                 }
               >
-                {essay.isReviewedByTeacher ? "✓ Reviewed" : "⏳ Pending"}
+                {essay.isReviewedByTeacher ? "✓ Đã nhận xét" : "⏳ Chờ"}
               </Text>
             </View>
           </TouchableOpacity>
@@ -243,3 +251,8 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+
+
+
+
+

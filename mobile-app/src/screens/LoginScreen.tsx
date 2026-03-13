@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
-  KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator
+  KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator, Keyboard
 } from "react-native"
 import { useRouter } from "expo-router"
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme"
@@ -15,18 +15,19 @@ export default function LoginScreen() {
   const { login, register, redirectAfterLogin } = useAuth()
   const [mode,     setMode]     = useState<Mode>("login")
   const [name,     setName]     = useState("")
-  const [email,    setEmail]    = useState("")
+  const [phone,    setPhone]    = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [role,     setRole]     = useState<"free_student" | "teacher">("free_student")
   const [centerName, setCenterName] = useState("")
   const [loading,  setLoading]  = useState(false)
 
   const handleSubmit = async () => {
-    const emailValue = email.trim()
+    const phoneValue = phone.trim()
     const nameValue = name.trim()
     const centerValue = centerName.trim()
 
-    if (!emailValue || !password.trim()) {
+    if (!phoneValue || !password.trim()) {
       Alert.alert("Missing fields", "Please fill in all fields.")
       return
     }
@@ -34,24 +35,30 @@ export default function LoginScreen() {
       Alert.alert("Missing fields", "Please enter your full name.")
       return
     }
+    if (mode === "register" && !confirmPassword.trim()) {
+      Alert.alert("Missing fields", "Please confirm your password.")
+      return
+    }
     if (mode === "register" && role === "teacher" && !centerValue) {
       Alert.alert("Missing fields", "Please enter your center name.")
       return
     }
-    if (!/^\S+@\S+\.\S+$/.test(emailValue)) {
-      Alert.alert("Invalid email", "Please enter a valid email address.")
+    if (mode === "register" && password !== confirmPassword) {
+      Alert.alert("Password mismatch", "Confirmation password does not match.")
       return
     }
     setLoading(true)
+    Keyboard.dismiss()
     try {
       if (mode === "login") {
-        const loggedInUser = await login(emailValue, password)
+        const loggedInUser = await login(phoneValue, password)
         redirectAfterLogin(loggedInUser.role)
       } else {
         const registeredUser = await register(
           nameValue,
-          emailValue,
+          phoneValue,
           password,
+          confirmPassword,
           role,
           centerValue || undefined,
         )
@@ -103,14 +110,14 @@ export default function LoginScreen() {
           )}
 
           <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={styles.label}>Số điện thoại</Text>
             <TextInput
               style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@example.com"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Nhập số điện thoại"
               placeholderTextColor={Colors.textMuted}
-              keyboardType="email-address"
+              keyboardType="phone-pad"
               autoCapitalize="none"
               autoCorrect={false}
             />
@@ -122,8 +129,8 @@ export default function LoginScreen() {
                 <Text style={styles.label}>Bạn là</Text>
                 <View style={styles.roleRow}>
                   {[
-                    { value: "free_student", label: "🎓 Học sinh", desc: "Luyện tập tự do" },
-                    { value: "teacher", label: "📚 Giáo viên", desc: "Quản lý lớp học" },
+                    { value: "free_student", label: "Học sinh", desc: "Luyện tập tự do" },
+                    { value: "teacher", label: "Giáo viên", desc: "Quản lý lớp học" },
                   ].map((r) => (
                     <TouchableOpacity
                       key={r.value}
@@ -174,6 +181,20 @@ export default function LoginScreen() {
               secureTextEntry
             />
           </View>
+
+          {mode === "register" && (
+            <View style={styles.field}>
+              <Text style={styles.label}>Confirm Password</Text>
+              <TextInput
+                style={styles.input}
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                placeholder="••••••••"
+                placeholderTextColor={Colors.textMuted}
+                secureTextEntry
+              />
+            </View>
+          )}
 
           <TouchableOpacity
             style={[styles.submitBtn, loading && styles.submitDisabled]}
@@ -226,4 +247,3 @@ const styles = StyleSheet.create({
   guestBtn:        { alignItems: "center", paddingVertical: Spacing.md },
   guestText:       { ...Typography.body, color: Colors.textSecondary },
 })
-

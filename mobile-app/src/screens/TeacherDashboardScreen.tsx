@@ -13,8 +13,11 @@ import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { classApi } from "../services/api";
 import { Class } from "../types";
+import { useRoleGuard } from "../hooks/useRoleGuard";
 
 export default function TeacherDashboardScreen() {
+  useRoleGuard(["teacher", "admin"]);
+
   const router = useRouter();
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +53,7 @@ export default function TeacherDashboardScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Teacher Dashboard</Text>
+        <Text style={styles.headerTitle}>Bảng điều khiển giáo viên</Text>
         <TouchableOpacity
           style={styles.headerBtn}
           onPress={() => router.push("/teacher/classes/create")}
@@ -192,3 +195,5 @@ const styles = StyleSheet.create({
   },
   primaryBtnText: { ...Typography.body, color: Colors.surface, fontWeight: "700" },
 });
+
+

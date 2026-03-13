@@ -199,10 +199,9 @@ export const bulkImportStudents = async (
   // Phones that survived file-level dedup
   const validPhones = [...phoneSeen.keys()];
 
-  // 4. Check which phones already exist in this center (single DB query)
+  // 4. Check which phones already exist in the system (single DB query)
   const existingUsers = await User.find({
     phone: { $in: validPhones },
-    centerId: centerObjectId,
   }).select("phone");
   const existingPhoneSet = new Set(existingUsers.map((u) => u.phone));
 
@@ -249,7 +248,7 @@ export const bulkImportStudents = async (
         rowNumber: row.rowNumber,
         name: row.name,
         phone: row.phone,
-        reason: "Phone number already registered in this center",
+        reason: "Phone number already registered",
       });
       continue;
     }

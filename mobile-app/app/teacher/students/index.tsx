@@ -13,6 +13,8 @@ import {
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { teacherApi } from "@/src/services/api";
+import { useRoleGuard } from "@/src/hooks/useRoleGuard";
+import { useBack } from "@/src/hooks/useBack";
 
 interface Student {
   _id: string;
@@ -24,6 +26,9 @@ interface Student {
 }
 
 export default function TeacherStudentsScreen() {
+  useRoleGuard(["teacher", "admin"]);
+
+  const goBack = useBack("/teacher/dashboard");
   const [students, setStudents] = useState<Student[]>([]);
   const [filtered, setFiltered] = useState<Student[]>([]);
   const [search, setSearch] = useState("");
@@ -36,11 +41,11 @@ export default function TeacherStudentsScreen() {
 
     try {
       const response = await teacherApi.getStudents();
-      const data: Student[] = response.data?.students ?? response.data ?? [];
+      const data: Student[] = response.data?.data?.students ?? response.data?.data ?? response.data ?? [];
       setStudents(data);
       setFiltered(data);
     } catch {
-      Alert.alert("Error", "Failed to load students. Please try again.");
+      Alert.alert("Lỗi", "Không thể tải danh sách học sinh. Vui lòng thử lại.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -60,8 +65,8 @@ export default function TeacherStudentsScreen() {
         students.filter(
           (s) =>
             s.name.toLowerCase().includes(q) ||
-            s.email.toLowerCase().includes(q)
-        )
+            s.email.toLowerCase().includes(q),
+        ),
       );
     }
   }, [search, students]);
@@ -84,11 +89,9 @@ export default function TeacherStudentsScreen() {
         <Text style={styles.name}>{item.name}</Text>
         <Text style={styles.email}>{item.email}</Text>
         <View style={styles.stats}>
-          <Text style={styles.stat}>
-            📝 {item.totalEssays} essay{item.totalEssays !== 1 ? "s" : ""}
-          </Text>
+          <Text style={styles.stat}>📝 {item.totalEssays} bài</Text>
           {item.averageBand != null && (
-            <Text style={styles.stat}>⭐ Avg {item.averageBand.toFixed(1)}</Text>
+            <Text style={styles.stat}>⭐ TB {item.averageBand.toFixed(1)}</Text>
           )}
         </View>
       </View>
@@ -109,10 +112,10 @@ export default function TeacherStudentsScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Students</Text>
+        <Text style={styles.headerTitle}>Học sinh</Text>
         <Text style={styles.count}>{students.length}</Text>
       </View>
 
@@ -121,7 +124,7 @@ export default function TeacherStudentsScreen() {
         <Ionicons name="search-outline" size={18} color="#9CA3AF" />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search by name or email..."
+          placeholder="Tìm theo tên hoặc email..."
           placeholderTextColor="#9CA3AF"
           value={search}
           onChangeText={setSearch}
@@ -150,7 +153,7 @@ export default function TeacherStudentsScreen() {
           <View style={styles.center}>
             <Ionicons name="people-outline" size={48} color="#D1D5DB" />
             <Text style={styles.emptyText}>
-              {search ? "No students found" : "No students yet"}
+              {search ? "Không tìm thấy học sinh" : "Chưa có học sinh"}
             </Text>
           </View>
         }

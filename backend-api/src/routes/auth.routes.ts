@@ -14,7 +14,7 @@ const router = Router()
 // Register a new user (teacher or free_student)
 router.post("/register", registerHandler)
 
-// Login for all roles (email + password)
+// Login for all roles (phone + password)
 router.post("/login", loginHandler)
 
 // Deprecated: self-registration legacy endpoint

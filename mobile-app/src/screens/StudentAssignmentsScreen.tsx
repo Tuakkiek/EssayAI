@@ -12,8 +12,11 @@ import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { studentApi } from "../services/api";
 import { Assignment } from "../types";
 import { formatDate } from "@/utils/bandColor";
+import { useRoleGuard } from "../hooks/useRoleGuard";
 
 export default function StudentAssignmentsScreen() {
+  useRoleGuard(["center_student", "free_student"]);
+
   const router = useRouter();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,4 +101,5 @@ const styles = StyleSheet.create({
   title: { ...Typography.body, fontWeight: "700" },
   meta: { ...Typography.bodySmall, color: Colors.textSecondary, marginTop: 4 },
 });
+
 

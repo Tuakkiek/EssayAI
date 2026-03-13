@@ -12,8 +12,11 @@ import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { classApi, assignmentApi } from "../services/api";
 import { Assignment, Class } from "../types";
+import { useRoleGuard } from "../hooks/useRoleGuard";
 
 export default function TeacherClassesScreen() {
+  useRoleGuard(["teacher", "admin"]);
+
   const router = useRouter();
   const [classes, setClasses] = useState<Class[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -177,4 +180,5 @@ const styles = StyleSheet.create({
   emptyTitle: { ...Typography.heading3 },
   emptySub: { ...Typography.body, color: Colors.textSecondary, marginTop: 6 },
 });
+
 

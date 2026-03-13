@@ -32,8 +32,8 @@ export const isAdminOrAbove = (role: UserRole): boolean =>
 export interface IUser extends Document {
   // Identity
   name: string;
-  phone?: string; // Optional (legacy)
-  email?: string; // Primary login identifier
+  phone: string; // Primary login identifier (required)
+  email?: string | null; // Optional
   passwordHash: string;
 
   // Role & tenancy
@@ -95,20 +95,18 @@ const UserSchema = new Schema<IUser>(
 
     phone: {
       type: String,
+      required: [true, "Phone is required"],
+      unique: true,
       trim: true,
-      default: undefined,
-      // Uniqueness is enforced via a compound index { phone, centerId }
-      // so the same phone can exist across different centers.
     },
 
     email: {
       type: String,
       unique: true,
-      sparse: true, // allows multiple null values (students have no email)
+      sparse: true, // allows multiple missing values (students have no email)
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, "Please provide a valid email"],
-      default: null,
     },
 
     passwordHash: {
@@ -214,8 +212,7 @@ const UserSchema = new Schema<IUser>(
 );
 
 // ── Indexes ──────────────────────────────────────────────────────────
-// Unique phone within a center (students) — sparse allows null centerId (super_admin)
-UserSchema.index({ phone: 1, centerId: 1 }, { unique: true, sparse: true });
+// Phone index is created via unique: true in schema
 // Fast lookup for teachers listing students in their center
 UserSchema.index({ centerId: 1, role: 1 });
 // Email is separately indexed via { unique: true, sparse: true } above
