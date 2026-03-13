@@ -27,7 +27,10 @@ export const startEssayGrading = async (essayId: string): Promise<void> => {
 
   // Atomically claim only pending essays to avoid duplicate graders.
   const essay = await Essay.findOneAndUpdate(
-    { _id: essayId, status: "pending", gradedAt: { $exists: false } },
+    // Match pending essays that haven't been graded yet.
+    // Note: `gradedAt` defaults to null in the schema, so `$exists: false`
+    // would skip brand-new submissions.
+    { _id: essayId, status: "pending", gradedAt: null },
     { status: "grading", errorMessage: null },
     { new: true }
   )

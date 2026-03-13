@@ -21,17 +21,32 @@ export interface ScoreBreakdown {
 }
 
 export interface GrammarError {
-  original: string;
-  corrected: string;
-  explanation: string;
+  // Legacy AI format
+  original?: string;
+  corrected?: string;
+  explanation?: string;
   position?: number;
   tip?: string;
+
+  // Newer/alternate format from backend
+  message?: string;
+  type?: "grammar" | "spelling" | "punctuation" | "style";
+  suggestions?: string[];
+  offset?: number;
+  length?: number;
 }
 
 export interface Suggestion {
-  category: "vocabulary" | "structure" | "coherence" | "argument" | "general";
-  text: string;
+  // Legacy AI format
+  category?: "vocabulary" | "structure" | "coherence" | "argument" | "general";
+  text?: string;
   example?: string;
+
+  // Newer/alternate format from backend
+  type?: "vocabulary" | "coherence" | "structure" | "task_achievement";
+  original?: string;
+  improved?: string;
+  explanation?: string;
 }
 
 export interface Essay {

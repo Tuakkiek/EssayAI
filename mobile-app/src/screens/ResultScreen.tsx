@@ -28,7 +28,7 @@ import { useAuth } from "../context/AuthContext";
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 40;
 
-// â”€â”€â”€ Score accent colors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Score accent colors
 const getScoreTheme = (score: number | null | undefined) => {
   if (score == null) return { accent: "#94A3B8", bg: "#F1F5F9", label: "—" };
   if (score >= 7.5)
@@ -42,10 +42,11 @@ const getScoreTheme = (score: number | null | undefined) => {
 
 export default function ResultScreen() {
   const router = useRouter();
-  const { essayId } = useLocalSearchParams<{
-    essayId: string;
-    score: string;
+  const { essayId: essayIdParam } = useLocalSearchParams<{
+    essayId?: string | string[];
+    score?: string;
   }>();
+  const essayId = Array.isArray(essayIdParam) ? essayIdParam[0] : essayIdParam;
 
   const { user } = useAuth();
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
@@ -84,6 +85,12 @@ export default function ResultScreen() {
   const fetchEssay = useCallback(
     async (attempt = 0) => {
       try {
+        if (!essayId) {
+          setError("Thiếu mã bài viết. Vui lòng mở lại từ Lịch sử.");
+          setLoading(false);
+          setIsPolling(false);
+          return;
+        }
         const isTeacher = user?.role === "teacher" || user?.role === "admin";
         const res = isTeacher
           ? await submissionApi.getById(essayId)
@@ -237,9 +244,22 @@ export default function ResultScreen() {
     );
   }
 
-  // â”€â”€â”€ Result â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const finalScore = essay.score ?? essay.overallScore ?? essay.overallBand;
   const theme = getScoreTheme(finalScore);
+  const feedbackText =
+    [essay.aiFeedback, essay.feedback].find(
+      (value) => typeof value === "string" && value.trim().length > 0,
+    ) ?? "Chưa có nhận xét từ giám khảo.";
+  const originalText =
+    typeof essay.originalText === "string" && essay.originalText.trim()
+      ? essay.originalText.trim()
+      : typeof essay.text === "string" && essay.text.trim()
+        ? essay.text.trim()
+        : "";
+  const grammarErrors = Array.isArray(essay.grammarErrors)
+    ? essay.grammarErrors
+    : [];
+  const suggestions = Array.isArray(essay.suggestions) ? essay.suggestions : [];
 
   return (
     <View style={styles.container}>
@@ -295,21 +315,6 @@ export default function ResultScreen() {
             </View>
           </View>
 
-          {/* â”€â”€ AI Feedback â”€â”€ */}
-          {(essay.aiFeedback || essay.feedback) && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View
-                  style={[styles.sectionDot, { backgroundColor: theme.accent }]}
-                />
-                <Text style={styles.sectionTitle}>Nhận xét từ Giám khảo</Text>
-              </View>
-              <Text style={styles.feedbackText}>
-                {essay.aiFeedback ?? essay.feedback}
-              </Text>
-            </View>
-          )}
-
           {/* â”€â”€ Score breakdown â”€â”€ */}
           {essay.scoreBreakdown && finalScore != null && (
             <ScoreBreakdownCard
@@ -318,11 +323,33 @@ export default function ResultScreen() {
             />
           )}
 
+          {originalText ? (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View
+                  style={[styles.sectionDot, { backgroundColor: theme.accent }]}
+                />
+                <Text style={styles.sectionTitle}>Bài viết gốc</Text>
+              </View>
+              <Text style={styles.originalText}>{originalText}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View
+                style={[styles.sectionDot, { backgroundColor: theme.accent }]}
+              />
+              <Text style={styles.sectionTitle}>Nhận xét từ Giám khảo</Text>
+            </View>
+            <Text style={styles.feedbackText}>{feedbackText}</Text>
+          </View>
+
           {/* â”€â”€ Grammar errors â”€â”€ */}
-          <GrammarErrorCard errors={essay.grammarErrors ?? []} />
+          <GrammarErrorCard errors={grammarErrors} />
 
           {/* â”€â”€ Suggestions â”€â”€ */}
-          <SuggestionsCard suggestions={essay.suggestions ?? []} />
+          <SuggestionsCard suggestions={suggestions} />
 
           <View style={{ height: 48 }} />
         </Animated.View>
@@ -488,6 +515,12 @@ const styles = StyleSheet.create({
     color: TEXT_SECONDARY,
     letterSpacing: 0.1,
   },
+  originalText: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: TEXT_PRIMARY,
+    letterSpacing: 0.1,
+  },
 
   // â”€â”€ Loading card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   loadingCard: {
@@ -609,9 +642,3 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 });
-
-
-
-
-
-

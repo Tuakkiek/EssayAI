@@ -8,18 +8,51 @@ interface Props {
 }
 
 export const SuggestionsCard: React.FC<Props> = ({ suggestions }) => {
+  const getFirstString = (...values: unknown[]) => {
+    for (const value of values) {
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return "";
+  };
+
+  const normalized = suggestions
+    .map((suggestion) => {
+      const categoryRaw =
+        typeof suggestion.category === "string"
+          ? suggestion.category
+          : typeof suggestion.type === "string"
+            ? suggestion.type
+            : "general";
+      const text = getFirstString(
+        suggestion.text,
+        suggestion.improved,
+        suggestion.explanation,
+        suggestion.original,
+      );
+      const example = getFirstString(suggestion.example);
+      return {
+        category: categoryRaw,
+        text,
+        example: example || undefined,
+      };
+    })
+    .filter((item) => item.text);
+
+  const formatCategory = (category: string) =>
+    category.replace(/_/g, " ").toUpperCase();
+
   return (
     <View style={styles.card}>
       <Text style={styles.title}>Suggestions</Text>
-      {suggestions.length === 0 ? (
+      {normalized.length === 0 ? (
         <Text style={styles.empty}>No suggestions available.</Text>
       ) : (
-        suggestions.map((s, i) => (
+        normalized.map((s, i) => (
           <View
             key={`${s.category}-${i}`}
-            style={[styles.item, i < suggestions.length - 1 && styles.divider]}
+            style={[styles.item, i < normalized.length - 1 && styles.divider]}
           >
-            <Text style={styles.category}>{s.category.toUpperCase()}</Text>
+            <Text style={styles.category}>{formatCategory(s.category)}</Text>
             <Text style={styles.point}>{s.text}</Text>
             {s.example ? (
               <Text style={styles.example}>Example: {s.example}</Text>

@@ -7,14 +7,25 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
-import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
+import {
+  Colors,
+  Spacing,
+  Typography,
+  Radius,
+  Shadow,
+  Fonts,
+} from "@/constants/theme";
 import { studentApi, getErrorMessage } from "../services/api";
 import { Assignment } from "../types";
 import { useRoleGuard } from "../hooks/useRoleGuard";
@@ -36,10 +47,21 @@ const normalizeStatus = (status?: string) =>
   status === "grading" ? "scoring" : status;
 
 const getDisplayScore = (submission?: Assignment["mySubmission"] | null) =>
-  submission?.score ?? submission?.overallScore ?? submission?.overallBand ?? null;
+  submission?.score ??
+  submission?.overallScore ??
+  submission?.overallBand ??
+  null;
+
+const COMPLETION_COLORS = {
+  blue: "#0A84FF",
+  green: "#34C759",
+  teal: "#5AC8FA",
+  indigo: "#5856D6",
+};
 
 export default function StudentAssignmentDetailScreen() {
   useRoleGuard(["center_student", "free_student"]);
+  const router = useRouter();
   const goBack = useBack("/student/assignments");
   const { id } = useLocalSearchParams<{ id: string }>();
   const [assignment, setAssignment] = useState<Assignment | null>(null);
@@ -49,9 +71,13 @@ export default function StudentAssignmentDetailScreen() {
   const [isPolling, setIsPolling] = useState(false);
   const [pollCount, setPollCount] = useState(0);
   const [focusTick, setFocusTick] = useState(0);
+  const [showCompletion, setShowCompletion] = useState(false);
+  const [completionScore, setCompletionScore] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollingRef = useRef(false);
   const notifyOnCompleteRef = useRef(false);
+  const completionVisibleRef = useRef(false);
+  const completionAnim = useRef(new Animated.Value(0)).current;
 
   const load = useCallback(async () => {
     if (!id) return null;
@@ -66,6 +92,35 @@ export default function StudentAssignmentDetailScreen() {
       return null;
     }
   }, [id]);
+
+  const openCompletion = useCallback(
+    (score: number) => {
+      if (completionVisibleRef.current) return;
+      completionVisibleRef.current = true;
+      setCompletionScore(score);
+      setShowCompletion(true);
+      completionAnim.setValue(0);
+      Animated.timing(completionAnim, {
+        toValue: 1,
+        duration: 260,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    },
+    [completionAnim],
+  );
+
+  const closeCompletion = useCallback(() => {
+    Animated.timing(completionAnim, {
+      toValue: 0,
+      duration: 180,
+      easing: Easing.in(Easing.quad),
+      useNativeDriver: true,
+    }).start(() => {
+      completionVisibleRef.current = false;
+      setShowCompletion(false);
+    });
+  }, [completionAnim]);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -97,7 +152,8 @@ export default function StudentAssignmentDetailScreen() {
       if (isFinal || isError) {
         stopPolling();
         if (notifyOnCompleteRef.current && displayScore != null) {
-          Alert.alert("Đã chấm xong", `Band: ${displayScore.toFixed(1)}`);
+          notifyOnCompleteRef.current = false;
+          openCompletion(displayScore);
         }
         notifyOnCompleteRef.current = false;
         return;
@@ -115,7 +171,7 @@ export default function StudentAssignmentDetailScreen() {
         POLL_INTERVAL_MS,
       );
     },
-    [load, stopPolling],
+    [load, stopPolling, openCompletion],
   );
 
   const startPolling = useCallback(() => {
@@ -160,8 +216,8 @@ export default function StudentAssignmentDetailScreen() {
   const normalizedStatus = normalizeStatus(
     submission?.status ?? (hasSubmitted ? "pending" : undefined),
   );
-  const status = STATUS_LABELS[normalizedStatus ?? "pending"] ??
-    STATUS_LABELS.pending;
+  const status =
+    STATUS_LABELS[normalizedStatus ?? "pending"] ?? STATUS_LABELS.pending;
   const displayScore = getDisplayScore(submission);
   const isFinal =
     displayScore != null ||
@@ -170,13 +226,20 @@ export default function StudentAssignmentDetailScreen() {
   const isError = normalizedStatus === "error";
   const isGrading = hasSubmitted && !isFinal && !isError;
   const dots = isPolling ? ".".repeat((pollCount % 3) + 1) : "";
+  const criteria = assignment?.gradingCriteria;
+  const requiredVocabulary = (criteria?.requiredVocabulary ?? []).filter((v) =>
+    (v.word ?? "").trim(),
+  );
+  const hasStructure = !!criteria?.structureRequirements?.trim();
+  const hasVocab = requiredVocabulary.length > 0;
+  const showCriteria = hasStructure || hasVocab;
 
   useEffect(() => {
     if (displayScore != null && notifyOnCompleteRef.current) {
-      Alert.alert("Đã chấm xong", `Band: ${displayScore.toFixed(1)}`);
       notifyOnCompleteRef.current = false;
+      openCompletion(displayScore);
     }
-  }, [displayScore]);
+  }, [displayScore, openCompletion]);
 
   useEffect(() => {
     if (isGrading) startPolling();
@@ -214,6 +277,59 @@ export default function StudentAssignmentDetailScreen() {
             <Text style={styles.prompt}>{assignment.prompt}</Text>
           </View>
 
+          {showCriteria && (
+            <View style={styles.card}>
+              <Text style={styles.sectionLabel}>Yêu cầu của giáo viên</Text>
+
+              {hasStructure && (
+                <View style={styles.criteriaBlock}>
+                  <Text style={styles.criteriaTitle}>Cấu trúc bài</Text>
+                  <Text style={styles.criteriaText}>
+                    {criteria?.structureRequirements?.trim()}
+                  </Text>
+                </View>
+              )}
+
+              {hasVocab && (
+                <View style={styles.criteriaBlock}>
+                  <Text style={styles.criteriaTitle}>Từ vựng yêu cầu</Text>
+                  <View style={styles.vocabList}>
+                    {requiredVocabulary.map((v, i) => {
+                      const importanceLabel =
+                        v.importance === "recommended"
+                          ? "Khuyến khích"
+                          : "Bắt buộc";
+                      const synonyms = (v.synonyms ?? []).filter(Boolean);
+                      return (
+                        <View key={`${v.word}-${i}`} style={styles.vocabItem}>
+                          <View style={styles.vocabHeader}>
+                            <Text style={styles.vocabWord}>{v.word}</Text>
+                            <View style={styles.importanceChip}>
+                              <Text
+                                style={[
+                                  styles.importanceText,
+                                  v.importance === "required" &&
+                                    styles.importanceTextRequired,
+                                ]}
+                              >
+                                {importanceLabel}
+                              </Text>
+                            </View>
+                          </View>
+                          {synonyms.length > 0 && (
+                            <Text style={styles.vocabSyn}>
+                              Đồng nghĩa: {synonyms.join(", ")}
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              )}
+            </View>
+          )}
+
           {hasSubmitted ? (
             <View style={styles.card}>
               <Text style={styles.sectionLabel}>Trạng thái</Text>
@@ -230,14 +346,31 @@ export default function StudentAssignmentDetailScreen() {
                 )}
               </View>
               {isGrading && (
-                <Text style={styles.submittedMeta}>
-                  Đang chấm điểm{dots}
-                </Text>
+                <Text style={styles.submittedMeta}>Đang chấm điểm{dots}</Text>
               )}
               {displayScore != null && (
                 <Text style={styles.submittedMeta}>
                   Band: {displayScore.toFixed(1)}
                 </Text>
+              )}
+              {displayScore != null && (
+                <View style={styles.resultButtonContainer}>
+                  <Pressable
+                    style={styles.resultButton}
+                    onPress={() => {
+                      if (submission?._id) {
+                        router.push({
+                          pathname: "/essay/result",
+                          params: { essayId: submission._id },
+                        });
+                      }
+                    }}
+                  >
+                    <Text style={styles.resultButtonText}>
+                      Xem chi tiết kết quả
+                    </Text>
+                  </Pressable>
+                </View>
               )}
               {isError && (
                 <Text style={styles.submittedMeta}>
@@ -279,6 +412,78 @@ export default function StudentAssignmentDetailScreen() {
           </View>
         )}
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={showCompletion}
+        transparent
+        animationType="none"
+        onRequestClose={closeCompletion}
+      >
+        <View style={styles.modalRoot}>
+          <Animated.View
+            style={[
+              styles.modalBackdrop,
+              {
+                opacity: completionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 0.45],
+                }),
+              },
+            ]}
+          />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={closeCompletion}
+          />
+
+          <Animated.View
+            style={[
+              styles.modalCard,
+              {
+                opacity: completionAnim,
+                transform: [
+                  {
+                    translateY: completionAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [18, 0],
+                    }),
+                  },
+                  {
+                    scale: completionAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.94, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <View style={styles.modalGlow} />
+            <View style={styles.modalGlowAlt} />
+
+            <View style={styles.modalHeader}>
+              <View style={styles.modalIcon}>
+                <Text style={styles.modalIconText}>✓</Text>
+              </View>
+              <Text style={styles.modalTitle}>Đã chấm xong</Text>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Bài viết của bạn đã được chấm điểm.
+            </Text>
+
+            <View style={styles.bandPill}>
+              <Text style={styles.bandLabel}>Band</Text>
+              <Text style={styles.bandValue}>
+                {completionScore != null ? completionScore.toFixed(1) : "--"}
+              </Text>
+            </View>
+
+            <Pressable style={styles.modalButton} onPress={closeCompletion}>
+              <Text style={styles.modalButtonText}>OK</Text>
+            </Pressable>
+          </Animated.View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -325,6 +530,44 @@ const styles = StyleSheet.create({
     minHeight: 180,
     ...Typography.body,
   },
+  criteriaBlock: { marginTop: Spacing.sm },
+  criteriaTitle: {
+    ...Typography.bodySmall,
+    color: Colors.text,
+    fontWeight: "700",
+    marginBottom: Spacing.xs,
+  },
+  criteriaText: { ...Typography.body, color: Colors.textSecondary },
+  vocabList: { gap: Spacing.sm },
+  vocabItem: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: Radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
+    padding: Spacing.sm,
+  },
+  vocabHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.sm,
+  },
+  vocabWord: { ...Typography.body, fontWeight: "700" },
+  importanceChip: {
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
+    backgroundColor: Colors.secondaryBackground,
+  },
+  importanceText: { ...Typography.caption, fontWeight: "700" },
+  importanceTextRequired: { color: Colors.error },
+  vocabSyn: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+  },
   submittedTitle: { ...Typography.body, fontWeight: "600" },
   submittedMeta: {
     ...Typography.caption,
@@ -362,6 +605,119 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   submitDisabled: { opacity: 0.6 },
-  submitText: { ...Typography.body, color: Colors.onPrimary, fontWeight: "600" },
-});
+  submitText: {
+    ...Typography.body,
+    color: Colors.onPrimary,
+    fontWeight: "600",
+  },
 
+  modalRoot: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing.lg,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#000000",
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: 24,
+    padding: Spacing.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: Colors.separator,
+    alignItems: "center",
+    overflow: "hidden",
+    ...Shadow.md,
+  },
+  modalGlow: {
+    position: "absolute",
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    backgroundColor: COMPLETION_COLORS.teal,
+    opacity: 0.16,
+    top: -90,
+    right: -70,
+  },
+  modalGlowAlt: {
+    position: "absolute",
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: COMPLETION_COLORS.green,
+    opacity: 0.12,
+    bottom: -70,
+    left: -40,
+  },
+  modalHeader: {
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  modalIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(10, 132, 255, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(10, 132, 255, 0.2)",
+  },
+  modalIconText: {
+    fontSize: 26,
+    fontWeight: "700",
+    color: COMPLETION_COLORS.blue,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: Colors.text,
+    fontFamily: Fonts.rounded,
+    textAlign: "center",
+  },
+  modalSubtitle: {
+    ...Typography.bodySmall,
+    textAlign: "center",
+    marginBottom: Spacing.md,
+  },
+  bandPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius.full,
+    backgroundColor: "rgba(88, 86, 214, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(88, 86, 214, 0.18)",
+    marginBottom: Spacing.lg,
+  },
+  bandLabel: {
+    ...Typography.caption,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    color: Colors.textSecondary,
+  },
+  bandValue: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: COMPLETION_COLORS.indigo,
+  },
+  modalButton: {
+    alignSelf: "stretch",
+    paddingVertical: 12,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: COMPLETION_COLORS.blue,
+  },
+  modalButtonText: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+});

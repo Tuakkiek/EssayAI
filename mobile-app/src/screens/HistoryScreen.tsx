@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Wifi, PenLine, CalendarDays, FileText } from "lucide-react-native";
@@ -25,6 +26,21 @@ const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   scoring: { label: "Đang chấm…", color: Colors.warning },
   pending: { label: "Đang chờ",   color: Colors.textMuted },
   error:   { label: "Lỗi",        color: Colors.error },
+};
+
+const normalizeEssayId = (value: unknown): string | null => {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (value && typeof value === "object") {
+    const anyValue = value as { $oid?: unknown; toString?: () => string };
+    if (typeof anyValue.$oid === "string" && anyValue.$oid.trim()) {
+      return anyValue.$oid.trim();
+    }
+    if (typeof anyValue.toString === "function") {
+      const str = anyValue.toString();
+      if (str && str !== "[object Object]") return str;
+    }
+  }
+  return null;
 };
 
 // ─── Essay Card ───────────────────────────────────────────────────────────────
@@ -172,15 +188,27 @@ export default function HistoryScreen() {
     <View style={styles.container}>
       <FlatList
         data={essays}
-        keyExtractor={(item) => item._id}
-        renderItem={({ item }) => (
-          <EssayCard
-            item={item}
-            onPress={() =>
-              router.push({ pathname: "/essay/detail", params: { essayId: item._id } })
-            }
-          />
-        )}
+        keyExtractor={(item, index) =>
+          normalizeEssayId(item._id) ?? String(index)
+        }
+        renderItem={({ item }) => {
+          const essayId = normalizeEssayId(item._id);
+          return (
+            <EssayCard
+              item={item}
+              onPress={() => {
+                if (!essayId) {
+                  Alert.alert("Lỗi", "Không tìm thấy mã bài viết.");
+                  return;
+                }
+                router.push({
+                  pathname: "/essay/detail",
+                  params: { essayId },
+                });
+              }}
+            />
+          );
+        }}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl

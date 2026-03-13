@@ -8,6 +8,29 @@ interface Props {
 }
 
 export const GrammarErrorCard: React.FC<Props> = ({ errors }) => {
+  const getFirstString = (...values: unknown[]) => {
+    for (const value of values) {
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return "";
+  };
+
+  const normalized = errors
+    .map((error) => {
+      const original = getFirstString(error.original, error.message);
+      const corrected = getFirstString(
+        error.corrected,
+        Array.isArray(error.suggestions) ? error.suggestions[0] : undefined,
+      );
+      const explanation = getFirstString(error.explanation);
+      const tip = getFirstString(error.tip);
+      return { original, corrected, explanation, tip };
+    })
+    .filter(
+      (item) =>
+        item.original || item.corrected || item.explanation || item.tip,
+    );
+
   return (
     <View style={styles.card}>
       {/* Header */}
@@ -16,22 +39,25 @@ export const GrammarErrorCard: React.FC<Props> = ({ errors }) => {
           <View style={styles.accentBar} />
           <Text style={styles.title}>Grammar Errors</Text>
         </View>
-        {errors.length > 0 && (
+        {normalized.length > 0 && (
           <View style={styles.countBadge}>
-            <Text style={styles.countText}>{errors.length}</Text>
+            <Text style={styles.countText}>{normalized.length}</Text>
           </View>
         )}
       </View>
 
-      {errors.length === 0 ? (
+      {normalized.length === 0 ? (
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyIcon}>✓</Text>
+          <Text style={styles.emptyIcon}>OK</Text>
           <Text style={styles.emptyText}>No grammar errors found.</Text>
         </View>
       ) : (
         <View style={styles.list}>
-          {errors.map((e, i) => (
-            <View key={`${e.original}-${i}`} style={styles.item}>
+          {normalized.map((e, i) => (
+            <View
+              key={`${e.original || e.corrected || "error"}-${i}`}
+              style={styles.item}
+            >
               {/* Index number */}
               <View style={styles.indexWrap}>
                 <Text style={styles.indexText}>{i + 1}</Text>
@@ -39,19 +65,25 @@ export const GrammarErrorCard: React.FC<Props> = ({ errors }) => {
 
               <View style={styles.itemContent}>
                 {/* Original */}
-                <View style={styles.originalWrap}>
-                  <Text style={styles.label}>Original</Text>
-                  <Text style={styles.original}>{e.original}</Text>
-                </View>
+                {e.original ? (
+                  <View style={styles.originalWrap}>
+                    <Text style={styles.label}>Original</Text>
+                    <Text style={styles.original}>{e.original}</Text>
+                  </View>
+                ) : null}
 
                 {/* Arrow + Correction */}
-                <View style={styles.correctionWrap}>
-                  <Text style={styles.arrow}>→</Text>
-                  <View style={styles.correctionBox}>
-                    <Text style={styles.correctionLabel}>Suggested Correction</Text>
-                    <Text style={styles.correction}>{e.corrected}</Text>
+                {e.corrected ? (
+                  <View style={styles.correctionWrap}>
+                    <Text style={styles.arrow}>-></Text>
+                    <View style={styles.correctionBox}>
+                      <Text style={styles.correctionLabel}>
+                        Suggested Correction
+                      </Text>
+                      <Text style={styles.correction}>{e.corrected}</Text>
+                    </View>
                   </View>
-                </View>
+                ) : null}
 
                 {/* Explanation */}
                 {e.explanation ? (
@@ -258,3 +290,5 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+
+

@@ -1,25 +1,86 @@
 ﻿import { Tabs } from "expo-router";
+import { View, StyleSheet, Platform } from "react-native";
 import { Colors } from "../../src/constants/theme";
 import { SFIcon } from "../../src/components/SFIcon";
 
+// ─── Apple Design Tokens ────────────────────────────────────────────
+const IOS = {
+  blue: "#007AFF",
+  inactive: "#8E8E93",
+  tabBg: "#FFFFFF",
+  pillBg: "#007AFF14",
+  border: "#E5E5EA",
+};
+
+// ─── Tab Icon with Apple-style active pill ──────────────────────────
+function TabIcon({
+  sfName,
+  fallbackName,
+  focused,
+  color,
+  size,
+}: {
+  sfName: string;
+  fallbackName: string;
+  focused: boolean;
+  color: string;
+  size: number;
+}) {
+  return (
+    <View style={[tabIconStyles.wrap, focused && tabIconStyles.wrapActive]}>
+      <SFIcon
+        name={sfName}
+        size={size}
+        color={color}
+        fallbackName={fallbackName}
+      />
+    </View>
+  );
+}
+
+const tabIconStyles = StyleSheet.create({
+  wrap: {
+    width: 52,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 2,
+  },
+  wrapActive: {
+    backgroundColor: IOS.pillBg,
+  },
+});
+
+// ─── Layout ────────────────────────────────────────────────────────
 export default function StudentTabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.tint,
-        tabBarInactiveTintColor: Colors.textSecondary,
+        tabBarActiveTintColor: IOS.blue,
+        tabBarInactiveTintColor: IOS.inactive,
         tabBarStyle: {
-          backgroundColor: Colors.background,
-          borderTopWidth: 1,
-          borderTopColor: Colors.separator,
-          height: 66,
-          paddingBottom: 8,
-          paddingTop: 6,
+          backgroundColor: IOS.tabBg,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: IOS.border,
+          height: Platform.OS === "ios" ? 88 : 72,
+          paddingTop: 8,
+          paddingBottom: Platform.OS === "ios" ? 28 : 10,
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: -1 },
+          shadowOpacity: 0.06,
+          shadowRadius: 12,
+          elevation: 12,
         },
         tabBarLabelStyle: {
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: "500",
+          letterSpacing: 0.1,
+          marginTop: 0,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 0,
         },
       }}
     >
@@ -27,12 +88,13 @@ export default function StudentTabLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <SFIcon
-              name="house"
-              size={size}
+          tabBarIcon: ({ focused, color, size }) => (
+            <TabIcon
+              sfName={focused ? "house.fill" : "house"}
+              fallbackName={focused ? "home" : "home-outline"}
+              focused={focused}
               color={color}
-              fallbackName="home-outline"
+              size={size}
             />
           ),
         }}
@@ -41,12 +103,13 @@ export default function StudentTabLayout() {
         name="student/assignments/index"
         options={{
           title: "Bài tập",
-          tabBarIcon: ({ color, size }) => (
-            <SFIcon
-              name="doc.text"
-              size={size}
+          tabBarIcon: ({ focused, color, size }) => (
+            <TabIcon
+              sfName={focused ? "doc.text.fill" : "doc.text"}
+              fallbackName={focused ? "clipboard" : "clipboard-outline"}
+              focused={focused}
               color={color}
-              fallbackName="clipboard-outline"
+              size={size}
             />
           ),
         }}
@@ -55,12 +118,13 @@ export default function StudentTabLayout() {
         name="history"
         options={{
           title: "Lịch sử",
-          tabBarIcon: ({ color, size }) => (
-            <SFIcon
-              name="clock"
-              size={size}
+          tabBarIcon: ({ focused, color, size }) => (
+            <TabIcon
+              sfName={focused ? "clock.fill" : "clock"}
+              fallbackName={focused ? "time" : "time-outline"}
+              focused={focused}
               color={color}
-              fallbackName="time-outline"
+              size={size}
             />
           ),
         }}
@@ -69,12 +133,13 @@ export default function StudentTabLayout() {
         name="progress"
         options={{
           title: "Tiến độ",
-          tabBarIcon: ({ color, size }) => (
-            <SFIcon
-              name="chart.bar"
-              size={size}
+          tabBarIcon: ({ focused, color, size }) => (
+            <TabIcon
+              sfName={focused ? "chart.bar.fill" : "chart.bar"}
+              fallbackName={focused ? "bar-chart" : "bar-chart-outline"}
+              focused={focused}
               color={color}
-              fallbackName="bar-chart-outline"
+              size={size}
             />
           ),
         }}
@@ -83,12 +148,13 @@ export default function StudentTabLayout() {
         name="subscription"
         options={{
           title: "Nâng cấp",
-          tabBarIcon: ({ color, size }) => (
-            <SFIcon
-              name="star"
-              size={size}
+          tabBarIcon: ({ focused, color, size }) => (
+            <TabIcon
+              sfName={focused ? "star.fill" : "star"}
+              fallbackName={focused ? "star" : "star-outline"}
+              focused={focused}
               color={color}
-              fallbackName="star-outline"
+              size={size}
             />
           ),
         }}
@@ -97,12 +163,13 @@ export default function StudentTabLayout() {
         name="profile"
         options={{
           title: "Tài khoản",
-          tabBarIcon: ({ color, size }) => (
-            <SFIcon
-              name="person.crop.circle"
-              size={size}
+          tabBarIcon: ({ focused, color, size }) => (
+            <TabIcon
+              sfName={focused ? "person.crop.circle.fill" : "person.crop.circle"}
+              fallbackName={focused ? "person-circle" : "person-circle-outline"}
+              focused={focused}
               color={color}
-              fallbackName="person-circle-outline"
+              size={size}
             />
           ),
         }}
