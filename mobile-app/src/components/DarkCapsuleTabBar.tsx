@@ -19,7 +19,7 @@ import {
 
 // ─── Design tokens ───────────────────────────────────────────────────
 export const TAB_THEME = {
-  barBg:      "#2B3042",
+  barBg:      "#000000",
   accent:     "#5B7CFA",
   iconActive: "#FFFFFF",
   iconOff:    "#6B7280",
