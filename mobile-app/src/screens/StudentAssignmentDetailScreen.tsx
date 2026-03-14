@@ -15,7 +15,7 @@ import {
   Modal,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { useLocalSearchParams } from "expo-router";
 import {
@@ -31,9 +31,11 @@ import { Assignment } from "../types";
 import { useRoleGuard } from "../hooks/useRoleGuard";
 import { BackButton } from "../components/BackButton";
 import { useBack } from "../hooks/useBack";
+import { BAR_BOTTOM } from "../components/DarkCapsuleTabBar";
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 40;
+const TAB_BAR_HEIGHT = 60;
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   scored: { label: "Đã chấm", color: Colors.success },
@@ -78,6 +80,10 @@ export default function StudentAssignmentDetailScreen() {
   const notifyOnCompleteRef = useRef(false);
   const completionVisibleRef = useRef(false);
   const completionAnim = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const tabBarOffset = Math.max(0, BAR_BOTTOM + TAB_BAR_HEIGHT - insets.bottom);
+  const contentBottomPadding = Spacing.xl + tabBarOffset;
+  const footerBottomPadding = Spacing.md + tabBarOffset;
 
   const load = useCallback(async () => {
     if (!id) return null;
@@ -267,7 +273,10 @@ export default function StudentAssignmentDetailScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: contentBottomPadding },
+          ]}
           keyboardShouldPersistTaps="handled"
         >
           <Text style={styles.title}>{assignment.title}</Text>
@@ -392,10 +401,11 @@ export default function StudentAssignmentDetailScreen() {
               />
             </View>
           )}
-        </ScrollView>
 
-        {!hasSubmitted && (
-          <View style={styles.footer}>
+           {!hasSubmitted && (
+          <View
+            style={[styles.footer, { paddingBottom: footerBottomPadding }]}
+          >
             <Pressable
               style={({ pressed }) => [
                 styles.submitBtn,
@@ -411,6 +421,9 @@ export default function StudentAssignmentDetailScreen() {
             </Pressable>
           </View>
         )}
+        </ScrollView>
+
+       
       </KeyboardAvoidingView>
 
       <Modal

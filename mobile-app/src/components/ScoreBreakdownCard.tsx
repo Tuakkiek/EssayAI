@@ -15,11 +15,11 @@ interface ScoreBreakdownCardProps {
 }
 
 const CRITERIA = [
-  { key: "taskAchievement",         label: "Task Achievement",              color: "#6366F1" },
-  { key: "coherenceCohesion",       label: "Coherence & Cohesion",          color: "#8B5CF6" },
-  { key: "lexicalResource",         label: "Lexical Resource",              color: "#EC4899" },
+  { key: "taskAchievement",          label: "Hoàn thành nhiệm vụ",        color: "#6366F1" },
+  { key: "coherenceCohesion",        label: "Mạch lạc & Liên kết",        color: "#8B5CF6" },
+  { key: "lexicalResource",          label: "Vốn từ vựng",                color: "#EC4899" },
   // FIX: key updated to match backend response field
-  { key: "grammaticalRangeAccuracy", label: "Grammatical Range & Accuracy", color: "#F59E0B" },
+  { key: "grammaticalRangeAccuracy", label: "Phạm vi & Độ chính xác ngữ pháp", color: "#F59E0B" },
 ] as const;
 
 function ScoreBar({ score, color }: { score: number; color: string }) {
