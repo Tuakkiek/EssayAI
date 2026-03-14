@@ -75,9 +75,7 @@ export default function LoginScreen() {
 
         {/* Logo area */}
         <View style={styles.hero}>
-          <Text style={styles.heroIcon}>✍️</Text>
           <Text style={styles.heroTitle}>Essay AI</Text>
-          <Text style={styles.heroSub}>AI-powered IELTS scoring</Text>
         </View>
 
         {/* Tab toggle */}
@@ -85,7 +83,7 @@ export default function LoginScreen() {
           {(["login", "register"] as Mode[]).map((m) => (
             <TouchableOpacity key={m} style={[styles.tab, mode === m && styles.tabActive]} onPress={() => setMode(m)}>
               <Text style={[styles.tabText, mode === m && styles.tabTextActive]}>
-                {m === "login" ? "Sign In" : "Register"}
+                {m === "login" ? "Đăng nhập" : "Đăng ký"}
               </Text>
             </TouchableOpacity>
           ))}
@@ -95,7 +93,7 @@ export default function LoginScreen() {
         <View style={styles.form}>
           {mode === "register" && (
             <View style={styles.field}>
-              <Text style={styles.label}>Full Name</Text>
+              <Text style={styles.label}>Họ và tên</Text>
               <TextInput
                 style={styles.input}
                 value={name}
@@ -169,7 +167,7 @@ export default function LoginScreen() {
           )}
 
           <View style={styles.field}>
-            <Text style={styles.label}>Password</Text>
+            <Text style={styles.label}>Mật khẩu</Text>
             <TextInput
               style={styles.input}
               value={password}
@@ -182,7 +180,7 @@ export default function LoginScreen() {
 
           {mode === "register" && (
             <View style={styles.field}>
-              <Text style={styles.label}>Confirm Password</Text>
+              <Text style={styles.label}>Xác nhận lại mật khẩu</Text>
               <TextInput
                 style={styles.input}
                 value={confirmPassword}
@@ -203,15 +201,11 @@ export default function LoginScreen() {
             {loading
               ? <ActivityIndicator color={Colors.surface} />
               : <Text style={styles.submitText}>
-                  {mode === "login" ? "Sign In" : "Create Account"}
+                  {mode === "login" ? "Đăng nhập" : "Tạo tài khoản"}
                 </Text>
             }
           </TouchableOpacity>
 
-          {/* Guest mode */}
-          <TouchableOpacity style={styles.guestBtn} onPress={() => router.navigate("/")}>
-            <Text style={styles.guestText}>Continue as Guest</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
