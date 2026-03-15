@@ -1,130 +1,182 @@
 /**
- * Design system tokens for EssayAI mobile app.
- * Imported as "@/constants/theme" by all screens.
+ * Design Token System — Essay AI
+ * Spec: Motivating like a learning game, minimal like Apple products.
+ * Color personality: Encouraging green, clean white, soft neutrals.
  */
 
-import { Platform, PlatformColor } from "react-native";
-
-const systemColor = (name: string, fallback: string) =>
-  Platform.OS === "ios" ? PlatformColor(name) : fallback;
-
 export const Colors = {
-  // Dark/Light mode legacy (kept for compatibility)
+  // ── Primary ──────────────────────────────────────────────────────
+  primary:          "#58CC02",
+  primaryDark:      "#46A302",
+  primaryLight:     "#E9F9D6",
+  primaryMuted:     "#C3EFA3",
+
+  // ── Background & Surface ─────────────────────────────────────────
+  background:       "#F7F7F7",
+  surface:          "#FFFFFF",
+  surfaceAlt:       "#F0F0F0",
+  surfaceElevated:  "#FFFFFF",
+
+  // ── Text ─────────────────────────────────────────────────────────
+  text:             "#1D1D1F",
+  textSecondary:    "#6E6E73",
+  textMuted:        "#AEAEB2",
+  textInverse:      "#FFFFFF",
+
+  // ── Semantic ─────────────────────────────────────────────────────
+  success:          "#58CC02",
+  successLight:     "#E9F9D6",
+  errorSoft:        "#FF6B6B",
+  errorLight:       "#FFF0F0",
+  warning:          "#FF9F0A",
+  warningLight:     "#FFF4E0",
+  info:             "#007AFF",
+  infoLight:        "#EBF5FF",
+
+  // ── UI elements ───────────────────────────────────────────────────
+  border:           "#E5E5EA",
+  separator:        "#E5E5EA",
+  divider:          "#F2F2F7",
+  overlay:          "rgba(0, 0, 0, 0.45)",
+  shadow:           "#000000",
+
+  // ── Score bands ───────────────────────────────────────────────────
+  scoreLow:         "#FF6B6B",
+  scoreMid:         "#FF9F0A",
+  scoreHigh:        "#58CC02",
+  scoreExcellent:   "#007AFF",
+
+  // ── Tab bar ───────────────────────────────────────────────────────
+  tabActive:        "#58CC02",
+  tabInactive:      "#AEAEB2",
+  tabBackground:    "#FFFFFF",
+
+  // ── Onboarding / hero ─────────────────────────────────────────────
+  heroGradientStart: "#58CC02",
+  heroGradientEnd:   "#46A302",
+
+  // ── Legacy aliases (backward compatibility) ───────────────────────
+  tint:             "#58CC02",
+  destructive:      "#FF6B6B",
+  error:            "#FF6B6B",
+  onPrimary:        "#FFFFFF",
+  secondaryBackground: "#F0F0F0",
+  groupedBackground:   "#F7F7F7",
   light: {
-    text: "#000000",
-    background: "#FFFFFF",
-    tint: "#007AFF",
-    icon: "#8E8E93",
-    tabIconDefault: "#8E8E93",
-    tabIconSelected: "#000000",
+    text: "#1D1D1F",
+    background: "#F7F7F7",
+    tint: "#58CC02",
+    icon: "#AEAEB2",
+    tabIconDefault: "#AEAEB2",
+    tabIconSelected: "#58CC02",
   },
   dark: {
     text: "#FFFFFF",
     background: "#000000",
-    tint: "#0A84FF",
-    icon: "#8E8E93",
-    tabIconDefault: "#8E8E93",
-    tabIconSelected: "#FFFFFF",
+    tint: "#58CC02",
+    icon: "#AEAEB2",
+    tabIconDefault: "#AEAEB2",
+    tabIconSelected: "#58CC02",
   },
-
-  // iOS system palette
-  background: systemColor("systemBackground", "#FFFFFF"),
-  secondaryBackground: systemColor("secondarySystemBackground", "#F2F2F7"),
-  groupedBackground: systemColor("systemGroupedBackground", "#F2F2F7"),
-
-  text: systemColor("label", "#000000"),
-  textSecondary: systemColor("secondaryLabel", "#3C3C43"),
-  textMuted: systemColor("tertiaryLabel", "#3C3C4399"),
-
-  border: systemColor("separator", "#3C3C434A"),
-  separator: systemColor("separator", "#3C3C434A"),
-
-  tint: systemColor("systemBlue", "#007AFF"),
-  destructive: systemColor("systemRed", "#FF3B30"),
-
-  // Surfaces
-  surface: systemColor("secondarySystemBackground", "#F2F2F7"),
-  surfaceAlt: systemColor("systemBackground", "#FFFFFF"),
-
-  // Semantic aliases used across the app
-  primary: systemColor("label", "#000000"),
-  primaryLight: systemColor("secondarySystemBackground", "#F2F2F7"),
-  success: systemColor("systemBlue", "#007AFF"),
-  successLight: systemColor("secondarySystemBackground", "#F2F2F7"),
-  warning: systemColor("secondaryLabel", "#8E8E93"),
-  warningLight: systemColor("secondarySystemBackground", "#F2F2F7"),
-  error: systemColor("systemRed", "#FF3B30"),
-  errorLight: systemColor("secondarySystemBackground", "#F2F2F7"),
-  info: systemColor("systemBlue", "#007AFF"),
-  infoLight: systemColor("secondarySystemBackground", "#F2F2F7"),
-  onPrimary: systemColor("systemBackground", "#FFFFFF"),
-};
-
-export const Fonts = Platform.select({
-  ios: {
-    sans: "system-ui",
-    serif: "ui-serif",
-    rounded: "ui-rounded",
-    mono: "ui-monospace",
-  },
-  default: {
-    sans: "normal",
-    serif: "serif",
-    rounded: "normal",
-    mono: "monospace",
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded:
-      "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+} as const;
 
 export const Spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
+  xs:   4,
+  sm:   8,
+  md:  16,
+  lg:  24,
+  xl:  32,
   xxl: 40,
   xxxl: 48,
 } as const;
 
 export const Radius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
+  xs:   8,
+  sm:  12,
+  md:  16,   // inputs
+  lg:  18,   // buttons
+  xl:  22,   // cards
+  xxl: 24,   // modals
   full: 999,
 } as const;
 
 export const Typography = {
-  largeTitle: { fontSize: 34, fontWeight: "700" as const, color: Colors.text },
-  heading1: { fontSize: 28, fontWeight: "700" as const, color: Colors.text },
-  heading2: { fontSize: 22, fontWeight: "600" as const, color: Colors.text },
-  heading3: { fontSize: 20, fontWeight: "600" as const, color: Colors.text },
-  body: { fontSize: 17, color: Colors.text },
-  bodySmall: { fontSize: 17, color: Colors.textSecondary },
-  subhead: { fontSize: 17, color: Colors.textSecondary },
-  caption: { fontSize: 12, color: Colors.textSecondary },
-  label: { fontSize: 12, color: Colors.textSecondary, letterSpacing: 0.6 },
+  // Display
+  display:     { fontSize: 40, fontWeight: "800" as const, letterSpacing: -1.5 },
+  largeTitle:  { fontSize: 32, fontWeight: "800" as const, letterSpacing: -1.2 },
+  title1:      { fontSize: 26, fontWeight: "700" as const, letterSpacing: -0.8 },
+  title2:      { fontSize: 22, fontWeight: "700" as const, letterSpacing: -0.5 },
+  title3:      { fontSize: 18, fontWeight: "600" as const, letterSpacing: -0.3 },
+
+  // Body
+  body:        { fontSize: 16, fontWeight: "400" as const, letterSpacing: -0.1 },
+  bodyMedium:  { fontSize: 16, fontWeight: "600" as const, letterSpacing: -0.1 },
+  bodySmall:   { fontSize: 14, fontWeight: "400" as const, letterSpacing: 0 },
+  caption:     { fontSize: 12, fontWeight: "500" as const, letterSpacing: 0.2 },
+  label:       { fontSize: 11, fontWeight: "700" as const, letterSpacing: 0.8, textTransform: "uppercase" as const },
+
+  // Score display
+  scoreLarge:  { fontSize: 72, fontWeight: "900" as const, letterSpacing: -3 },
+  scoreMedium: { fontSize: 40, fontWeight: "800" as const, letterSpacing: -2 },
+
+  // Legacy aliases
+  heading1:    { fontSize: 28, fontWeight: "700" as const },
+  heading2:    { fontSize: 22, fontWeight: "600" as const },
+  heading3:    { fontSize: 20, fontWeight: "600" as const },
+  subhead:     { fontSize: 16, fontWeight: "400" as const },
 } as const;
 
 export const Shadow = {
-  sm: {
-    shadowColor: "#000000",
-    shadowOpacity: 0.04,
+  none: {},
+  xs: {
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
-    shadowRadius: 3,
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
     elevation: 1,
   },
-  md: {
-    shadowColor: "#000000",
+  sm: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 4 },
     shadowRadius: 8,
     elevation: 2,
   },
+  md: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  lg: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  green: {
+    shadowColor: "#58CC02",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
 } as const;
+
+// ── Animation Timing Constants ────────────────────────────────────────────────
+export const Timing = {
+  buttonPress:   120,
+  microFeedback: 150,
+  standard:      200,
+  reveal:        300,
+  scoreCountUp:  900,  // 700–1200ms per spec
+  shake:         150,
+} as const;
+
+// Legacy exports for backward compatibility
+export const Fonts = {
+  ios: { sans: "system-ui" },
+  default: { sans: "normal" },
+};

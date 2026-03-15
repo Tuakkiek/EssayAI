@@ -1,12 +1,6 @@
 /**
- * DarkCapsuleTabBar.tsx
- *
- * Shared custom tab bar — dark navy floating capsule.
- * Animations:
- *   • Icon scale  : active tab pops up (1 → 1.15), inactive shrinks back
- *   • Icon opacity: inactive tabs fade to dim, active fades to full white
- *   • Accent line : fades + slides down into position when tab becomes active
- *   • Accent width: expands from 0 → 22px on activation
+ * DarkCapsuleTabBar — updated with new design tokens.
+ * Accent color now uses brand green (#58CC02) per spec.
  */
 import React, { useEffect, useRef } from "react";
 import {
@@ -17,17 +11,21 @@ import {
   Animated,
 } from "react-native";
 
-// ─── Design tokens ───────────────────────────────────────────────────
+// Design tokens from new theme
+const TAB_BG     = "#1A1A1A";
+const TAB_ACCENT = "#58CC02";
+const ICON_ON    = "#FFFFFF";
+const ICON_OFF   = "#666666";
+
 export const TAB_THEME = {
-  barBg:      "#000000",
-  accent:     "#5B7CFA",
-  iconActive: "#FFFFFF",
-  iconOff:    "#6B7280",
+  barBg:      TAB_BG,
+  accent:     TAB_ACCENT,
+  iconActive: ICON_ON,
+  iconOff:    ICON_OFF,
 };
 
 export const BAR_BOTTOM = Platform.OS === "ios" ? 28 : 20;
 
-// ─── Animated single tab ─────────────────────────────────────────────
 function AnimatedTab({
   route,
   focused,
@@ -39,11 +37,8 @@ function AnimatedTab({
   options: any;
   onPress: () => void;
 }) {
-  // Scale: 1 → 1.15 when focused
-  const scaleAnim = useRef(new Animated.Value(focused ? 1.15 : 1)).current;
-  // Opacity for the icon
+  const scaleAnim   = useRef(new Animated.Value(focused ? 1.15 : 1)).current;
   const opacityAnim = useRef(new Animated.Value(focused ? 1 : 0.45)).current;
-  // Accent line: opacity + translateY (slides down 4px → 0)
   const accentOpacity = useRef(new Animated.Value(focused ? 1 : 0)).current;
   const accentWidth   = useRef(new Animated.Value(focused ? 22 : 0)).current;
   const accentY       = useRef(new Animated.Value(focused ? 0 : -4)).current;
@@ -51,48 +46,44 @@ function AnimatedTab({
   useEffect(() => {
     Animated.parallel([
       Animated.spring(scaleAnim, {
-        toValue:  focused ? 1.15 : 1,
+        toValue: focused ? 1.15 : 1,
         useNativeDriver: true,
-        speed:    18,
+        speed: 18,
         bounciness: 6,
       }),
       Animated.timing(opacityAnim, {
-        toValue:  focused ? 1 : 0.45,
+        toValue: focused ? 1 : 0.45,
         duration: 200,
         useNativeDriver: true,
       }),
       Animated.timing(accentOpacity, {
-        toValue:  focused ? 1 : 0,
+        toValue: focused ? 1 : 0,
         duration: focused ? 220 : 120,
-        useNativeDriver: false,   // width can't use native driver
+        useNativeDriver: false,
       }),
       Animated.timing(accentWidth, {
-        toValue:  focused ? 22 : 0,
+        toValue: focused ? 22 : 0,
         duration: focused ? 250 : 150,
         useNativeDriver: false,
       }),
       Animated.timing(accentY, {
-        toValue:  focused ? 0 : -4,
+        toValue: focused ? 0 : -4,
         duration: 200,
         useNativeDriver: false,
       }),
     ]).start();
   }, [focused]);
 
-  const icon = options.tabBarIcon!({
+  const icon = options.tabBarIcon?.({
     focused,
-    color: TAB_THEME.iconActive,   // always white — opacity handles dimming
+    color: ICON_ON,
     size:  22,
   });
 
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.7}
-      style={s.tab}
-    >
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={s.tab}>
       <View style={s.tile}>
-        {/* Animated accent line */}
+        {/* Accent line — green per new tokens */}
         <Animated.View
           style={[
             s.accentLine,
@@ -103,7 +94,6 @@ function AnimatedTab({
             },
           ]}
         />
-        {/* Animated icon */}
         <Animated.View
           style={{
             opacity:   opacityAnim,
@@ -117,7 +107,6 @@ function AnimatedTab({
   );
 }
 
-// ─── Tab bar ─────────────────────────────────────────────────────────
 export function DarkCapsuleTabBar({
   state,
   descriptors,
@@ -125,7 +114,7 @@ export function DarkCapsuleTabBar({
   horizontalPadding = 20,
 }: any) {
   const visible = state.routes.filter(
-    (r: any) => !!descriptors[r.key].options.tabBarIcon
+    (r: any) => !!descriptors[r.key].options.tabBarIcon,
   );
 
   return (
@@ -143,9 +132,7 @@ export function DarkCapsuleTabBar({
             target: route.key,
             canPreventDefault: true,
           });
-          if (!focused && !e.defaultPrevented) {
-            navigation.navigate(route.name);
-          }
+          if (!focused && !e.defaultPrevented) navigation.navigate(route.name);
         };
 
         return (
@@ -164,38 +151,38 @@ export function DarkCapsuleTabBar({
 
 const s = StyleSheet.create({
   capsule: {
-    position:          "absolute",
-    bottom:            BAR_BOTTOM,
-    flexDirection:     "row",
-    alignItems:        "center",
-    backgroundColor:   TAB_THEME.barBg,
-    borderRadius:      999,
-    paddingVertical:   8,
+    position: "absolute",
+    bottom: BAR_BOTTOM,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: TAB_BG,
+    borderRadius: 999,
+    paddingVertical: 8,
     paddingHorizontal: 8,
-    shadowColor:       "#000",
-    shadowOffset:      { width: 0, height: 8 },
-    shadowOpacity:     0.25,
-    shadowRadius:      20,
-    elevation:         14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 14,
   },
   tab: {
-    flex:            1,
-    alignItems:      "center",
-    justifyContent:  "center",
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   tile: {
-    width:           52,
-    height:          44,
-    borderRadius:    14,
-    alignItems:      "center",
-    justifyContent:  "center",
-    position:        "relative",
+    width: 52,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
   },
   accentLine: {
-    position:        "absolute",
-    top:             4,
-    height:          3,
-    borderRadius:    2,
-    backgroundColor: TAB_THEME.accent,
+    position: "absolute",
+    top: 4,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: TAB_ACCENT,
   },
 });

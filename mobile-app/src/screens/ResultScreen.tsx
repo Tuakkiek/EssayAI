@@ -1,4 +1,11 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+/**
+ * ResultScreen — AI Processing → Score Reveal → Feedback
+ *
+ * Spec order: Celebration → Score (count-up) → Improvement summary → Detail
+ * Never show analytics first.
+ * Encouragement before data.
+ */
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,112 +13,129 @@ import {
   ScrollView,
   TouchableOpacity,
   Share,
-  ActivityIndicator,
   Animated,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
-import { ScoreBadge } from "../components/ScoreBadge";
-import ScoreBreakdownCard from "../components/ScoreBreakdownCard";
-import { GrammarErrorCard } from "../components/GrammarErrorCard";
-import { SuggestionsCard } from "../components/SuggestionsCard";
-import {
-  essayApi,
-  getErrorMessage,
-  extractEssay,
-  submissionApi,
-} from "../services/api";
-import { Essay } from "../types";
-import { BackButton } from "../components/BackButton";
+import { ChevronLeft, Share2 } from "lucide-react-native";
+import { Colors, Radius, Shadow, Spacing, Typography } from "../constants/theme";
+import { ScoreCard } from "../components/ScoreCard";
+import { FeedbackCard } from "../components/FeedbackCard";
+import { ProgressIndicator } from "../components/ProgressIndicator";
+import { AppButton } from "../components/AppButton";
+import { essayApi, getErrorMessage, extractEssay, submissionApi } from "../services/api";
+import { Essay, GrammarError, Suggestion } from "../types";
 import { useAuth } from "../context/AuthContext";
 
-const POLL_INTERVAL_MS = 3000;
-const MAX_POLL_ATTEMPTS = 40;
+const POLL_MS = 3000;
+const MAX_POLLS = 40;
 
-// Score accent colors
-const getScoreTheme = (score: number | null | undefined) => {
-  if (score == null) return { accent: "#94A3B8", bg: "#F1F5F9", label: "—" };
-  if (score >= 7.5)
-    return { accent: "#0EA5E9", bg: "#E0F2FE", label: "Xuất sắc" };
-  if (score >= 7) return { accent: "#10B981", bg: "#D1FAE5", label: "Tốt" };
-  if (score >= 6) return { accent: "#F59E0B", bg: "#FEF3C7", label: "Khá" };
-  if (score >= 5)
-    return { accent: "#F97316", bg: "#FFEDD5", label: "Trung bình" };
-  return { accent: "#EF4444", bg: "#FEE2E2", label: "Cần cải thiện" };
-};
+// ── Encouragement messages by score ──────────────────────────────────────────
+function getEncouragementMessage(score: number): string {
+  if (score >= 8)   return "Outstanding! You're in the top tier.";
+  if (score >= 7)   return "Excellent work! Your skills are strong.";
+  if (score >= 6.5) return "Great effort! You're making real progress.";
+  if (score >= 6)   return "Good job! Keep practicing to level up.";
+  if (score >= 5)   return "Nice try! Every essay makes you stronger.";
+  return "Keep going! This is just the beginning of your journey.";
+}
+
+// ── Map grammar errors → FeedbackCard props ──────────────────────────────────
+function mapErrors(errors: GrammarError[]): Array<{
+  category: "grammar";
+  problem: string;
+  suggestion: string;
+  original?: string;
+  corrected?: string;
+  detail?: string;
+}> {
+  return errors
+    .filter((e) => e.original || e.message)
+    .slice(0, 6)
+    .map((e) => ({
+      category: "grammar" as const,
+      problem: e.explanation ?? e.message ?? "Review this phrase.",
+      suggestion:
+        e.corrected
+          ? `Try: "${e.corrected}"`
+          : "Consider rephrasing for clarity.",
+      original: e.original,
+      corrected: e.corrected,
+      detail: e.explanation,
+    }));
+}
+
+// ── Map suggestions → FeedbackCard props ─────────────────────────────────────
+function mapSuggestions(suggestions: Suggestion[]): Array<{
+  category: "vocabulary" | "clarity" | "structure";
+  problem: string;
+  suggestion: string;
+  detail?: string;
+}> {
+  const catMap: Record<string, "vocabulary" | "clarity" | "structure"> = {
+    vocabulary: "vocabulary",
+    coherence:  "clarity",
+    structure:  "structure",
+    argument:   "structure",
+    general:    "clarity",
+  };
+
+  return suggestions
+    .filter((s) => s.text || s.explanation)
+    .slice(0, 4)
+    .map((s) => ({
+      category: catMap[s.category ?? s.type ?? "general"] ?? "clarity",
+      problem:  s.original ?? "Review this area.",
+      suggestion: s.text ?? s.explanation ?? s.improved ?? "Consider this improvement.",
+      detail: s.explanation,
+    }));
+}
 
 export default function ResultScreen() {
   const router = useRouter();
-  const { essayId: essayIdParam } = useLocalSearchParams<{
-    essayId?: string | string[];
-    score?: string;
-  }>();
-  const essayId = Array.isArray(essayIdParam) ? essayIdParam[0] : essayIdParam;
-
+  const { essayId: rawParam } = useLocalSearchParams<{ essayId?: string | string[] }>();
+  const essayId = Array.isArray(rawParam) ? rawParam[0] : rawParam;
   const { user } = useAuth();
+
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const historyRoute = isTeacher ? "/teacher/essays" : "/history";
-  const historyLabel = isTeacher ? "Bài luận" : "Lịch sử";
+
   const [essay, setEssay] = useState<Essay | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
   const [pollCount, setPollCount] = useState(0);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fade-in animation
+  // Fade-in for result
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(24)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
-  const animateIn = useCallback(() => {
+  const revealResult = useCallback(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 480,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 480,
-        useNativeDriver: true,
-      }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
     ]).start();
   }, [fadeAnim, slideAnim]);
 
-  const handleBack = useCallback(() => {
-    router.replace(historyRoute as any);
-  }, [router, historyRoute]);
-
   const fetchEssay = useCallback(
     async (attempt = 0) => {
+      if (!essayId) {
+        setError("Essay ID missing. Please try again from History.");
+        setLoading(false);
+        return;
+      }
       try {
-        if (!essayId) {
-          setError("Thiếu mã bài viết. Vui lòng mở lại từ Lịch sử.");
-          setLoading(false);
-          setIsPolling(false);
-          return;
-        }
-        const isTeacher = user?.role === "teacher" || user?.role === "admin";
         const res = isTeacher
           ? await submissionApi.getById(essayId)
           : await essayApi.getById(essayId);
-
-        const raw = res.data;
-        const data = extractEssay(raw);
+        const data = extractEssay(res.data);
 
         if (!data) {
-          if (attempt < MAX_POLL_ATTEMPTS) {
-            setIsPolling(true);
+          if (attempt < MAX_POLLS) {
             setPollCount(attempt + 1);
-            pollRef.current = setTimeout(
-              () => fetchEssay(attempt + 1),
-              POLL_INTERVAL_MS,
-            );
+            pollRef.current = setTimeout(() => fetchEssay(attempt + 1), POLL_MS);
           } else {
+            setError("Grading is taking longer than usual. Check History in a moment.");
             setLoading(false);
-            setError(
-              `Quá trình chấm điểm đang mất nhiều thời gian hơn dự kiến. Vui lòng kiểm tra lại trong mục ${historyLabel} sau ít phút.`,
-            );
           }
           return;
         }
@@ -119,30 +143,21 @@ export default function ResultScreen() {
         setEssay(data);
 
         if (["scored", "graded", "error"].includes(data.status)) {
-          setIsPolling(false);
           setLoading(false);
-          animateIn();
-        } else if (attempt < MAX_POLL_ATTEMPTS) {
-          setIsPolling(true);
+          if (data.status !== "error") revealResult();
+        } else if (attempt < MAX_POLLS) {
           setPollCount(attempt + 1);
-          pollRef.current = setTimeout(
-            () => fetchEssay(attempt + 1),
-            POLL_INTERVAL_MS,
-          );
+          pollRef.current = setTimeout(() => fetchEssay(attempt + 1), POLL_MS);
         } else {
-          setIsPolling(false);
           setLoading(false);
-          setError(
-            `Hệ thống đang bận. Vui lòng kiểm tra kết quả trong mục ${historyLabel} sau.`,
-          );
+          setError("Please check History for your results.");
         }
       } catch (err) {
         setError(getErrorMessage(err));
         setLoading(false);
-        setIsPolling(false);
       }
     },
-    [essayId, user?.role, historyLabel, animateIn],
+    [essayId, isTeacher, revealResult],
   );
 
   useEffect(() => {
@@ -153,125 +168,108 @@ export default function ResultScreen() {
   }, [fetchEssay]);
 
   const handleShare = async () => {
-    const finalScore =
-      essay?.score ?? essay?.overallScore ?? essay?.overallBand;
-    if (!finalScore) return;
+    const score = essay?.score ?? essay?.overallScore ?? essay?.overallBand;
+    if (!score) return;
     await Share.share({
-      message: `Tôi vừa đạt được ${finalScore.toFixed(1)} điểm cho bài viết IELTS của mình nhờ Essay AI!`,
+      message: `I just scored ${score.toFixed(1)} on my IELTS Writing with Essay AI! 🎉`,
     });
   };
 
-  // â”€â”€â”€ Loading state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  if (loading || isPolling) {
-    const dots = ".".repeat((pollCount % 3) + 1);
-    const elapsed = Math.round((pollCount * POLL_INTERVAL_MS) / 1000);
-    return (
-      <View style={styles.center}>
-        <View style={styles.loadingCard}>
-          <ActivityIndicator
-            size="large"
-            color="#0EA5E9"
-            style={{ marginBottom: 20 }}
-          />
-          <Text style={styles.loadingTitle}>Đang chấm bài{dots}</Text>
-          <Text style={styles.loadingSubtitle}>
-            Giám khảo AI đang phân tích chi tiết bài viết của bạn.{"\n"}Thường
-            mất từ 15–40 giây.
-          </Text>
-          {elapsed > 10 && (
-            <View style={styles.elapsedPill}>
-              <Text style={styles.elapsedText}>{elapsed}s</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    );
-  }
+  const elapsed = Math.round((pollCount * POLL_MS) / 1000);
 
-  // â”€â”€â”€ Error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  if (error || !essay) {
+  // ── AI Processing State ────────────────────────────────────────────────────
+  if (loading) {
     return (
-      <View style={styles.center}>
-        <View style={styles.errorCard}>
-          <View style={styles.errorIconWrap}>
-            <Text style={styles.errorIcon}>!</Text>
-          </View>
-          <Text style={styles.errorTitle}>Không thể tải kết quả</Text>
-          <Text style={styles.errorBody}>
-            {error ?? "Không thể tải kết quả bài viết"}
-          </Text>
+      <View style={styles.container}>
+        <View style={styles.simpleHeader}>
           <TouchableOpacity
-            style={styles.primaryBtn}
             onPress={() => router.replace(historyRoute as any)}
+            style={styles.backBtn}
           >
-            <Text style={styles.primaryBtnText}>Xem {historyLabel}</Text>
+            <ChevronLeft size={24} color={Colors.text} strokeWidth={2} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.ghostBtn} onPress={handleBack}>
-            <Text style={styles.ghostBtnText}>Quay lại</Text>
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Grading...</Text>
+          <View style={{ width: 40 }} />
         </View>
+        <ProgressIndicator visible elapsed={elapsed} />
       </View>
     );
   }
 
-  // â”€â”€â”€ Grader error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  if (essay.status === "error") {
+  // ── Error State ────────────────────────────────────────────────────────────
+  if (error || !essay || essay.status === "error") {
+    const msg =
+      essay?.errorMessage ??
+      error ??
+      "Something went wrong. Please resubmit your essay.";
+
     return (
-      <View style={styles.center}>
-        <View style={styles.errorCard}>
-          <View style={[styles.errorIconWrap, { backgroundColor: "#FEF3C7" }]}>
-            <Text style={[styles.errorIcon, { color: "#F59E0B" }]}>~</Text>
+      <View style={styles.container}>
+        <View style={styles.simpleHeader}>
+          <TouchableOpacity onPress={() => router.replace(historyRoute as any)} style={styles.backBtn}>
+            <ChevronLeft size={24} color={Colors.text} strokeWidth={2} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Oops!</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.errorWrap}>
+          <View style={[styles.errorCard, Shadow.md]}>
+            <Text style={styles.errorEmoji}>😅</Text>
+            <Text style={styles.errorTitle}>
+              {essay?.status === "error" ? "Grading didn't complete" : "Couldn't load result"}
+            </Text>
+            <Text style={styles.errorMsg}>{msg}</Text>
+            <AppButton
+              label="Try Again"
+              onPress={() => router.navigate("/essay/input" as any)}
+              style={{ marginTop: Spacing.sm }}
+            />
+            <AppButton
+              label="See History"
+              onPress={() => router.replace(historyRoute as any)}
+              variant="ghost"
+              style={{ marginTop: Spacing.xs }}
+            />
           </View>
-          <Text style={styles.errorTitle}>Chấm điểm thất bại</Text>
-          <Text style={styles.errorBody}>
-            {essay.errorMessage ??
-              "Giám khảo AI gặp sự cố kỹ thuật. Vui lòng thử gửi lại bài viết."}
-          </Text>
-          <TouchableOpacity
-            style={styles.primaryBtn}
-            onPress={() => router.navigate("/essay/input" as any)}
-          >
-            <Text style={styles.primaryBtnText}>Thử lại</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.ghostBtn}
-            onPress={() => router.replace(historyRoute as any)}
-          >
-            <Text style={styles.ghostBtnText}>Xem {historyLabel}</Text>
-          </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  const finalScore = essay.score ?? essay.overallScore ?? essay.overallBand;
-  const theme = getScoreTheme(finalScore);
-  const feedbackText =
-    [essay.aiFeedback, essay.feedback].find(
-      (value) => typeof value === "string" && value.trim().length > 0,
-    ) ?? "Chưa có nhận xét từ giám khảo.";
-  const originalText =
-    typeof essay.originalText === "string" && essay.originalText.trim()
-      ? essay.originalText.trim()
-      : typeof essay.text === "string" && essay.text.trim()
-        ? essay.text.trim()
-        : "";
-  const grammarErrors = Array.isArray(essay.grammarErrors)
-    ? essay.grammarErrors
-    : [];
-  const suggestions = Array.isArray(essay.suggestions) ? essay.suggestions : [];
+  // ── Result State ───────────────────────────────────────────────────────────
+  const finalScore = essay.score ?? essay.overallScore ?? essay.overallBand ?? 0;
+  const feedbackText = [essay.aiFeedback, essay.feedback].find(
+    (v) => typeof v === "string" && v.trim(),
+  ) ?? "No detailed feedback provided.";
+
+  const grammarFeedback = mapErrors(Array.isArray(essay.grammarErrors) ? essay.grammarErrors : []);
+  const suggestionFeedback = mapSuggestions(Array.isArray(essay.suggestions) ? essay.suggestions : []);
+  const allFeedback = [...grammarFeedback, ...suggestionFeedback];
+
+  // Score breakdown short insight
+  const bd = essay.scoreBreakdown;
+  let lowestCriterion = "";
+  if (bd) {
+    const scores = [
+      { key: "Task Achievement", val: bd.taskAchievement ?? 0 },
+      { key: "Coherence",        val: bd.coherenceCohesion ?? 0 },
+      { key: "Vocabulary",       val: bd.lexicalResource ?? 0 },
+      { key: "Grammar",          val: bd.grammaticalRangeAccuracy ?? 0 },
+    ];
+    const lowest = scores.sort((a, b) => a.val - b.val)[0];
+    if (lowest.val < finalScore) lowestCriterion = lowest.key;
+  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <BackButton label={historyLabel} onPress={handleBack} />
-        <Text style={styles.headerTitle}>Kết quả</Text>
-        <TouchableOpacity
-          onPress={handleShare}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={styles.headerAction}>Chia sẻ</Text>
+        <TouchableOpacity onPress={() => router.replace(historyRoute as any)} style={styles.backBtn}>
+          <ChevronLeft size={24} color={Colors.text} strokeWidth={2} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Your Result</Text>
+        <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
+          <Share2 size={20} color={Colors.primary} strokeWidth={2.2} />
         </TouchableOpacity>
       </View>
 
@@ -282,363 +280,234 @@ export default function ResultScreen() {
         <Animated.View
           style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}
         >
-          {/* â”€â”€ Hero score card â”€â”€ */}
-          <View style={[styles.heroCard, { borderTopColor: theme.accent }]}>
-            {/* Score level label */}
-            <View style={[styles.levelPill, { backgroundColor: theme.bg }]}>
-              <Text style={[styles.levelText, { color: theme.accent }]}>
-                {theme.label}
-              </Text>
-            </View>
+          {/* ── 1. Score Reveal — encouragement first per spec ── */}
+          <ScoreCard
+            score={finalScore}
+            animate
+            message={getEncouragementMessage(finalScore)}
+          />
 
-            {/* Score number */}
-            {finalScore != null ? (
-              <View style={styles.scoreWrap}>
-                <ScoreBadge score={finalScore} size="lg" />
+          {/* ── 2. Improvement summary (one insight) ── */}
+          {lowestCriterion ? (
+            <View style={[styles.insightCard, Shadow.xs]}>
+              <Text style={styles.insightEmoji}>💡</Text>
+              <View style={styles.insightText}>
+                <Text style={styles.insightTitle}>Focus area</Text>
+                <Text style={styles.insightBody}>
+                  Work on <Text style={styles.insightHighlight}>{lowestCriterion}</Text> to boost your overall band.
+                </Text>
               </View>
-            ) : (
-              <Text style={styles.noScore}>Không có điểm</Text>
-            )}
-
-            {/* Meta chips */}
-            <View style={styles.metaRow}>
-              <View style={styles.metaChip}>
-                <Text style={styles.metaChipText}>{essay.wordCount} từ</Text>
-              </View>
-              {essay.processingTimeMs && (
-                <View style={styles.metaChip}>
-                  <Text style={styles.metaChipText}>
-                    {(essay.processingTimeMs / 1000).toFixed(1)}s
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          {/* â”€â”€ Score breakdown â”€â”€ */}
-          {essay.scoreBreakdown && finalScore != null && (
-            <ScoreBreakdownCard
-              breakdown={essay.scoreBreakdown}
-              overallBand={finalScore}
-            />
-          )}
-
-          {originalText ? (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <View
-                  style={[styles.sectionDot, { backgroundColor: theme.accent }]}
-                />
-                <Text style={styles.sectionTitle}>Bài viết gốc</Text>
-              </View>
-              <Text style={styles.originalText}>{originalText}</Text>
             </View>
           ) : null}
 
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View
-                style={[styles.sectionDot, { backgroundColor: theme.accent }]}
-              />
-              <Text style={styles.sectionTitle}>Nhận xét từ Giám khảo</Text>
-            </View>
+          {/* ── 3. AI Feedback narrative ── */}
+          <View style={[styles.feedbackNarrative, Shadow.xs]}>
+            <Text style={styles.sectionTitle}>AI Examiner Feedback</Text>
             <Text style={styles.feedbackText}>{feedbackText}</Text>
           </View>
 
-          {/* â”€â”€ Grammar errors â”€â”€ */}
-          <GrammarErrorCard errors={grammarErrors} />
+          {/* ── 4. Score breakdown — after encouragement ── */}
+          {bd && (
+            <View style={[styles.breakdownCard, Shadow.xs]}>
+              <Text style={styles.sectionTitle}>Score Breakdown</Text>
+              {[
+                { label: "Task Achievement", value: bd.taskAchievement ?? 0, color: "#6366F1" },
+                { label: "Coherence & Cohesion", value: bd.coherenceCohesion ?? 0, color: "#8B5CF6" },
+                { label: "Vocabulary", value: bd.lexicalResource ?? 0, color: "#EC4899" },
+                { label: "Grammar", value: bd.grammaticalRangeAccuracy ?? 0, color: Colors.warning },
+              ].map(({ label, value, color }) => (
+                <View key={label} style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>{label}</Text>
+                  <View style={styles.breakdownBarTrack}>
+                    <View
+                      style={[
+                        styles.breakdownBarFill,
+                        { width: `${(value / 9) * 100}%` as any, backgroundColor: color },
+                      ]}
+                    />
+                  </View>
+                  <Text style={[styles.breakdownScore, { color }]}>
+                    {value.toFixed(1)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
 
-          {/* â”€â”€ Suggestions â”€â”€ */}
-          <SuggestionsCard suggestions={suggestions} />
+          {/* ── 5. Detailed feedback cards ── */}
+          {allFeedback.length > 0 && (
+            <View style={styles.feedbackSection}>
+              <Text style={styles.sectionTitle}>
+                Improvements ({allFeedback.length})
+              </Text>
+              <View style={styles.feedbackList}>
+                {allFeedback.map((fb, i) => (
+                  <FeedbackCard key={i} {...fb} />
+                ))}
+              </View>
+            </View>
+          )}
 
-          <View style={{ height: 48 }} />
+          {/* ── 6. Next step — single primary action ── */}
+          <View style={styles.nextStep}>
+            <AppButton
+              label="Write Another Essay"
+              onPress={() => router.navigate("/essay/input" as any)}
+              size="lg"
+            />
+            <AppButton
+              label="See All Results"
+              onPress={() => router.replace(historyRoute as any)}
+              variant="ghost"
+              size="md"
+            />
+          </View>
+
+          <View style={{ height: Spacing.xxxl }} />
         </Animated.View>
       </ScrollView>
     </View>
   );
 }
 
-// â”€â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const SURFACE = "#FFFFFF";
-const BG = "#F8FAFC";
-const TEXT_PRIMARY = "#0F172A";
-const TEXT_SECONDARY = "#64748B";
-const TEXT_MUTED = "#94A3B8";
-const BORDER = "#E2E8F0";
-const ACCENT = "#0EA5E9";
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: BG,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: BG,
-    padding: 24,
-  },
+  container: { flex: 1, backgroundColor: Colors.background },
 
-  // â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Headers
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: SURFACE,
-    paddingTop: 54,
-    paddingBottom: 14,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: BORDER,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    backgroundColor: Colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Colors.border,
   },
-  headerBack: {
-    fontSize: 15,
-    color: ACCENT,
-    fontWeight: "600",
-    letterSpacing: -0.2,
+  simpleHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: TEXT_PRIMARY,
-    letterSpacing: -0.3,
-  },
-  headerAction: {
-    fontSize: 15,
-    color: ACCENT,
-    fontWeight: "600",
-    letterSpacing: -0.2,
-  },
+  backBtn: { padding: Spacing.xs },
+  shareBtn: { padding: Spacing.xs },
+  headerTitle: { ...Typography.title3 },
 
-  // â”€â”€ Scroll â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Scroll
   scroll: {
-    padding: 16,
-    paddingTop: 20,
+    padding: Spacing.md,
+    gap: Spacing.md,
   },
 
-  // â”€â”€ Hero card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  heroCard: {
-    backgroundColor: SURFACE,
-    borderRadius: 20,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
+  // Insight card
+  insightCard: {
+    backgroundColor: Colors.primaryLight,
+    borderRadius: Radius.xl,
+    padding: Spacing.md,
+    flexDirection: "row",
+    gap: Spacing.sm,
     alignItems: "center",
-    marginBottom: 14,
-    borderTopWidth: 3,
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
   },
-  levelPill: {
-    borderRadius: 100,
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    marginBottom: 20,
-  },
-  levelText: {
-    fontSize: 12,
+  insightEmoji: { fontSize: 28 },
+  insightText: { flex: 1 },
+  insightTitle: {
+    ...Typography.caption,
+    color: Colors.primaryDark,
     fontWeight: "700",
-    letterSpacing: 0.8,
     textTransform: "uppercase",
+    letterSpacing: 0.8,
+    marginBottom: 2,
   },
-  scoreWrap: {
-    alignItems: "center",
-    marginBottom: 8,
+  insightBody: {
+    ...Typography.bodySmall,
+    color: Colors.primaryDark,
+    lineHeight: 20,
   },
-  scoreSubLabel: {
-    fontSize: 13,
-    color: TEXT_MUTED,
-    marginTop: 6,
-    letterSpacing: 0.2,
-  },
-  noScore: {
-    fontSize: 15,
-    color: TEXT_MUTED,
-  },
-  metaRow: {
-    flexDirection: "row",
-    gap: 8,
-    flexWrap: "wrap",
-    justifyContent: "center",
-    marginTop: 20,
-  },
-  metaChip: {
-    backgroundColor: BG,
-    borderRadius: 100,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderWidth: 1,
-    borderColor: BORDER,
-  },
-  metaChipText: {
-    fontSize: 12,
-    fontWeight: "500",
-    color: TEXT_SECONDARY,
-    letterSpacing: 0.1,
-  },
+  insightHighlight: { fontWeight: "700" },
 
-  // â”€â”€ Section (feedback) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  section: {
-    backgroundColor: SURFACE,
-    borderRadius: 20,
-    padding: 22,
-    marginBottom: 14,
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-    gap: 8,
-  },
-  sectionDot: {
-    width: 4,
-    height: 20,
-    borderRadius: 2,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: TEXT_PRIMARY,
-    letterSpacing: -0.3,
+  // Feedback narrative
+  feedbackNarrative: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
   },
   feedbackText: {
-    fontSize: 15,
-    lineHeight: 25,
-    color: TEXT_SECONDARY,
-    letterSpacing: 0.1,
-  },
-  originalText: {
-    fontSize: 15,
-    lineHeight: 24,
-    color: TEXT_PRIMARY,
-    letterSpacing: 0.1,
+    ...Typography.body,
+    color: Colors.textSecondary,
+    lineHeight: 26,
   },
 
-  // â”€â”€ Loading card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  loadingCard: {
-    backgroundColor: SURFACE,
-    borderRadius: 24,
-    padding: 36,
-    alignItems: "center",
-    width: "100%",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 4,
+  // Score breakdown
+  breakdownCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
+    padding: Spacing.lg,
+    gap: Spacing.md,
   },
-  loadingTitle: {
-    fontSize: 20,
+  breakdownRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  breakdownLabel: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    width: 130,
+  },
+  breakdownBarTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: Colors.border,
+    borderRadius: Radius.full,
+    overflow: "hidden",
+  },
+  breakdownBarFill: { height: "100%", borderRadius: Radius.full },
+  breakdownScore: {
+    ...Typography.caption,
     fontWeight: "700",
-    color: TEXT_PRIMARY,
-    letterSpacing: -0.4,
-    marginBottom: 10,
-    textAlign: "center",
-  },
-  loadingSubtitle: {
-    fontSize: 14,
-    color: TEXT_SECONDARY,
-    lineHeight: 22,
-    textAlign: "center",
-    letterSpacing: 0.1,
-  },
-  elapsedPill: {
-    marginTop: 20,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 100,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  elapsedText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: TEXT_MUTED,
-    letterSpacing: 0.5,
+    width: 30,
+    textAlign: "right",
   },
 
-  // â”€â”€ Error card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  errorCard: {
-    backgroundColor: SURFACE,
-    borderRadius: 24,
-    padding: 32,
-    alignItems: "center",
-    width: "100%",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 4,
+  // Section title
+  sectionTitle: {
+    ...Typography.title3,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
   },
-  errorIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#FEE2E2",
+
+  // Feedback section
+  feedbackSection: { gap: Spacing.sm },
+  feedbackList: { gap: Spacing.sm },
+
+  // Next step
+  nextStep: { gap: Spacing.sm, paddingTop: Spacing.sm },
+
+  // Error state
+  errorWrap: {
+    flex: 1,
     justifyContent: "center",
+    padding: Spacing.xl,
+  },
+  errorCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xxl,
+    padding: Spacing.xl,
     alignItems: "center",
-    marginBottom: 18,
+    gap: Spacing.sm,
   },
-  errorIcon: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#EF4444",
-  },
+  errorEmoji: { fontSize: 48 },
   errorTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: TEXT_PRIMARY,
-    letterSpacing: -0.3,
-    marginBottom: 8,
+    ...Typography.title2,
+    textAlign: "center",
   },
-  errorBody: {
-    fontSize: 14,
-    color: TEXT_SECONDARY,
+  errorMsg: {
+    ...Typography.bodySmall,
+    color: Colors.textSecondary,
     textAlign: "center",
     lineHeight: 22,
-    marginBottom: 24,
-    letterSpacing: 0.1,
-  },
-  primaryBtn: {
-    backgroundColor: ACCENT,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    width: "100%",
-    alignItems: "center",
-    shadowColor: ACCENT,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 3,
-  },
-  primaryBtnText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: -0.2,
-  },
-  ghostBtn: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 40,
-    width: "100%",
-    alignItems: "center",
-    marginTop: 10,
-    borderWidth: 1.5,
-    borderColor: BORDER,
-  },
-  ghostBtnText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: TEXT_SECONDARY,
-    letterSpacing: -0.2,
   },
 });

@@ -1,32 +1,43 @@
-﻿import React, { useState, useCallback } from "react";
+/**
+ * EssayInputScreen — Write Essay Screen
+ * Spec: Single primary action (Submit), large input, minimal controls,
+ * no additional buttons. Character count visible.
+ */
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
   TextInput,
   StyleSheet,
-  Pressable,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Pressable,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
-import { LoadingOverlay } from "../components/LoadingOverlay";
+import { PenLine, ChevronLeft } from "lucide-react-native";
+import { Colors, Radius, Shadow, Spacing, Typography } from "../constants/theme";
+import { AppButton } from "../components/AppButton";
 import { essayApi, getErrorMessage, extractEssay } from "../services/api";
 import { EssayTaskType } from "../types";
-import { BackButton } from "../components/BackButton";
-import { useBack } from "../hooks/useBack";
 import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useBack } from "../hooks/useBack";
 
 const WORD_TARGET: Record<EssayTaskType, number> = { task2: 250, task1: 150 };
 
-const SAMPLE_PROMPTS: Record<EssayTaskType, string> = {
-  task2:
-    "Some people think that universities should provide students with more practical training for future jobs. Others believe that the primary purpose of a university is to give access to knowledge for its own sake. Discuss both views and give your own opinion.",
-  task1:
-    "The graph below shows the percentage of people in different age groups who used the internet daily in a European country between 2005 and 2020. Summarize the information by selecting and reporting the main features, and make comparisons where relevant.",
+const TASK_CONFIG = {
+  task2: {
+    label: "Task 2 — Essay",
+    hint: "Academic argument or discussion",
+    minWords: 250,
+  },
+  task1: {
+    label: "Task 1 — Description",
+    hint: "Graph, chart, or diagram",
+    minWords: 150,
+  },
 };
 
 export default function EssayInputScreen() {
@@ -39,21 +50,19 @@ export default function EssayInputScreen() {
   const [taskType, setTaskType] = useState<EssayTaskType>(
     (params.taskType as EssayTaskType) ?? "task2",
   );
-  const [prompt, setPrompt] = useState(SAMPLE_PROMPTS[taskType]);
   const [essayText, setEssayText] = useState("");
   const [loading, setLoading] = useState(false);
 
   const wordCount = essayText.trim()
     ? essayText.trim().split(/\s+/).filter(Boolean).length
     : 0;
-  const target = WORD_TARGET[taskType];
-  const wordPct = Math.min(1, wordCount / target);
-  const isReady = wordCount >= 50 && prompt.trim().length > 0;
 
-  const switchTask = useCallback((t: EssayTaskType) => {
-    setTaskType(t);
-    setPrompt(SAMPLE_PROMPTS[t]);
-  }, []);
+  const target = WORD_TARGET[taskType];
+  const progress = Math.min(1, wordCount / target);
+  const isReady = wordCount >= 50;
+  const isAtTarget = wordCount >= target;
+
+  const cfg = TASK_CONFIG[taskType];
 
   const handleSubmit = async () => {
     if (!isReady) return;
@@ -63,34 +72,38 @@ export default function EssayInputScreen() {
       const essay = extractEssay(res.data);
       const essayId = essay?._id;
       if (!essayId) {
-        Alert.alert(
-          "Lỗi",
-          "Server không trả về essay ID. Vui lòng thử lại.",
-        );
+        Alert.alert("Error", "Could not submit essay. Please try again.");
         return;
       }
       router.navigate({ pathname: "/essay/result", params: { essayId } });
     } catch (err) {
-      Alert.alert(
-        "Chấm bài thất bại",
-        getErrorMessage(err),
-        [{ text: "OK" }],
-      );
+      Alert.alert("Submission failed", getErrorMessage(err), [{ text: "OK" }]);
     } finally {
       setLoading(false);
     }
   };
 
-  const wordBarColor = wordCount < target * 0.6 ? Colors.error : Colors.text;
+  // Progress bar color
+  const barColor = isAtTarget
+    ? Colors.primary
+    : wordCount >= target * 0.6
+      ? Colors.warning
+      : Colors.errorSoft;
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <LoadingOverlay visible={loading} message="Đang chấm bài..." />
-
-      <View style={styles.nav}>
-        <BackButton label="Trang chủ" onPress={goBack} />
-        <Text style={styles.navTitle}>Viết bài</Text>
-        <View style={styles.navSpacer} />
+      {/* ── Header ── */}
+      <View style={styles.header}>
+        <Pressable
+          onPress={goBack}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}
+        >
+          <ChevronLeft size={24} color={Colors.text} strokeWidth={2} />
+        </Pressable>
+        <Text style={styles.headerTitle}>Write Essay</Text>
+        {/* Spacer to balance */}
+        <View style={{ width: 40 }} />
       </View>
 
       <KeyboardAvoidingView
@@ -101,111 +114,108 @@ export default function EssayInputScreen() {
           style={styles.scroll}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.segment}>
+          {/* ── Task type selector — minimal 2-pill ── */}
+          <View style={styles.taskRow}>
             {(["task2", "task1"] as EssayTaskType[]).map((t) => (
               <Pressable
                 key={t}
+                onPress={() => setTaskType(t)}
                 style={({ pressed }) => [
-                  styles.segmentItem,
-                  taskType === t && styles.segmentItemActive,
-                  pressed && styles.segmentItemPressed,
+                  styles.taskPill,
+                  taskType === t && styles.taskPillActive,
+                  pressed && { opacity: 0.8 },
                 ]}
-                onPress={() => switchTask(t)}
               >
                 <Text
                   style={[
-                    styles.segmentText,
-                    taskType === t && styles.segmentTextActive,
+                    styles.taskPillText,
+                    taskType === t && styles.taskPillTextActive,
                   ]}
                 >
-                  {t === "task2"
-                    ? "Task 2 — Bài luận"
-                    : "Task 1 — Dữ liệu"}
+                  {TASK_CONFIG[t].label}
                 </Text>
               </Pressable>
             ))}
           </View>
 
-          <Text style={styles.sectionLabel}>Đề bài</Text>
-          <TextInput
-            style={styles.promptInput}
-            value={prompt}
-            onChangeText={setPrompt}
-            multiline
-            placeholder="Nhập hoặc dán đề bài ở đây..."
-            placeholderTextColor={Colors.textMuted}
-            textAlignVertical="top"
-          />
+          {/* ── Task hint ── */}
+          <Text style={styles.taskHint}>{cfg.hint}</Text>
 
-          <View style={styles.essayHeader}>
-            <Text style={styles.sectionLabel}>Bài viết</Text>
-            <View style={styles.wordBadge}>
-              <Text style={styles.wordCount}>
-                {wordCount} / {target} từ
-              </Text>
+          {/* ── Essay input — large, focused ── */}
+          <View style={[styles.inputCard, Shadow.sm]}>
+            <View style={styles.inputHeader}>
+              <PenLine size={16} color={Colors.textMuted} strokeWidth={2} />
+              <Text style={styles.inputLabel}>Your Essay</Text>
+              <View style={styles.wordBadge}>
+                <Text
+                  style={[
+                    styles.wordCount,
+                    isAtTarget && { color: Colors.primary },
+                  ]}
+                >
+                  {wordCount} / {target}
+                </Text>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.barBg}>
-            <View
-              style={[
-                styles.barFill,
-                {
-                  width: `${wordPct * 100}%` as any,
-                  backgroundColor: wordBarColor,
-                },
-              ]}
+            {/* Progress bar */}
+            <View style={styles.progressTrack}>
+              <View
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${progress * 100}%` as any,
+                    backgroundColor: barColor,
+                  },
+                ]}
+              />
+            </View>
+
+            {/* The actual textarea */}
+            <TextInput
+              style={styles.input}
+              value={essayText}
+              onChangeText={setEssayText}
+              multiline
+              placeholder={
+                taskType === "task2"
+                  ? "Start your essay here...\n\nIntroduce your argument, support with examples, and conclude clearly."
+                  : "Describe the data here...\n\nHighlight key trends, make comparisons, and summarize the main features."
+              }
+              placeholderTextColor={Colors.textMuted}
+              textAlignVertical="top"
+              autoCapitalize="sentences"
+              autoCorrect
             />
           </View>
 
-          <TextInput
-            style={styles.essayInput}
-            value={essayText}
-            onChangeText={setEssayText}
-            multiline
-            placeholder={`Bắt đầu viết ${
-              taskType === "task2"
-                ? "bài luận học thuật"
-                : "mô tả biểu đồ"
-            } ở đây...\n\nTối thiểu 50 từ để nộp, khuyến nghị ${
-              target
-            }+ từ.`}
-            placeholderTextColor={Colors.textMuted}
-            textAlignVertical="top"
-            autoCapitalize="sentences"
-            autoCorrect
-          />
-
+          {/* ── Tip chips — minimal ── */}
           <View style={styles.tipsRow}>
             <View style={styles.tipChip}>
-              <Text style={styles.tipText}>
-                Khuyến nghị {target}+ từ
-              </Text>
+              <Text style={styles.tipText}>Min 50 words to submit</Text>
             </View>
             <View style={styles.tipChip}>
-              <Text style={styles.tipText}>Kiểm tra chính tả</Text>
+              <Text style={styles.tipText}>Target: {target}+ words</Text>
             </View>
           </View>
+
+          <View style={{ height: Spacing.xxxl }} />
         </ScrollView>
 
+        {/* ── Single Primary CTA — fixed at bottom ── */}
         <View style={styles.footer}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.submitBtn,
-              !isReady && styles.submitDisabled,
-              pressed && styles.submitPressed,
-            ]}
+          <AppButton
+            label={loading ? "Submitting..." : "Submit for AI Grading"}
             onPress={handleSubmit}
-            disabled={!isReady || loading}
-          >
-            <Text style={styles.submitText}>
-              {loading ? "Đang chấm..." : "Chấm bài"}
-            </Text>
-          </Pressable>
-          {!isReady && wordCount < 50 && (
-            <Text style={styles.hint}>
-              Viết ít nhất 50 từ để nộp
+            disabled={!isReady}
+            loading={loading}
+            size="lg"
+          />
+          {!isReady && (
+            <Text style={styles.footerHint}>
+              Write at least 50 words to submit
             </Text>
           )}
         </View>
@@ -217,132 +227,142 @@ export default function EssayInputScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   flex: { flex: 1 },
-  nav: {
+
+  // Header
+  header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.sm,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Colors.separator,
+    paddingTop: Spacing.xs,
+    backgroundColor: Colors.background,
   },
-  navTitle: { ...Typography.heading3 },
-  navSpacer: { width: 80 },
+  backBtn: { padding: Spacing.xs },
+  headerTitle: {
+    ...Typography.title3,
+    color: Colors.text,
+  },
+
+  // Scroll
   scroll: { flex: 1 },
-  content: { padding: Spacing.md, paddingBottom: Spacing.sm },
-  segment: {
+  content: {
+    padding: Spacing.md,
+  },
+
+  // Task selector
+  taskRow: {
     flexDirection: "row",
-    backgroundColor: Colors.secondaryBackground,
-    borderRadius: Radius.md,
-    padding: 2,
-    marginBottom: Spacing.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.separator,
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
   },
-  segmentItem: {
+  taskPill: {
     flex: 1,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius.sm,
+    paddingVertical: 10,
+    paddingHorizontal: Spacing.md,
+    borderRadius: Radius.lg,
+    backgroundColor: Colors.surface,
     alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: Colors.border,
   },
-  segmentItemActive: {
-    backgroundColor: Colors.surfaceAlt,
-    ...Shadow.sm,
+  taskPillActive: {
+    backgroundColor: Colors.primaryLight,
+    borderColor: Colors.primary,
   },
-  segmentItemPressed: {
-    opacity: 0.8,
+  taskPillText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: "700",
   },
-  segmentText: {
-    ...Typography.bodySmall,
+  taskPillTextActive: { color: Colors.primaryDark },
+  taskHint: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    marginBottom: Spacing.md,
+    textAlign: "center",
+  },
+
+  // Input card
+  inputCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.xl,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  inputHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  inputLabel: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+    fontWeight: "700",
+    flex: 1,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  wordBadge: {
+    backgroundColor: Colors.background,
+    borderRadius: Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+  },
+  wordCount: {
+    ...Typography.caption,
     color: Colors.textSecondary,
     fontWeight: "600",
   },
-  segmentTextActive: { color: Colors.text },
-  sectionLabel: {
-    ...Typography.label,
-    textTransform: "uppercase",
-    marginBottom: Spacing.xs,
-    fontWeight: "700",
-  },
-  promptInput: {
-    backgroundColor: Colors.secondaryBackground,
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.separator,
-    padding: Spacing.md,
-    ...Typography.body,
-    marginBottom: Spacing.lg,
-    minHeight: 100,
-  },
-  essayHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: Spacing.xs,
-  },
-  wordBadge: {
-    backgroundColor: Colors.secondaryBackground,
-    borderRadius: Radius.full,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.separator,
-  },
-  wordCount: { ...Typography.caption, color: Colors.textSecondary },
-  barBg: {
+  progressTrack: {
     height: 4,
-    backgroundColor: Colors.separator,
+    backgroundColor: Colors.border,
     borderRadius: Radius.full,
-    marginBottom: Spacing.sm,
     overflow: "hidden",
   },
-  barFill: { height: "100%" },
-  essayInput: {
-    backgroundColor: Colors.secondaryBackground,
-    borderRadius: Radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.separator,
-    padding: Spacing.md,
-    ...Typography.body,
-    marginBottom: Spacing.md,
-    minHeight: 280,
+  progressFill: {
+    height: "100%",
+    borderRadius: Radius.full,
   },
+  input: {
+    ...Typography.body,
+    color: Colors.text,
+    minHeight: 280,
+    lineHeight: 26,
+  },
+
+  // Tips
   tipsRow: {
     flexDirection: "row",
+    gap: Spacing.xs,
     flexWrap: "wrap",
-    gap: Spacing.sm,
-    marginBottom: Spacing.sm,
   },
   tipChip: {
-    backgroundColor: Colors.secondaryBackground,
+    backgroundColor: Colors.surface,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: Colors.separator,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  tipText: { ...Typography.caption, color: Colors.textSecondary },
+  tipText: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+  },
+
+  // Footer
   footer: {
     backgroundColor: Colors.background,
     padding: Spacing.md,
+    paddingBottom: Spacing.md,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Colors.separator,
+    borderTopColor: Colors.border,
+    gap: Spacing.xs,
   },
-  submitBtn: {
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.lg,
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  submitPressed: {
-    opacity: 0.85,
-  },
-  submitDisabled: { opacity: 0.5 },
-  submitText: { ...Typography.body, color: Colors.onPrimary, fontWeight: "600" },
-  hint: {
+  footerHint: {
     ...Typography.caption,
+    color: Colors.textMuted,
     textAlign: "center",
-    marginTop: Spacing.xs,
-    color: Colors.textSecondary,
   },
 });
