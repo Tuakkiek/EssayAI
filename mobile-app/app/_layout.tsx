@@ -1,102 +1,87 @@
-import { useEffect } from "react";
-import { ActivityIndicator, View } from "react-native";
-import { Stack, router, useRootNavigationState, useSegments } from "expo-router";
-import { AuthProvider, useAuth } from "../src/context/AuthContext";
-import { API_ROOT_URL } from "../src/config/api";
-import { Colors } from "../src/constants/theme";
+/**
+ * app/(teacher)/_layout.tsx
+ *
+ * iOS 26 Liquid Glass tab bar — teacher role.
+ */
 
-// --- Auth Guard ----------------------------------------------------------------
-function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading, user } = useAuth();
-  const segments = useSegments();
-  const rootNavigationState = useRootNavigationState();
+import { Tabs } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useColorScheme } from "react-native";
+import { ThemeProvider, DarkTheme, DefaultTheme } from "@react-navigation/native";
+import { LiquidGlassBar, TAB_BAR_BOTTOM_OFFSET } from "../../src/components/LiquidGlassBar";
 
-  useEffect(() => {
-    if (isLoading || !rootNavigationState?.key || segments.length === 0) return;
-    const inAuthScreen = segments[0] === "login";
-    const role = user?.role;
-    const roleGroup =
-      role === "admin" ? "(admin)" : role === "teacher" ? "(teacher)" : "(student)";
-    const inRoleGroup = segments[0] === roleGroup;
-
-    let timer: ReturnType<typeof setTimeout>;
-
-    if (!isAuthenticated && !inAuthScreen) {
-      timer = setTimeout(() => router.replace("/login"), 50);
-    } else if (isAuthenticated && inAuthScreen) {
-      timer = setTimeout(() => {
-        if (role === "admin") router.replace("/(admin)/admin/dashboard");
-        else if (role === "teacher") router.replace("/(teacher)/progress");
-        else router.replace("/(student)");
-      }, 50);
-    } else if (isAuthenticated && !inRoleGroup) {
-      timer = setTimeout(() => {
-        if (role === "admin") router.replace("/(admin)/admin/dashboard");
-        else if (role === "teacher") router.replace("/(teacher)/progress");
-        else router.replace("/(student)");
-      }, 50);
-    }
-
-    return () => clearTimeout(timer);
-  }, [
-    isAuthenticated,
-    isLoading,
-    segments,
-    rootNavigationState?.key,
-    user?.role,
-  ]);
-
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color={Colors.tint} />
-      </View>
-    );
-  }
-
-  return <>{children}</>;
-}
-
-// --- Root Layout ---------------------------------------------------------------
-export default function RootLayout() {
-  useEffect(() => {
-    const healthUrl = `${API_ROOT_URL}/health`;
-    console.log("[Startup] Using API_ROOT_URL:", API_ROOT_URL);
-    fetch(healthUrl)
-      .then((res) => {
-        if (res.ok) {
-          console.info(`[Startup] Network OK (${res.status})`, {
-            url: healthUrl,
-          });
-          console.log("hello from backend");
-        } else {
-          console.warn(`[Startup] Network check failed (${res.status})`, {
-            url: healthUrl,
-          });
-        }
-      })
-      .catch((error) => {
-        console.error("[Startup] Network check FAILED - Full error:", error);
-        console.error(
-          "[Startup] Network check FAILED - Message:",
-          error.message,
-        );
-        console.error("[Startup] Network check FAILED - URL:", healthUrl);
-        if (error.code)
-          console.error("[Startup] Network check FAILED - Code:", error.code);
-      });
-  }, []);
+export default function TeacherTabLayout() {
+  const colorScheme = useColorScheme();
 
   return (
-    <AuthProvider>
-      <AuthGuard>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="(student)" options={{ headerShown: false }} />
-          <Stack.Screen name="(teacher)" options={{ headerShown: false }} />
-          <Stack.Screen name="(admin)" options={{ headerShown: false }} />
-        </Stack>
-      </AuthGuard>
-    </AuthProvider>
+    <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
+      <Tabs
+        tabBar={(props) => <LiquidGlassBar {...props} />}
+        screenOptions={{
+          headerShown: false,
+          // Remove the default React Navigation border line
+          tabBarStyle: {
+            position:        "absolute",
+            borderTopWidth:  0,
+            borderTopColor:  "transparent",
+            backgroundColor: "transparent",
+            elevation:       0,       // Android: kills the default shadow/border
+          },
+        }}
+        sceneContainerStyle={{ paddingBottom: TAB_BAR_BOTTOM_OFFSET }}
+      >
+        {/* ─── Visible tabs ──────────────────────────────────────────── */}
+        <Tabs.Screen
+          name="progress"
+          options={{
+            title: "Tiến độ",
+            tabBarIcon: ({ focused, color, size }) => (
+              <Ionicons name={focused ? "bar-chart" : "bar-chart-outline"} size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="teacher/assignments/index"
+          options={{
+            title: "Bài tập",
+            tabBarIcon: ({ focused, color, size }) => (
+              <Ionicons name={focused ? "document-text" : "document-text-outline"} size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="teacher/classes/index"
+          options={{
+            title: "Lớp học",
+            tabBarIcon: ({ focused, color, size }) => (
+              <Ionicons name={focused ? "people" : "people-outline"} size={size} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: "Tài khoản",
+            tabBarIcon: ({ focused, color, size }) => (
+              <Ionicons name={focused ? "person-circle" : "person-circle-outline"} size={size} color={color} />
+            ),
+          }}
+        />
+
+        {/* ─── Hidden routes ─────────────────────────────────────────── */}
+        <Tabs.Screen name="teacher/dashboard"                         options={{ href: null }} />
+        <Tabs.Screen name="teacher/essays/index"                      options={{ href: null }} />
+        <Tabs.Screen name="teacher/essays/[essayId]"                  options={{ href: null }} />
+        <Tabs.Screen name="teacher/students/index"                    options={{ href: null }} />
+        <Tabs.Screen name="teacher/students/[id]"                     options={{ href: null }} />
+        <Tabs.Screen name="teacher/create-center"                     options={{ href: null }} />
+        <Tabs.Screen name="teacher/classes/[classId]"                 options={{ href: null }} />
+        <Tabs.Screen name="teacher/classes/[classId]/create-students" options={{ href: null }} />
+        <Tabs.Screen name="teacher/classes/create"                    options={{ href: null }} />
+        <Tabs.Screen name="teacher/assignments/[id]"                  options={{ href: null }} />
+        <Tabs.Screen name="teacher/assignments/create"                options={{ href: null }} />
+        <Tabs.Screen name="teacher/assignments/[id]/submissions"      options={{ href: null }} />
+      </Tabs>
+    </ThemeProvider>
   );
 }

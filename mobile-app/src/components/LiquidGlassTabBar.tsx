@@ -362,12 +362,6 @@ const styles = StyleSheet.create({
     right: H_INSET,
     height: BAR_H,
     borderRadius: BAR_H / 2,
-    // Outer shadow
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    elevation: 14,
   },
   blur: {
     flex: 1,
