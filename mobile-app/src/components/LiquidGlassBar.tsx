@@ -1,14 +1,29 @@
 ﻿/**
- * LiquidGlassBar.tsx - iOS 26 Liquid Glass, cross-platform
+ * LiquidGlassBar.tsx — Apple Liquid Glass Tab Bar
  *
- * Matches Apple Music iOS 26 tab bar:
- *  - Floating frosted-glass pill (transparent enough to see content blur)
- *  - Active tab: accent icon + label + white capsule background (fade in/out, no sliding)
- *  - Inactive: gray icons + labels
- *  - Icon micro-lift + scale pulse on press
- *  - Android: heavier tint to compensate blur
+ * Triết lý Liquid Glass của Apple — 6 lớp:
  *
- * Brand accent: #58CC02 (system green)
+ *  PILL (outer bar)
+ *  ├── L0  Shadow system    — deep drop + ambient + subtle colored glow
+ *  ├── L1  Primary blur     — systemChromeMaterial, intensity 90  (frosted base)
+ *  ├── L2  Milk glass tint  — rgba white 0.18  (warm brightness)
+ *  ├── L3  Specular sheen   — SVG diagonal gradient top-left → center
+ *  ├── L4  Meniscus top     — 1 px bright hairline on top edge
+ *  ├── L5  Bottom depth     — dark gradient at bottom inner edge
+ *  └── L6  Outer rim        — hairline border rgba white 0.45
+ *
+ *  CAPSULE (active indicator)
+ *  ├── L1  Primary blur     — systemMaterialLight, intensity 80   (gray see-through)
+ *  ├── L2  Milk glass tint  — rgba white 0.22
+ *  ├── L3  Inner glow       — SVG radial gradient center→edge
+ *  ├── L4  Meniscus top     — bright 1 px hairline
+ *  ├── L5  Specular pill    — small bright ellipse top-left
+ *  └── L6  Outer border     — rgba white 0.58 hairline + shadow
+ *
+ *  ANIMATIONS
+ *  ├── Capsule  — fade + scaleX spring (no sliding)
+ *  ├── Icon     — translateY spring lift (-5 px) on active
+ *  └── Scale    — pulse 1.0 → 1.12 → 1.0 on press
  */
 
 import React, { memo, useCallback, useRef } from "react";
@@ -25,39 +40,208 @@ import Animated, {
   withSpring,
   withTiming,
   withSequence,
+  interpolate,
+  Extrapolation,
 } from "react-native-reanimated";
 import { BlurView } from "expo-blur";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, {
+  Defs,
+  RadialGradient,
+  LinearGradient,
+  Stop,
+  Rect,
+  Ellipse,
+} from "react-native-svg";
 
-// --- Brand ---------------------------------------------------------------------
-const ACCENT = "#58CC02";
-const ICON_ACTIVE = ACCENT;
+// ─── Geometry ──────────────────────────────────────────────────────────────────
+export const BAR_H        = 68;
+const H_INSET             = 18;
+export const BOTTOM_FLOAT = Platform.OS === "ios" ? 28 : 16;
+const CORNER              = BAR_H / 2;          // full pill radius
+
+const CAPSULE_H           = 52;
+const CAPSULE_V           = (BAR_H - CAPSULE_H) / 2;
+
+export const TAB_BAR_BOTTOM_OFFSET = BAR_H + BOTTOM_FLOAT + 12;
+
+// ─── Brand & icon colors ───────────────────────────────────────────────────────
+const ACCENT        = "#58CC02";
+const ICON_ACTIVE   = ACCENT;
 const ICON_INACTIVE = "#8E8E93";
 
-// --- Geometry ------------------------------------------------------------------
-export const BAR_H = 70;
-export const H_INSET = 16;
-export const BOTTOM_FLOAT = Platform.OS === "ios" ? 28 : 18;
-const CORNER = BAR_H / 2;
-const CAPSULE_H = 52;
-const CAPSULE_V = (BAR_H - CAPSULE_H) / 2;
+// ─── Glass color tokens ────────────────────────────────────────────────────────
+// Pill
+const PILL_MILK          = "rgba(255,255,255,0.18)";   // warm milk glass layer
+const PILL_MILK_ANDROID  = "rgba(244,244,248,0.82)";   // heavier fallback
+const PILL_MENISCUS      = "rgba(255,255,255,0.78)";   // top-edge bright line
+const PILL_BOTTOM_DEPTH  = "rgba(0,0,0,0.06)";         // bottom inner shadow
+const PILL_BORDER        = "rgba(255,255,255,0.45)";   // outer rim
 
-// How much screens should pad their bottom content
-export const TAB_BAR_BOTTOM_OFFSET = BAR_H + BOTTOM_FLOAT + 14;
+// Capsule — keep near-transparent so blur shows content beneath
+// systemMaterialLight (iOS) already provides the gray frosted look
+const CAP_MILK           = "rgba(255,255,255,0.00)";  // iOS: zero — blur only
+const CAP_MILK_ANDROID   = "rgba(230,230,235,0.45)";  // Android fallback
+const CAP_MENISCUS       = "rgba(255,255,255,0.80)";
+const CAP_BORDER         = "rgba(255,255,255,0.55)";
+const CAP_SPECULAR       = "rgba(255,255,255,0.55)";
 
-// --- Animation configs ---------------------------------------------------------
-const LIFT_SPRING = { damping: 20, stiffness: 400, mass: 0.55 } as const;
-const SCALE_SPRING = { damping: 16, stiffness: 440, mass: 0.5 } as const;
-const FADE_MS = 200;
+// ─── Animation configs ─────────────────────────────────────────────────────────
+const LIFT_CFG  = { damping: 18, stiffness: 400, mass: 0.48 } as const;
+const SCALE_CFG = { damping: 13, stiffness: 440, mass: 0.42 } as const;
+const FADE_DUR  = 200;
+const SCALE_DUR = 200;
 
-// --- Single tab button ---------------------------------------------------------
+// ─── SVG Specular Sheen — pill diagonal glint ──────────────────────────────────
+const PillSpecular = memo(function PillSpecular({
+  w,
+  h,
+}: {
+  w: number;
+  h: number;
+}) {
+  return (
+    <Svg
+      width={w}
+      height={h}
+      style={StyleSheet.absoluteFillObject}
+      pointerEvents="none"
+    >
+      <Defs>
+        {/* Diagonal light sweep top-left → bottom-center */}
+        <LinearGradient id="pillSheen" x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0%"   stopColor="#FFFFFF" stopOpacity={0.22} />
+          <Stop offset="38%"  stopColor="#FFFFFF" stopOpacity={0.07} />
+          <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0.00} />
+        </LinearGradient>
+      </Defs>
+      <Rect
+        x={0} y={0}
+        width={w} height={h}
+        rx={CORNER} ry={CORNER}
+        fill="url(#pillSheen)"
+      />
+    </Svg>
+  );
+});
+
+// ─── SVG Inner Glow + Specular — capsule ──────────────────────────────────────
+const CapsuleGlow = memo(function CapsuleGlow({
+  w,
+  h,
+}: {
+  w: number;
+  h: number;
+}) {
+  const r = h / 2;
+  return (
+    <Svg
+      width={w}
+      height={h}
+      style={StyleSheet.absoluteFillObject}
+      pointerEvents="none"
+    >
+      <Defs>
+        {/* Radial inner glow from center */}
+        {/* Radial inner glow — near-zero, just enough for glass edge */}
+        <RadialGradient
+          id="capsuleGlow"
+          cx="50%" cy="50%" r="50%"
+          fx="50%" fy="50%"
+        >
+          <Stop offset="0%"   stopColor="#FFFFFF" stopOpacity={0.00} />
+          <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0.00} />
+        </RadialGradient>
+
+        {/* Top-half sheen — only the very top edge catches light */}
+        <LinearGradient id="capsuleSheen" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0%"   stopColor="#FFFFFF" stopOpacity={0.06} />
+          <Stop offset="30%"  stopColor="#FFFFFF" stopOpacity={0.00} />
+          <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0.00} />
+        </LinearGradient>
+      </Defs>
+
+      {/* Full inner glow */}
+      <Rect
+        x={0} y={0}
+        width={w} height={h}
+        rx={r} ry={r}
+        fill="url(#capsuleGlow)"
+      />
+
+      {/* Top-half vertical sheen */}
+      <Rect
+        x={0} y={0}
+        width={w} height={h * 0.55}
+        rx={r} ry={r}
+        fill="url(#capsuleSheen)"
+      />
+
+      {/* Specular removed — too opaque */}
+    </Svg>
+  );
+});
+
+// ─── GlassCapsule — active tab indicator ──────────────────────────────────────
+interface GlassCapsuleProps {
+  capsuleStyle: ReturnType<typeof useAnimatedStyle>;
+  capsuleW: number;
+}
+
+const GlassCapsule = memo(function GlassCapsule({
+  capsuleStyle,
+  capsuleW,
+}: GlassCapsuleProps) {
+  const w = capsuleW;
+  const h = CAPSULE_H;
+
+  return (
+    <Animated.View
+      style={[s.capsuleOuter, capsuleStyle]}
+      pointerEvents="none"
+    >
+      {/* Outer hairline border (sits outside overflow:hidden) */}
+      <View style={s.capsuleRim} />
+
+      {/* Inner glass body */}
+      <View style={s.capsuleInner}>
+        {/* L1: Blur — lower intensity = less white haze, more see-through */}
+        <BlurView
+          intensity={Platform.OS === "ios" ? 55 : 35}
+          tint={Platform.OS === "ios" ? "systemMaterialLight" : "light"}
+          style={StyleSheet.absoluteFillObject}
+        />
+
+        {/* L2: Milk glass white tint */}
+        <View
+          style={[
+            StyleSheet.absoluteFillObject,
+            {
+              backgroundColor:
+                Platform.OS === "ios" ? CAP_MILK : CAP_MILK_ANDROID,
+            },
+          ]}
+        />
+
+        {/* L3 + L4: SVG inner glow + specular */}
+        {w > 0 && <CapsuleGlow w={w} h={h} />}
+
+        {/* L4: Top meniscus — bright 1 px line */}
+        <View style={s.capsuleMeniscus} />
+      </View>
+    </Animated.View>
+  );
+});
+
+// ─── TabBtn ────────────────────────────────────────────────────────────────────
 interface TabBtnProps {
-  route: any;
-  focused: boolean;
-  options: any;
-  onPress: () => void;
-  lift: Animated.SharedValue<number>;
-  scale: Animated.SharedValue<number>;
+  route:        any;
+  focused:      boolean;
+  options:      any;
+  onPress:      () => void;
+  lift:         Animated.SharedValue<number>;
+  scale:        Animated.SharedValue<number>;
+  capsuleWidth: Animated.SharedValue<number>;
 }
 
 const TabBtn = memo(function TabBtn({
@@ -67,17 +251,35 @@ const TabBtn = memo(function TabBtn({
   onPress,
   lift,
   scale,
+  capsuleWidth,
 }: TabBtnProps) {
+  // Icon + label rise and scale
   const contentStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: lift.value }, { scale: scale.value }],
+    transform: [
+      { translateY: lift.value },
+      { scale: scale.value },
+    ],
   }));
 
-  const capsuleStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(focused ? 1 : 0, { duration: FADE_MS }),
+  // Capsule: fade in + gentle scaleX spring
+  const capsuleAnim = useAnimatedStyle(() => ({
+    opacity:   withTiming(focused ? 1 : 0, { duration: FADE_DUR }),
+    transform: [
+      {
+        scaleX: withTiming(focused ? 1 : 0.82, {
+          duration: SCALE_DUR,
+        }),
+      },
+    ],
+  }));
+
+  // Dynamic icon opacity — fully opaque when active, dimmed when not
+  const iconOpacity = useAnimatedStyle(() => ({
+    opacity: withTiming(focused ? 1 : 0.58, { duration: FADE_DUR }),
   }));
 
   const iconColor = focused ? ICON_ACTIVE : ICON_INACTIVE;
-  const icon = options.tabBarIcon?.({ focused, color: iconColor, size: 22 });
+  const icon      = options.tabBarIcon?.({ focused, color: iconColor, size: 22 });
   const label =
     typeof options.tabBarLabel === "string"
       ? options.tabBarLabel
@@ -85,27 +287,42 @@ const TabBtn = memo(function TabBtn({
         ? options.title
         : route.name;
 
+  const onLayout = useCallback(
+    (e: any) => {
+      if (focused) {
+        capsuleWidth.value = e.nativeEvent.layout.width;
+      }
+    },
+    [focused, capsuleWidth],
+  );
+
   return (
     <TouchableOpacity
       onPress={onPress}
+      onLayout={onLayout}
       activeOpacity={1}
       style={s.tabBtn}
       accessibilityRole="tab"
       accessibilityState={{ selected: focused }}
       accessibilityLabel={label}
     >
-      {/* White frosted capsule - fades in/out on active tab */}
-      <Animated.View style={[s.activeCapsule, capsuleStyle]} pointerEvents="none" />
+      {/* ── Active glass capsule ──────────────────────────────────────────── */}
+      <GlassCapsule
+        capsuleStyle={capsuleAnim}
+        capsuleW={capsuleWidth.value}
+      />
 
-      {/* Icon + label */}
+      {/* ── Icon + label ──────────────────────────────────────────────────── */}
       <Animated.View style={[s.btnContent, contentStyle]}>
-        <View style={s.iconWrap}>{icon}</View>
+        <Animated.View style={[s.iconWrap, iconOpacity]}>
+          {icon}
+        </Animated.View>
         <Text
           numberOfLines={1}
           style={[
             s.tabLabel,
             {
-              color: iconColor,
+              color:      iconColor,
               fontWeight: focused ? "700" : "500",
             },
           ]}
@@ -117,31 +334,22 @@ const TabBtn = memo(function TabBtn({
   );
 });
 
-// --- Main bar ------------------------------------------------------------------
+// ─── LiquidGlassBar ────────────────────────────────────────────────────────────
 export function LiquidGlassBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
 
-  // Pre-allocate 5 slots for icon animations
+  // Measure pill width for SVG sheen
+  const [pillW, setPillW] = React.useState(0);
+
+  // Pre-allocate 5 animation slots (hooks count must be static)
   /* eslint-disable react-hooks/rules-of-hooks */
-  const l = [
-    useSharedValue(0),
-    useSharedValue(0),
-    useSharedValue(0),
-    useSharedValue(0),
-    useSharedValue(0),
-  ];
-  const sc = [
-    useSharedValue(1),
-    useSharedValue(1),
-    useSharedValue(1),
-    useSharedValue(1),
-    useSharedValue(1),
-  ];
+  const lifts        = [useSharedValue(0), useSharedValue(0), useSharedValue(0), useSharedValue(0), useSharedValue(0)];
+  const scales       = [useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1)];
+  const capsuleWidths = [useSharedValue(0), useSharedValue(0), useSharedValue(0), useSharedValue(0), useSharedValue(0)];
   /* eslint-enable react-hooks/rules-of-hooks */
 
   const prevIdx = useRef(-1);
 
-  // Only routes with tabBarIcon declared (hidden routes are excluded)
   const visibleRoutes = state.routes.filter(
     (r: any) => descriptors[r.key].options.tabBarIcon !== undefined,
   );
@@ -150,66 +358,91 @@ export function LiquidGlassBar({ state, descriptors, navigation }: any) {
     (r: any) => r.key === state.routes[state.index]?.key,
   );
 
-  const animIcons = useCallback((next: number, prev: number) => {
-    if (next < l.length) {
-      l[next].value = withSpring(-3, LIFT_SPRING);
-      sc[next].value = withSequence(
-        withSpring(1.12, SCALE_SPRING),
-        withSpring(1.0, SCALE_SPRING),
+  const animateTab = useCallback((next: number, prev: number) => {
+    if (next < lifts.length) {
+      lifts[next].value  = withSpring(-5, LIFT_CFG);
+      scales[next].value = withSequence(
+        withSpring(1.12, SCALE_CFG),
+        withSpring(1.00, SCALE_CFG),
       );
     }
-    if (prev >= 0 && prev < l.length && prev !== next) {
-      l[prev].value = withSpring(0, LIFT_SPRING);
-      sc[prev].value = withSpring(1.0, SCALE_SPRING);
+    if (prev >= 0 && prev < lifts.length && prev !== next) {
+      lifts[prev].value  = withSpring(0, LIFT_CFG);
+      scales[prev].value = withSpring(1.0, SCALE_CFG);
     }
   }, []);
 
-  // Initialize icon states on first render
   React.useEffect(() => {
     const idx = activeVIdx >= 0 ? activeVIdx : 0;
     if (prevIdx.current === -1) {
-      if (idx < l.length) l[idx].value = -3;
+      if (idx < lifts.length) lifts[idx].value = -5;
       prevIdx.current = idx;
     }
   }, []);
 
-  // React to navigation changes
   React.useEffect(() => {
     const idx = activeVIdx >= 0 ? activeVIdx : 0;
     if (prevIdx.current !== idx) {
-      animIcons(idx, prevIdx.current);
+      animateTab(idx, prevIdx.current);
       prevIdx.current = idx;
     }
   }, [state.index]);
 
-  const bottom = Math.max(insets.bottom, 6) + BOTTOM_FLOAT;
+  const bottom = Math.max(insets.bottom, 4) + BOTTOM_FLOAT;
 
   return (
-    <View style={[s.wrapper, { bottom }]} pointerEvents="box-none">
-      {/* Glass pill container */}
-      <View style={s.pill}>
-        {/* Layer 1: Blur (frosted glass base) */}
+    <View
+      style={[s.wrapper, { bottom }]}
+      pointerEvents="box-none"
+    >
+      {/* ── Shadow system ──────────────────────────────────────────────────── */}
+      {/* L0a: Deep drop shadow */}
+      <View style={[   { borderRadius: CORNER }]} />
+      {/* L0b: Soft ambient shadow */}
+      <View style={[ { borderRadius: CORNER }]} />
+      {/* L0c: Subtle green glow (brand color) */}
+      <View style={[    { borderRadius: CORNER }]} />
+
+      {/* ── Glass pill ─────────────────────────────────────────────────────── */}
+      <View
+        style={s.pill}
+        onLayout={(e) => setPillW(e.nativeEvent.layout.width)}
+      >
+        {/* L1: Primary blur — frosted glass base */}
         <BlurView
           intensity={Platform.OS === "ios" ? 90 : 55}
           tint={Platform.OS === "ios" ? "systemChromeMaterial" : "light"}
           style={StyleSheet.absoluteFillObject}
         />
 
-        {/* Layer 2: White tint wash */}
+        {/* L2: Milk glass warm white tint */}
         <View
           style={[
             StyleSheet.absoluteFillObject,
-            s.tintBase,
-            Platform.OS === "android" && s.tintAndroid,
+            {
+              backgroundColor:
+                Platform.OS === "ios" ? PILL_MILK : PILL_MILK_ANDROID,
+            },
           ]}
           pointerEvents="none"
         />
+
+        {/* L3: SVG specular diagonal sheen */}
+        {pillW > 0 && (
+          <PillSpecular w={pillW} h={BAR_H} />
+        )}
+
+        {/* L4: Top meniscus — bright 1 px hairline */}
+        <View style={s.pillMeniscus} pointerEvents="none" />
+
+        {/* L5: Bottom inner depth shadow */}
+        <View style={s.pillBottomDepth} pointerEvents="none" />
 
         {/* Tabs */}
         <View style={s.row}>
           {visibleRoutes.map((route: any, i: number) => {
             const { options } = descriptors[route.key];
-            const focused = route.key === state.routes[state.index]?.key;
+            const focused     = route.key === state.routes[state.index]?.key;
 
             const onPress = () => {
               const ev = navigation.emit({
@@ -229,91 +462,163 @@ export function LiquidGlassBar({ state, descriptors, navigation }: any) {
                 focused={focused}
                 options={options}
                 onPress={onPress}
-                lift={l[i] ?? l[0]}
-                scale={sc[i] ?? sc[0]}
+                lift={lifts[i]        ?? lifts[0]}
+                scale={scales[i]      ?? scales[0]}
+                capsuleWidth={capsuleWidths[i] ?? capsuleWidths[0]}
               />
             );
           })}
         </View>
       </View>
 
+      {/* L6: Outer rim — hairline border */}
+      <View
+        style={[s.pillOuterRim, { borderRadius: CORNER }]}
+        pointerEvents="none"
+      />
     </View>
   );
 }
 
-// --- Styles --------------------------------------------------------------------
+// ─── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   wrapper: {
     position: "absolute",
-    left: H_INSET,
-    right: H_INSET,
-    height: BAR_H,
+    left:     H_INSET,
+    right:    H_INSET,
+    height:   BAR_H,
   },
 
+  // ── Shadow system ────────────────────────────────────────────────────────────
+  shadowDeep: {
+
+  },
+  shadowAmbient: {
+
+  },
+  // Subtle brand-colored glow underneath
+  shadowGlow: {
+
+  },
+
+  // ── Glass pill ───────────────────────────────────────────────────────────────
   pill: {
-    flex: 1,
-    height: BAR_H,
+    flex:         1,
+    height:       BAR_H,
     borderRadius: CORNER,
-    overflow: "hidden",
+    overflow:     "hidden",   // clips all inner layers
+    ...Platform.select({ android: { elevation: 18 } }),
   },
 
-  // iOS tint: very light (glass shows through)
-  tintBase: {
+  // 1 px meniscus at very top of pill
+  pillMeniscus: {
+    position:        "absolute",
+    top:             0,
+    left:            CORNER * 0.55,
+    right:           CORNER * 0.55,
+    height:          1,
+    backgroundColor: PILL_MENISCUS,
+    borderRadius:    1,
+  },
+
+  // Inner shadow at bottom edge — makes pill feel deep
+  pillBottomDepth: {
+
+  },
+
+  // Outer hairline rim (outside overflow:hidden, so it shows)
+  pillOuterRim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-  },
-  // Android tint: heavier to compensate for weaker blur
-  tintAndroid: {
-    backgroundColor: "rgba(244, 244, 246, 0.82)",
+    borderWidth:     1,
+    borderColor:     PILL_BORDER,
+    backgroundColor: "transparent",
   },
 
+  // ── Tab row ──────────────────────────────────────────────────────────────────
   row: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 6,
-    zIndex: 2,
+    flex:              1,
+    flexDirection:     "row",
+    alignItems:        "center",
+    paddingHorizontal: 4,
+    zIndex:            2,
   },
 
   tabBtn: {
-    flex: 1,
-    height: BAR_H,
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative",
+    flex:            1,
+    height:          BAR_H,
+    alignItems:      "center",
+    justifyContent:  "center",
+    position:        "relative",
   },
 
-  activeCapsule: {
-    position: "absolute",
-    top: CAPSULE_V,
-    left: 4,
-    right: 4,
-    height: CAPSULE_H,
+  // ── Glass capsule (active indicator) ─────────────────────────────────────────
+
+  // Outer wrapper — position + animation target
+  // overflow:visible so the outer rim shows outside the clipped inner
+  capsuleOuter: {
+    position:     "absolute",
+    top:          CAPSULE_V,
+    left:         4,
+    right:        4,
+    height:       CAPSULE_H,
     borderRadius: CAPSULE_H / 2,
-    backgroundColor:
-      Platform.OS === "ios"
-        ? "rgba(255, 255, 255, 0.80)"
-        : "rgba(225, 224, 224, 0.96)",
+    // Outer border ring visible outside clipped inner
+    borderWidth:  0.8,
+    borderColor:  CAP_BORDER,
+    // Capsule shadow for depth (lifts above pill)
+    shadowColor:  "#a0a0a0",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.10,
+    shadowRadius:  6,
+    elevation:    3,
   },
 
+  // Inner body — clips blur + tint + glow to border radius
+  capsuleInner: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: CAPSULE_H / 2,
+    overflow:     "hidden",
+  },
+
+  // Hairline rim inside the clipped area
+  capsuleRim: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: CAPSULE_H / 2,
+    borderWidth:  0.5,
+    borderColor:  "rgba(255,255,255,0.40)",
+    zIndex:       10,
+  },
+
+  // 1 px bright meniscus on top of capsule
+  capsuleMeniscus: {
+    position:        "absolute",
+    top:             0,
+    left:            CAPSULE_H * 0.4,
+    right:           CAPSULE_H * 0.4,
+    height:          1,
+    backgroundColor: CAP_MENISCUS,
+    borderRadius:    1,
+    opacity:         0.9,
+  },
+
+  // ── Icon + label ─────────────────────────────────────────────────────────────
   btnContent: {
-    alignItems: "center",
+    alignItems:     "center",
     justifyContent: "center",
-    gap: 3,
-    zIndex: 1,
+    gap:            3,
+    zIndex:         3,
   },
 
   iconWrap: {
-    width: 26,
-    height: 26,
-    alignItems: "center",
+    width:          26,
+    height:         26,
+    alignItems:     "center",
     justifyContent: "center",
   },
 
   tabLabel: {
-    fontSize: 10.5,
+    fontSize:      10.5,
     letterSpacing: 0.1,
-    textAlign: "center",
+    textAlign:     "center",
   },
-
 });

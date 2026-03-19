@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -31,13 +31,13 @@ import {
 
 // ─── Design tokens (Apple-style) ──────────────────────────────────────────────
 const APPLE = {
-  bg: "#F2F2F7",          // iOS system grouped background
+  bg: "#F2F2F7", // iOS system grouped background
   surface: "#FFFFFF",
   surfaceSecondary: "#F2F2F7",
   separator: "#C6C6C8",
   label: "#000000",
-  labelSecondary: "#3C3C43CC",  // 80% opacity
-  labelTertiary: "#3C3C4399",   // 60% opacity
+  labelSecondary: "#3C3C43CC", // 80% opacity
+  labelTertiary: "#3C3C4399", // 60% opacity
   blue: "#007AFF",
   green: "#34C759",
   red: "#FF3B30",
@@ -332,9 +332,7 @@ const emptyStyles = StyleSheet.create({
 function SectionHeader({ count }: { count: number }) {
   return (
     <View style={sectionStyles.row}>
-      <Text style={sectionStyles.label}>
-        {count} bài tập
-      </Text>
+      <Text style={sectionStyles.label}>{count} bài tập</Text>
     </View>
   );
 }
@@ -419,8 +417,9 @@ export default function StudentAssignmentsScreen() {
             onPress={() => router.push(`/student/assignments/${item._id}`)}
           />
         )}
+        
       />
-      <View style={{ height: Spacing.xxxl * 2 }} /> 
+      
     </View>
   );
 }
