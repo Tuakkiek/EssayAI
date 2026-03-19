@@ -205,9 +205,6 @@ export function LiquidGlassBar({ state, descriptors, navigation }: any) {
           pointerEvents="none"
         />
 
-        {/* Layer 3: Top meniscus highlight */}
-        <View style={s.topEdge} pointerEvents="none" />
-
         {/* Tabs */}
         <View style={s.row}>
           {visibleRoutes.map((route: any, i: number) => {
@@ -270,17 +267,6 @@ const s = StyleSheet.create({
     backgroundColor: "rgba(244, 244, 246, 0.82)",
   },
 
-  topEdge: {
-    position: "absolute",
-    top: 0,
-    left: CORNER * 0.5,
-    right: CORNER * 0.5,
-    height: 1,
-    borderRadius: 0.5,
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    zIndex: 10,
-  },
-
   row: {
     flex: 1,
     flexDirection: "row",
@@ -308,12 +294,6 @@ const s = StyleSheet.create({
       Platform.OS === "ios"
         ? "rgba(255, 255, 255, 0.80)"
         : "rgba(225, 224, 224, 0.96)",
-    ...Platform.select({
-      android: {
-        borderWidth: 0.5,
-        borderColor: "rgba(255, 255, 255, 0.95)",
-      },
-    }),
   },
 
   btnContent: {
