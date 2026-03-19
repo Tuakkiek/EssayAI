@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { classApi, getErrorMessage } from "../services/api";
 import { useRoleGuard } from "../hooks/useRoleGuard";
+import { BackButton } from "../components/BackButton";
 
 type Step = "count" | "form" | "result";
 
@@ -106,9 +107,7 @@ export default function TeacherCreateStudentsScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.backText}>Quay lại</Text>
-        </TouchableOpacity>
+        <BackButton label="Chi tiết lớp" onPress={() => router.back()} />
         <Text style={styles.headerTitle}>Tạo học sinh</Text>
         <View style={{ width: 60 }} />
       </View>
@@ -209,7 +208,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   headerTitle: { ...Typography.heading3 },
   panel: { padding: Spacing.lg },
   label: { ...Typography.label, marginBottom: Spacing.xs },

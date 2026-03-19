@@ -21,6 +21,8 @@ export default function AdminUsersScreen() {
       const res = await adminApi.getUsers();
       const data = res.data?.data?.users ?? res.data?.data ?? [];
       setUsers(data);
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
     } finally {
       setLoading(false);
     }

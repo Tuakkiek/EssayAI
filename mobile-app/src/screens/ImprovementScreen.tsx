@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react"
+import React, { useState } from "react"
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, Alert
@@ -7,8 +7,8 @@ import { useLocalSearchParams } from "expo-router"
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme"
 import api from "../services/api"
 import { useBack } from "../hooks/useBack"
+import { BackButton } from "../components/BackButton"
 
-// â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 type Tool = "rewrite" | "vocabulary" | "grammar"
 
 interface RewriteResult {
@@ -39,7 +39,6 @@ interface GrammarResult {
   grammarBandNote: string
 }
 
-// â”€â”€ API helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const callImprovement = async (tool: Tool, essayId: string): Promise<unknown> => {
   const res = await api.post(`/improvement/${tool}`, { essayId })
   const data = res.data
@@ -47,7 +46,6 @@ const callImprovement = async (tool: Tool, essayId: string): Promise<unknown> =>
   return data.data || data
 }
 
-// â”€â”€ Tool Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ToolButton({ icon, label, desc, active, loading, onPress }: {
   icon: string; label: string; desc: string; active: boolean; loading: boolean; onPress: () => void
 }) {
@@ -69,7 +67,6 @@ function ToolButton({ icon, label, desc, active, loading, onPress }: {
   )
 }
 
-// â”€â”€ Rewrite result panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function RewritePanel({ result }: { result: RewriteResult }) {
   const [showChanges, setShowChanges] = useState(false)
   const typeColors: Record<string, string> = {
@@ -136,7 +133,6 @@ function RewritePanel({ result }: { result: RewriteResult }) {
   )
 }
 
-// â”€â”€ Vocabulary result panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function VocabPanel({ result }: { result: VocabResult }) {
   return (
     <View>
@@ -175,7 +171,6 @@ function VocabPanel({ result }: { result: VocabResult }) {
   )
 }
 
-// â”€â”€ Grammar result panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function GrammarPanel({ result }: { result: GrammarResult }) {
   return (
     <View>
@@ -217,7 +212,6 @@ function GrammarPanel({ result }: { result: GrammarResult }) {
   )
 }
 
-// â”€â”€ Main Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function ImprovementScreen() {
   const goBack = useBack("/")
   const { essayId } = useLocalSearchParams<{ essayId: string }>()
@@ -251,9 +245,7 @@ export default function ImprovementScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
-          <Text style={styles.backText}>← Quay lại</Text>
-        </TouchableOpacity>
+        <BackButton label="Trang chủ" onPress={goBack} />
         <Text style={styles.headerTitle}>AI Improvement Tools</Text>
         <View style={{ width: 60 }} />
       </View>
@@ -313,8 +305,6 @@ export default function ImprovementScreen() {
 const styles = StyleSheet.create({
   container:    { flex: 1, backgroundColor: Colors.background },
   header:       { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: Colors.surface, paddingTop: 52, paddingBottom: 12, paddingHorizontal: Spacing.lg, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  backBtn:      { paddingVertical: 4, paddingRight: 12 },
-  backText:     { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   headerTitle:  { ...Typography.heading3 },
   content:      { padding: Spacing.lg },
   intro:        { ...Typography.body, color: Colors.textSecondary, marginBottom: Spacing.lg, lineHeight: 22 },
@@ -379,7 +369,6 @@ const styles = StyleSheet.create({
   tipBox:       { backgroundColor: Colors.warningLight, borderRadius: Radius.md, padding: Spacing.md },
   tipText:      { ...Typography.bodySmall, color: Colors.warning, fontWeight: "600", lineHeight: 18 },
 })
-
 
 
 

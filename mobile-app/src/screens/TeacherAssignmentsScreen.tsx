@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
-import { assignmentApi } from "../services/api";
+import { assignmentApi, getErrorMessage } from "../services/api";
 import { Assignment } from "../types";
 import { useRoleGuard } from "../hooks/useRoleGuard";
 
@@ -30,6 +30,8 @@ export default function TeacherAssignmentsScreen() {
       const res = await assignmentApi.getAll();
       const data = res.data?.data?.assignments ?? res.data?.data ?? [];
       setAssignments(data);
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -156,7 +158,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: Spacing.lg,
-    bottom: Spacing.lg,
+    bottom: Spacing.xxxl * 2 + Spacing.lg,
     backgroundColor: Colors.primary,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.lg,

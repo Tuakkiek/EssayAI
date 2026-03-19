@@ -11,10 +11,13 @@ import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { classApi, getErrorMessage } from "../services/api";
 import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useBack } from "../hooks/useBack";
+import { BackButton } from "../components/BackButton";
 
 export default function TeacherClassCreateScreen() {
   useRoleGuard(["teacher", "admin"]);
   const router = useRouter();
+  const goBack = useBack("/teacher/classes");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,9 +41,7 @@ export default function TeacherClassCreateScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.navigate("/teacher/classes")}>
-          <Text style={styles.backText}>Quay lại</Text>
-        </TouchableOpacity>
+        <BackButton label="Lớp học" onPress={goBack} />
         <Text style={styles.headerTitle}>Tạo lớp mới</Text>
         <View style={{ width: 60 }} />
       </View>
@@ -90,7 +91,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   headerTitle: { ...Typography.heading3 },
   content: { padding: Spacing.lg },
   label: { ...Typography.label, marginBottom: Spacing.xs },

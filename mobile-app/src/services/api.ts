@@ -2,6 +2,7 @@
 import * as SecureStore from "expo-secure-store";
 import { ApiResponse } from "../types";
 import { API_ROOT_URL } from "../config/api";
+import { emitUnauthorized } from "./authEvents";
 
 // Base URL from Expo config
 const api = axios.create({
@@ -26,6 +27,14 @@ api.interceptors.response.use(
         "Cannot connect to server. Check your internet or make sure the server is running.";
     } else if (error.response.status === 401) {
       error.friendlyMessage = "Session expired. Please log in again.";
+      const url = String(error.config?.url ?? "");
+      const isAuthEndpoint =
+        url.includes("/api/auth/login") ||
+        url.includes("/api/auth/register") ||
+        url.includes("/api/auth/logout");
+      if (!isAuthEndpoint) {
+        emitUnauthorized();
+      }
     } else if (error.response.status >= 500) {
       error.friendlyMessage = "Server error. Please try again later.";
     }

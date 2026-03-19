@@ -16,6 +16,8 @@ import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { assignmentApi, classApi, getErrorMessage } from "../services/api";
 import { Class, GradingCriteria, RequiredVocabulary, BandDescriptor } from "../types";
 import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useBack } from "../hooks/useBack";
+import { BackButton } from "../components/BackButton";
 
 const BAND_LEVELS = [4.0, 5.0, 6.0, 7.0, 8.0];
 
@@ -23,6 +25,7 @@ export default function TeacherAssignmentCreateScreen() {
   useRoleGuard(["teacher", "admin"]);
 
   const router = useRouter();
+  const goBack = useBack("/teacher/assignments");
   const [classes, setClasses] = useState<Class[]>([]);
   const [classId, setClassId] = useState("");
   const [showClassPicker, setShowClassPicker] = useState(false);
@@ -46,10 +49,14 @@ export default function TeacherAssignmentCreateScreen() {
   });
 
   const loadClasses = useCallback(async () => {
-    const res = await classApi.getAll();
-    const data = res.data?.data?.classes ?? res.data?.data ?? [];
-    setClasses(data);
-    if (!classId && data.length > 0) setClassId(data[0]._id);
+    try {
+      const res = await classApi.getAll();
+      const data = res.data?.data?.classes ?? res.data?.data ?? [];
+      setClasses(data);
+      if (!classId && data.length > 0) setClassId(data[0]._id);
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
+    }
   }, [classId]);
 
   useEffect(() => {
@@ -119,9 +126,7 @@ export default function TeacherAssignmentCreateScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.navigate("/teacher/assignments")}>
-          <Text style={styles.backText}>Quay lại</Text>
-        </TouchableOpacity>
+        <BackButton label="Bài tập" onPress={goBack} />
         <Text style={styles.headerTitle}>Tạo bài tập</Text>
         <View style={{ width: 60 }} />
       </View>
@@ -129,7 +134,7 @@ export default function TeacherAssignmentCreateScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionHeader}>Thông tin cơ bản</Text>
 
-        <Text style={styles.label}>Tiêu đề *</Text>
+        <Text style={styles.label}>Tiêu đề</Text>
         <TextInput
           style={styles.input}
           value={title}
@@ -150,7 +155,7 @@ export default function TeacherAssignmentCreateScreen() {
 
 
 
-        <Text style={styles.label}>Đề bài *</Text>
+        <Text style={styles.label}>Đề bài</Text>
         <TextInput
           style={[styles.input, { minHeight: 100 }]}
           value={prompt}
@@ -160,7 +165,7 @@ export default function TeacherAssignmentCreateScreen() {
           placeholderTextColor={Colors.textMuted}
         />
 
-        <Text style={styles.label}>Lớp học *</Text>
+        <Text style={styles.label}>Lớp học</Text>
         <TouchableOpacity
           style={styles.select}
           onPress={() => setShowClassPicker(true)}
@@ -170,7 +175,7 @@ export default function TeacherAssignmentCreateScreen() {
           </Text>
         </TouchableOpacity>
 
-        <Text style={styles.label}>Hạn nộp *</Text>
+        <Text style={styles.label}>Hạn nộp</Text>
         {Platform.OS === "web" ? (
           <TextInput
             style={styles.input}
@@ -200,7 +205,7 @@ export default function TeacherAssignmentCreateScreen() {
           keyboardType="numeric"
         />
 
-        <Text style={styles.sectionHeader}>📋 Tiêu chí chấm điểm (VSTEP)</Text>
+        <Text style={styles.sectionHeader}>Tiêu chí chấm điểm (VSTEP)</Text>
         <Text style={styles.sectionHint}>
           Các tiêu chí này sẽ được gửi kèm cho AI khi chấm bài của học sinh
         </Text>
@@ -215,7 +220,7 @@ export default function TeacherAssignmentCreateScreen() {
 
         <Text style={styles.criteriaLabel}>Từ vựng yêu cầu</Text>
         <Text style={styles.criteriaHint}>
-          Thêm từ vựng học sinh nên dùng. Nếu không dùng đúng từ, AI sẽ trừ điểm Lexical Resource.
+          Thêm từ vựng học sinh nên dùng. Nếu không dùng đúng từ, AI sẽ trừ điểm.
         </Text>
         {(criteria.requiredVocabulary ?? []).map((v, i) => (
           <View key={i} style={styles.vocabRow}>
@@ -373,7 +378,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   headerTitle: { ...Typography.heading3 },
   content: { padding: Spacing.lg, paddingBottom: 40 },
   sectionHeader: { ...Typography.heading3, marginBottom: Spacing.sm },
@@ -439,6 +443,3 @@ const styles = StyleSheet.create({
   modalCancel: { marginTop: Spacing.md, alignItems: "center" },
   modalCancelText: { ...Typography.body, color: Colors.textSecondary },
 });
-
-
-

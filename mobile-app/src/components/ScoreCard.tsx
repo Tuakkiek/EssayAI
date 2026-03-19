@@ -95,7 +95,7 @@ export function ScoreCard({ score, label, message, animate = true }: ScoreCardPr
       <Text style={[styles.scoreNum, { color: band.color }]}>
         {displayScore.toFixed(1)}
       </Text>
-      <Text style={styles.scoreSubLabel}>IELTS Band Score</Text>
+      <Text style={styles.scoreSubLabel}>Vstep Band Score</Text>
 
       {/* Message */}
       {message && (

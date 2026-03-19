@@ -16,13 +16,26 @@ import {
   Animated,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { ChevronLeft, Share2 } from "lucide-react-native";
-import { Colors, Radius, Shadow, Spacing, Typography } from "../constants/theme";
+import { Share2 } from "lucide-react-native";
+import {
+  Colors,
+  Radius,
+  Shadow,
+  Spacing,
+  Typography,
+} from "../constants/theme";
+import { BackButton } from "../components/BackButton";
 import { ScoreCard } from "../components/ScoreCard";
 import { FeedbackCard } from "../components/FeedbackCard";
 import { ProgressIndicator } from "../components/ProgressIndicator";
 import { AppButton } from "../components/AppButton";
-import { essayApi, getErrorMessage, extractEssay, submissionApi } from "../services/api";
+import {
+  essayApi,
+  getErrorMessage,
+  extractEssay,
+  submissionApi,
+  studentApi,
+} from "../services/api";
 import { Essay, GrammarError, Suggestion } from "../types";
 import { useAuth } from "../context/AuthContext";
 
@@ -31,12 +44,12 @@ const MAX_POLLS = 40;
 
 // ── Encouragement messages by score ──────────────────────────────────────────
 function getEncouragementMessage(score: number): string {
-  if (score >= 8)   return "Outstanding! You're in the top tier.";
-  if (score >= 7)   return "Excellent work! Your skills are strong.";
-  if (score >= 6.5) return "Great effort! You're making real progress.";
-  if (score >= 6)   return "Good job! Keep practicing to level up.";
-  if (score >= 5)   return "Nice try! Every essay makes you stronger.";
-  return "Keep going! This is just the beginning of your journey.";
+  if (score >= 8) return "Xuất sắc! Bạn đang ở nhóm điểm cao nhất.";
+  if (score >= 7) return "Rất tốt! Kỹ năng của bạn khá vững.";
+  if (score >= 6.5) return "Cố gắng rất tốt! Bạn đang tiến bộ rõ rệt.";
+  if (score >= 6) return "Khá tốt! Hãy tiếp tục luyện tập để nâng cao hơn.";
+  if (score >= 5) return "Ổn đấy! Mỗi bài viết sẽ giúp bạn cải thiện hơn.";
+  return "Hãy tiếp tục cố gắng! Đây mới chỉ là bước khởi đầu.";
 }
 
 // ── Map grammar errors → FeedbackCard props ──────────────────────────────────
@@ -54,10 +67,9 @@ function mapErrors(errors: GrammarError[]): Array<{
     .map((e) => ({
       category: "grammar" as const,
       problem: e.explanation ?? e.message ?? "Review this phrase.",
-      suggestion:
-        e.corrected
-          ? `Try: "${e.corrected}"`
-          : "Consider rephrasing for clarity.",
+      suggestion: e.corrected
+        ? `Try: "${e.corrected}"`
+        : "Consider rephrasing for clarity.",
       original: e.original,
       corrected: e.corrected,
       detail: e.explanation,
@@ -73,10 +85,10 @@ function mapSuggestions(suggestions: Suggestion[]): Array<{
 }> {
   const catMap: Record<string, "vocabulary" | "clarity" | "structure"> = {
     vocabulary: "vocabulary",
-    coherence:  "clarity",
-    structure:  "structure",
-    argument:   "structure",
-    general:    "clarity",
+    coherence: "clarity",
+    structure: "structure",
+    argument: "structure",
+    general: "clarity",
   };
 
   return suggestions
@@ -84,15 +96,21 @@ function mapSuggestions(suggestions: Suggestion[]): Array<{
     .slice(0, 4)
     .map((s) => ({
       category: catMap[s.category ?? s.type ?? "general"] ?? "clarity",
-      problem:  s.original ?? "Review this area.",
-      suggestion: s.text ?? s.explanation ?? s.improved ?? "Consider this improvement.",
+      problem: s.original ?? "Xem lại phần này.",
+      suggestion:
+        s.text ??
+        s.explanation ??
+        s.improved ??
+        "Hãy cân nhắc cách cải thiện sau.",
       detail: s.explanation,
     }));
 }
 
 export default function ResultScreen() {
   const router = useRouter();
-  const { essayId: rawParam } = useLocalSearchParams<{ essayId?: string | string[] }>();
+  const { essayId: rawParam } = useLocalSearchParams<{
+    essayId?: string | string[];
+  }>();
   const essayId = Array.isArray(rawParam) ? rawParam[0] : rawParam;
   const { user } = useAuth();
 
@@ -105,14 +123,53 @@ export default function ResultScreen() {
   const [pollCount, setPollCount] = useState(0);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [isNextLoading, setIsNextLoading] = useState(false);
+
+  const handleNextAssignment = async () => {
+    if (isTeacher) {
+      router.navigate("/" as any);
+      return;
+    }
+
+    setIsNextLoading(true);
+    try {
+      const res = await studentApi.getAssignments();
+      const assignments = res.data?.data?.assignments ?? res.data?.data ?? [];
+
+      const pending = assignments.find((a: any) => {
+        const isSubmitted = !!a.mySubmission;
+        const isExpired = new Date(a.dueDate) < new Date();
+        return !isSubmitted && !isExpired;
+      });
+
+      if (pending) {
+        router.push(`/student/assignments/${pending._id}` as any);
+      } else {
+        router.navigate("/" as any);
+      }
+    } catch (err) {
+      router.navigate("/" as any);
+    } finally {
+      setIsNextLoading(false);
+    }
+  };
+
   // Fade-in for result
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
   const revealResult = useCallback(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, [fadeAnim, slideAnim]);
 
@@ -132,9 +189,14 @@ export default function ResultScreen() {
         if (!data) {
           if (attempt < MAX_POLLS) {
             setPollCount(attempt + 1);
-            pollRef.current = setTimeout(() => fetchEssay(attempt + 1), POLL_MS);
+            pollRef.current = setTimeout(
+              () => fetchEssay(attempt + 1),
+              POLL_MS,
+            );
           } else {
-            setError("Grading is taking longer than usual. Check History in a moment.");
+            setError(
+              "Grading is taking longer than usual. Check History in a moment.",
+            );
             setLoading(false);
           }
           return;
@@ -182,12 +244,10 @@ export default function ResultScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.simpleHeader}>
-          <TouchableOpacity
+          <BackButton
+            label={isTeacher ? "Tiến độ" : "Lịch sử"}
             onPress={() => router.replace(historyRoute as any)}
-            style={styles.backBtn}
-          >
-            <ChevronLeft size={24} color={Colors.text} strokeWidth={2} />
-          </TouchableOpacity>
+          />
           <Text style={styles.headerTitle}>Grading...</Text>
           <View style={{ width: 40 }} />
         </View>
@@ -206,9 +266,10 @@ export default function ResultScreen() {
     return (
       <View style={styles.container}>
         <View style={styles.simpleHeader}>
-          <TouchableOpacity onPress={() => router.replace(historyRoute as any)} style={styles.backBtn}>
-            <ChevronLeft size={24} color={Colors.text} strokeWidth={2} />
-          </TouchableOpacity>
+          <BackButton
+            label={isTeacher ? "Tiến độ" : "Lịch sử"}
+            onPress={() => router.replace(historyRoute as any)}
+          />
           <Text style={styles.headerTitle}>Oops!</Text>
           <View style={{ width: 40 }} />
         </View>
@@ -216,7 +277,9 @@ export default function ResultScreen() {
           <View style={[styles.errorCard, Shadow.md]}>
             <Text style={styles.errorEmoji}>😅</Text>
             <Text style={styles.errorTitle}>
-              {essay?.status === "error" ? "Grading didn't complete" : "Couldn't load result"}
+              {essay?.status === "error"
+                ? "Grading didn't complete"
+                : "Couldn't load result"}
             </Text>
             <Text style={styles.errorMsg}>{msg}</Text>
             <AppButton
@@ -237,13 +300,19 @@ export default function ResultScreen() {
   }
 
   // ── Result State ───────────────────────────────────────────────────────────
-  const finalScore = essay.score ?? essay.overallScore ?? essay.overallBand ?? 0;
-  const feedbackText = [essay.aiFeedback, essay.feedback].find(
-    (v) => typeof v === "string" && v.trim(),
-  ) ?? "No detailed feedback provided.";
+  const finalScore =
+    essay.score ?? essay.overallScore ?? essay.overallBand ?? 0;
+  const feedbackText =
+    [essay.aiFeedback, essay.feedback].find(
+      (v) => typeof v === "string" && v.trim(),
+    ) ?? "No detailed feedback provided.";
 
-  const grammarFeedback = mapErrors(Array.isArray(essay.grammarErrors) ? essay.grammarErrors : []);
-  const suggestionFeedback = mapSuggestions(Array.isArray(essay.suggestions) ? essay.suggestions : []);
+  const grammarFeedback = mapErrors(
+    Array.isArray(essay.grammarErrors) ? essay.grammarErrors : [],
+  );
+  const suggestionFeedback = mapSuggestions(
+    Array.isArray(essay.suggestions) ? essay.suggestions : [],
+  );
   const allFeedback = [...grammarFeedback, ...suggestionFeedback];
 
   // Score breakdown short insight
@@ -252,9 +321,9 @@ export default function ResultScreen() {
   if (bd) {
     const scores = [
       { key: "Task Achievement", val: bd.taskAchievement ?? 0 },
-      { key: "Coherence",        val: bd.coherenceCohesion ?? 0 },
-      { key: "Vocabulary",       val: bd.lexicalResource ?? 0 },
-      { key: "Grammar",          val: bd.grammaticalRangeAccuracy ?? 0 },
+      { key: "Coherence", val: bd.coherenceCohesion ?? 0 },
+      { key: "Vocabulary", val: bd.lexicalResource ?? 0 },
+      { key: "Grammar", val: bd.grammaticalRangeAccuracy ?? 0 },
     ];
     const lowest = scores.sort((a, b) => a.val - b.val)[0];
     if (lowest.val < finalScore) lowestCriterion = lowest.key;
@@ -262,11 +331,13 @@ export default function ResultScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={{ height: Spacing.xxxl }} />
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.replace(historyRoute as any)} style={styles.backBtn}>
-          <ChevronLeft size={24} color={Colors.text} strokeWidth={2} />
-        </TouchableOpacity>
+        <BackButton
+          label={isTeacher ? "Tiến độ" : "Lịch sử"}
+          onPress={() => router.replace(historyRoute as any)}
+        />
         <Text style={styles.headerTitle}>Your Result</Text>
         <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
           <Share2 size={20} color={Colors.primary} strokeWidth={2.2} />
@@ -294,27 +365,51 @@ export default function ResultScreen() {
               <View style={styles.insightText}>
                 <Text style={styles.insightTitle}>Focus area</Text>
                 <Text style={styles.insightBody}>
-                  Work on <Text style={styles.insightHighlight}>{lowestCriterion}</Text> to boost your overall band.
+                  Work on{" "}
+                  <Text style={styles.insightHighlight}>{lowestCriterion}</Text>{" "}
+                  to boost your overall band.
                 </Text>
               </View>
             </View>
           ) : null}
 
           {/* ── 3. AI Feedback narrative ── */}
-          <View style={[styles.feedbackNarrative, Shadow.xs]}>
-            <Text style={styles.sectionTitle}>AI Examiner Feedback</Text>
+          <View
+            style={[
+              styles.feedbackNarrative,
+              Shadow.xs,
+              { margin: Spacing.md },
+            ]}
+          >
+            <Text style={styles.sectionTitle}>Nhận xét từ AI</Text>
             <Text style={styles.feedbackText}>{feedbackText}</Text>
           </View>
 
           {/* ── 4. Score breakdown — after encouragement ── */}
           {bd && (
             <View style={[styles.breakdownCard, Shadow.xs]}>
-              <Text style={styles.sectionTitle}>Score Breakdown</Text>
+              <Text style={styles.sectionTitle}>Phân tích điểm số</Text>
               {[
-                { label: "Task Achievement", value: bd.taskAchievement ?? 0, color: "#6366F1" },
-                { label: "Coherence & Cohesion", value: bd.coherenceCohesion ?? 0, color: "#8B5CF6" },
-                { label: "Vocabulary", value: bd.lexicalResource ?? 0, color: "#EC4899" },
-                { label: "Grammar", value: bd.grammaticalRangeAccuracy ?? 0, color: Colors.warning },
+                {
+                  label: "Hoàn thành nhiệm vụ",
+                  value: bd.taskAchievement ?? 0,
+                  color: "#6366F1",
+                },
+                {
+                  label: "Mạch lạc & liên kết",
+                  value: bd.coherenceCohesion ?? 0,
+                  color: "#8B5CF6",
+                },
+                {
+                  label: "Từ vựng",
+                  value: bd.lexicalResource ?? 0,
+                  color: "#EC4899",
+                },
+                {
+                  label: "Ngữ pháp",
+                  value: bd.grammaticalRangeAccuracy ?? 0,
+                  color: Colors.warning,
+                },
               ].map(({ label, value, color }) => (
                 <View key={label} style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>{label}</Text>
@@ -322,7 +417,10 @@ export default function ResultScreen() {
                     <View
                       style={[
                         styles.breakdownBarFill,
-                        { width: `${(value / 9) * 100}%` as any, backgroundColor: color },
+                        {
+                          width: `${(value / 9) * 100}%` as any,
+                          backgroundColor: color,
+                        },
                       ]}
                     />
                   </View>
@@ -338,11 +436,15 @@ export default function ResultScreen() {
           {allFeedback.length > 0 && (
             <View style={styles.feedbackSection}>
               <Text style={styles.sectionTitle}>
-                Improvements ({allFeedback.length})
+                Cải thiện ({allFeedback.length})
               </Text>
               <View style={styles.feedbackList}>
                 {allFeedback.map((fb, i) => (
-                  <FeedbackCard key={i} {...fb} />
+                  <FeedbackCard
+                    key={i}
+                    {...fb}
+                    style={{ marginBottom: Spacing.xs }}
+                  />
                 ))}
               </View>
             </View>
@@ -351,12 +453,13 @@ export default function ResultScreen() {
           {/* ── 6. Next step — single primary action ── */}
           <View style={styles.nextStep}>
             <AppButton
-              label="Write Another Essay"
-              onPress={() => router.navigate("/essay/input" as any)}
+              label="Làm bài tiếp theo"
+              onPress={handleNextAssignment}
+              loading={isNextLoading}
               size="lg"
             />
             <AppButton
-              label="See All Results"
+              label="Xem tất cả kết quả"
               onPress={() => router.replace(historyRoute as any)}
               variant="ghost"
               size="md"
@@ -366,6 +469,7 @@ export default function ResultScreen() {
           <View style={{ height: Spacing.xxxl }} />
         </Animated.View>
       </ScrollView>
+      <View style={{ height: Spacing.xxxl * 2 }} />
     </View>
   );
 }
@@ -383,6 +487,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: Colors.border,
+    position: "relative",
   },
   simpleHeader: {
     flexDirection: "row",
@@ -390,10 +495,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
+    position: "relative",
   },
-  backBtn: { padding: Spacing.xs },
   shareBtn: { padding: Spacing.xs },
-  headerTitle: { ...Typography.title3 },
+  headerTitle: {
+    ...Typography.title3,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    textAlign: "center",
+  },
 
   // Scroll
   scroll: {
@@ -433,6 +544,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     padding: Spacing.lg,
     gap: Spacing.sm,
+    marginHorizontal: Spacing.md,
   },
   feedbackText: {
     ...Typography.body,
@@ -446,6 +558,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
     padding: Spacing.lg,
     gap: Spacing.md,
+    marginHorizontal: Spacing.md,
   },
   breakdownRow: {
     flexDirection: "row",
@@ -476,11 +589,15 @@ const styles = StyleSheet.create({
   sectionTitle: {
     ...Typography.title3,
     color: Colors.text,
-    marginBottom: Spacing.xs,
+    marginBottom: Spacing.sm,
   },
 
   // Feedback section
-  feedbackSection: { gap: Spacing.sm },
+  feedbackSection: {
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.md,
+  },
   feedbackList: { gap: Spacing.sm },
 
   // Next step

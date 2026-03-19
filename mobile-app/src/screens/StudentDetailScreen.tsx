@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { getBandColor } from "@/utils/bandColor";
 import { teacherApi } from "../services/api";
+import { BackButton } from "../components/BackButton";
 import { useRoleGuard } from "../hooks/useRoleGuard";
 import { useBack } from "../hooks/useBack";
 
@@ -86,9 +87,7 @@ export default function StudentDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={goBack}>
-          <Text style={styles.backBtnText}>← Quay lại</Text>
-        </TouchableOpacity>
+        <BackButton label="Học viên" onPress={goBack} />
         <Text style={styles.headerTitle}>{data.student.name}</Text>
         <Text style={styles.headerSub}>
           {data.student.email ?? data.student.phone ?? "—"}
@@ -186,8 +185,6 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xl,
     paddingHorizontal: Spacing.xl,
   },
-  backBtn: { marginBottom: Spacing.sm },
-  backBtnText: { ...Typography.body, color: Colors.surface },
   headerTitle: { ...Typography.heading2, color: Colors.surface },
   headerSub: { ...Typography.bodySmall, color: "rgba(255,255,255,0.7)" },
   content: { padding: Spacing.lg },

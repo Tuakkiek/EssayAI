@@ -8,6 +8,7 @@ import React, {
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { authApi } from "../services/api";
+import { onUnauthorized } from "../services/authEvents";
 
 // â”€â”€â”€ Types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -161,27 +162,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const clearSession = useCallback(async () => {
+    await Promise.all([
+      SecureStore.deleteItemAsync(AUTH_TOKEN_KEY),
+      SecureStore.deleteItemAsync(AUTH_USER_KEY),
+    ]);
+
+    setState({
+      user: null,
+      token: null,
+      isLoading: false,
+      isAuthenticated: false,
+    });
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onUnauthorized(() => {
+      void clearSession();
+    });
+    return unsubscribe;
+  }, [clearSession]);
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
     } catch {
       // Logout locally even if API call fails
     } finally {
-      await Promise.all([
-        SecureStore.deleteItemAsync(AUTH_TOKEN_KEY),
-        SecureStore.deleteItemAsync(AUTH_USER_KEY),
-      ]);
-
-      setState({
-        user: null,
-        token: null,
-        isLoading: false,
-        isAuthenticated: false,
-      });
+      await clearSession();
       // We rely on AuthGuard to redirect to /login when isAuthenticated becomes false.
       // Calling router.replace here concurrently with state update causes the navigator to crash.
     }
-  }, []);
+  }, [clearSession]);
 
   const getToken = useCallback(async (): Promise<string | null> => {
     return SecureStore.getItemAsync(AUTH_TOKEN_KEY);

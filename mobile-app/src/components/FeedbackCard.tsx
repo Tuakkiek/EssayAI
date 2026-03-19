@@ -4,9 +4,28 @@
  * Supportive copywriting ("Nice effort! Try using...")
  */
 import React, { useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { ChevronDown, CheckCircle, AlertCircle, Lightbulb, BookOpen } from "lucide-react-native";
-import { Colors, Radius, Shadow, Spacing, Typography } from "../constants/theme";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  StyleProp,
+  ViewStyle,
+} from "react-native";
+import {
+  ChevronDown,
+  CheckCircle,
+  AlertCircle,
+  Lightbulb,
+  BookOpen,
+} from "lucide-react-native";
+import {
+  Colors,
+  Radius,
+  Shadow,
+  Spacing,
+  Typography,
+} from "../constants/theme";
 
 type FeedbackCategory = "grammar" | "vocabulary" | "clarity" | "structure";
 
@@ -17,6 +36,7 @@ interface FeedbackCardProps {
   detail?: string;
   original?: string;
   corrected?: string;
+  style?: StyleProp<ViewStyle>;
 }
 
 const CATEGORY_CONFIG = {
@@ -24,29 +44,29 @@ const CATEGORY_CONFIG = {
     icon: AlertCircle,
     color: Colors.errorSoft,
     bg: Colors.errorLight,
-    label: "Grammar",
-    prefix: "Nice try! Here's a cleaner way:",
+    label: "Ngữ pháp",
+    prefix: "Cố gắng tốt! Đây là cách viết đúng hơn:",
   },
   vocabulary: {
     icon: BookOpen,
     color: Colors.info,
     bg: Colors.infoLight,
-    label: "Vocabulary",
-    prefix: "Elevate your word choice:",
+    label: "Từ vựng",
+    prefix: "Hãy nâng cao cách dùng từ của bạn:",
   },
   clarity: {
     icon: Lightbulb,
     color: Colors.warning,
     bg: Colors.warningLight,
-    label: "Clarity",
-    prefix: "This will make your idea shine:",
+    label: "Diễn đạt",
+    prefix: "Cách này sẽ giúp ý của bạn rõ ràng hơn:",
   },
   structure: {
     icon: CheckCircle,
     color: Colors.primary,
     bg: Colors.primaryLight,
-    label: "Structure",
-    prefix: "Strong structure tip:",
+    label: "Cấu trúc",
+    prefix: "Gợi ý để bài viết có cấu trúc tốt hơn:",
   },
 };
 
@@ -57,19 +77,22 @@ export function FeedbackCard({
   detail,
   original,
   corrected,
+  style,
 }: FeedbackCardProps) {
   const [expanded, setExpanded] = useState(false);
   const cfg = CATEGORY_CONFIG[category] || CATEGORY_CONFIG.grammar;
   const Icon = cfg.icon;
 
   return (
-    <View style={[styles.card, Shadow.xs]}>
+    <View style={[styles.card, Shadow.xs, style]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={[styles.iconWrap, { backgroundColor: cfg.bg }]}>
           <Icon size={16} color={cfg.color} strokeWidth={2.2} />
         </View>
-        <Text style={[styles.categoryLabel, { color: cfg.color }]}>{cfg.label}</Text>
+        <Text style={[styles.categoryLabel, { color: cfg.color }]}>
+          {cfg.label}
+        </Text>
       </View>
 
       {/* Supportive prefix + problem */}
@@ -82,11 +105,16 @@ export function FeedbackCard({
       {original && corrected && (
         <View style={styles.diffRow}>
           <View style={[styles.diffPill, styles.diffBefore]}>
-            <Text style={styles.diffBeforeText} numberOfLines={1}>{original}</Text>
+            <Text style={styles.diffBeforeText} numberOfLines={1}>
+              {original}
+            </Text>
           </View>
           <Text style={styles.diffArrow}>→</Text>
           <View style={[styles.diffPill, { backgroundColor: cfg.bg }]}>
-            <Text style={[styles.diffAfterText, { color: cfg.color }]} numberOfLines={1}>
+            <Text
+              style={[styles.diffAfterText, { color: cfg.color }]}
+              numberOfLines={1}
+            >
               {corrected}
             </Text>
           </View>
@@ -103,21 +131,19 @@ export function FeedbackCard({
           onPress={() => setExpanded((v) => !v)}
           activeOpacity={0.7}
         >
-          <Text style={[styles.expandLabel, { color: cfg.color }]}>
-            {expanded ? "Show less" : "Learn more"}
+          <Text style={[styles.expandLabel, { color: "#2563EB" }]}>
+            {expanded ? "Thu gọn" : "Xem chi tiết"}
           </Text>
           <ChevronDown
             size={14}
-            color={cfg.color}
+            color="#2563EB"
             strokeWidth={2.5}
             style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}
           />
         </TouchableOpacity>
       )}
 
-      {expanded && detail && (
-        <Text style={styles.detail}>{detail}</Text>
-      )}
+      {expanded && detail && <Text style={styles.detail}>{detail}</Text>}
     </View>
   );
 }

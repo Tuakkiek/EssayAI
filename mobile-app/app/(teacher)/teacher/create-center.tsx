@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { teacherApi } from "@/src/services/api";
 import { useRoleGuard } from "@/src/hooks/useRoleGuard";
 import { useBack } from "@/src/hooks/useBack";
+import { BackButton } from "@/src/components/BackButton";
 
 interface FormData {
   centerName: string;
@@ -88,9 +89,7 @@ export default function CreateCenterScreen() {
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={goBack} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#111827" />
-          </TouchableOpacity>
+          <BackButton label="Tiến độ" onPress={goBack} />
           <Text style={styles.headerTitle}>Táº¡o trung tÃ¢m</Text>
         </View>
 
@@ -197,7 +196,6 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
     gap: 12,
   },
-  backBtn: { padding: 4 },
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
   scroll: { padding: 20, gap: 20 },
   subtitle: { fontSize: 14, color: "#6B7280", lineHeight: 20 },

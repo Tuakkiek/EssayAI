@@ -6,10 +6,11 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
-import { adminApi } from "../services/api";
+import { adminApi, getErrorMessage } from "../services/api";
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
@@ -26,6 +27,8 @@ export default function AdminDashboardScreen() {
       ]);
       setOverview(overviewRes.data?.data ?? null);
       setUserTrend(userRes.data?.data?.newUsers ?? []);
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
     } finally {
       setLoading(false);
     }

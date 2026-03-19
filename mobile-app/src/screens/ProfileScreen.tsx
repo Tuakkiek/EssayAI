@@ -183,9 +183,6 @@ function EditNameModal({
         <View style={styles.modalSheet}>
           <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>Sửa tên</Text>
-          <Text style={styles.modalSubtitle}>
-            Tên này sẽ hiển thị cho giáo viên và trong hồ sơ của bạn.
-          </Text>
           <TextInput
             style={styles.modalInput}
             value={name}
@@ -211,6 +208,7 @@ function EditNameModal({
               )}
             </TouchableOpacity>
           </View>
+          <View style={{ height: Spacing.xxxl }} />
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -501,18 +499,8 @@ export default function ProfileScreen() {
           />
         </View>
 
-        {/* ── Xóa tài khoản ── */}
-        <TouchableOpacity
-          style={styles.deleteLink}
-          onPress={handleDeleteAccount}
-          activeOpacity={0.7}
-        >
-          <TrashIcon size={14} color={Colors.error} />
-          <Text style={styles.deleteLinkText}>Xóa tài khoản</Text>
-        </TouchableOpacity>
-
         <Text style={styles.version}>Essay AI · v1.0.0</Text>
-        <View style={{ height: 40 }} />
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       <EditNameModal

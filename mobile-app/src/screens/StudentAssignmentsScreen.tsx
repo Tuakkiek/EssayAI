@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
-import { studentApi } from "../services/api";
+import { studentApi, getErrorMessage } from "../services/api";
 import { Assignment } from "../types";
 import { formatDate } from "@/utils/bandColor";
 import { useRoleGuard } from "../hooks/useRoleGuard";
@@ -368,6 +368,11 @@ export default function StudentAssignmentsScreen() {
       const res = await studentApi.getAssignments();
       const data = res.data?.data?.assignments ?? res.data?.data ?? [];
       setAssignments(data);
+    } catch (err) {
+      console.warn(
+        "[StudentAssignmentsScreen] Failed to load assignments:",
+        getErrorMessage(err),
+      );
     } finally {
       setLoading(false);
     }
@@ -415,6 +420,7 @@ export default function StudentAssignmentsScreen() {
           />
         )}
       />
+      <View style={{ height: Spacing.xxxl * 2 }} /> 
     </View>
   );
 }

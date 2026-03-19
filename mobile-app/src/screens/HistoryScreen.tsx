@@ -26,11 +26,11 @@ const PAGE_SIZE = 20;
 
 // ── Status config with encouraging labels ─────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
-  scored:  { label: "Graded",     color: Colors.primary,   bg: Colors.primaryLight, emoji: "✅" },
-  graded:  { label: "Graded",     color: Colors.primary,   bg: Colors.primaryLight, emoji: "✅" },
-  grading: { label: "Grading...", color: Colors.warning,   bg: Colors.warningLight, emoji: "⏳" },
-  pending: { label: "Pending",    color: Colors.textMuted, bg: Colors.surfaceAlt,   emoji: "⏳" },
-  error:   { label: "Try again",  color: Colors.errorSoft, bg: Colors.errorLight,   emoji: "🔄" },
+  scored:  { label: "Đã chấm điểm",  color: Colors.primary,   bg: Colors.primaryLight, emoji: "✅" },
+  graded:  { label: "Đã chấm điểm",  color: Colors.primary,   bg: Colors.primaryLight, emoji: "✅" },
+  grading: { label: "Đang chấm...",  color: Colors.warning,   bg: Colors.warningLight, emoji: "⏳" },
+  pending: { label: "Đang chờ",      color: Colors.textMuted, bg: Colors.surfaceAlt,   emoji: "⏳" },
+  error:   { label: "Thử lại",       color: Colors.errorSoft, bg: Colors.errorLight,   emoji: "🔄" },
 };
 
 function getBandColor(score: number): string {
@@ -129,7 +129,7 @@ function EssayCard({
           </View>
           <View style={styles.metaItem}>
             <FileText size={11} color={Colors.textMuted} strokeWidth={2} />
-            <Text style={styles.metaText}>{item.wordCount} words</Text>
+            <Text style={styles.metaText}>{item.wordCount} từ</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -248,6 +248,7 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={{ height: Spacing.xxxl}} />
       <FlatList
         data={essays}
         keyExtractor={(item, i) => getEssayId(item) ?? String(i)}
@@ -294,6 +295,7 @@ export default function HistoryScreen() {
           ) : null
         }
       />
+      <View style={{ height: Spacing.xxxl * 2 }} />
     </View>
   );
 }

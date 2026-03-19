@@ -17,9 +17,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { PenLine, ChevronLeft } from "lucide-react-native";
+import { PenLine } from "lucide-react-native";
 import { Colors, Radius, Shadow, Spacing, Typography } from "../constants/theme";
 import { AppButton } from "../components/AppButton";
+import { BackButton } from "../components/BackButton";
 import { essayApi, getErrorMessage, extractEssay } from "../services/api";
 import { EssayTaskType } from "../types";
 import { useRoleGuard } from "../hooks/useRoleGuard";
@@ -94,13 +95,7 @@ export default function EssayInputScreen() {
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
       {/* ── Header ── */}
       <View style={styles.header}>
-        <Pressable
-          onPress={goBack}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}
-        >
-          <ChevronLeft size={24} color={Colors.text} strokeWidth={2} />
-        </Pressable>
+        <BackButton label="Trang chủ" onPress={goBack} />
         <Text style={styles.headerTitle}>Write Essay</Text>
         {/* Spacer to balance */}
         <View style={{ width: 40 }} />
@@ -238,7 +233,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.xs,
     backgroundColor: Colors.background,
   },
-  backBtn: { padding: Spacing.xs },
   headerTitle: {
     ...Typography.title3,
     color: Colors.text,

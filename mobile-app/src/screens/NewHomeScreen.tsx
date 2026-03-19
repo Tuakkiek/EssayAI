@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
-import { studentApi } from "../services/api";
+import { studentApi, getErrorMessage } from "../services/api";
 import { Assignment } from "../types";
 import { formatDate } from "@/utils/bandColor";
 import { useAuth } from "../context/AuthContext";
@@ -38,6 +38,8 @@ export default function HomeScreen() {
       const data =
         assignRes.data?.data?.assignments ?? assignRes.data?.data ?? [];
       setAssignments(data);
+    } catch (err) {
+      console.warn("[NewHomeScreen] Failed to load data:", getErrorMessage(err));
     } finally {
       setLoading(false);
     }

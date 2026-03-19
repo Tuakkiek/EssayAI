@@ -11,10 +11,13 @@ import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { studentApi, getErrorMessage } from "../services/api";
 import { useRoleGuard } from "../hooks/useRoleGuard";
+import { useBack } from "../hooks/useBack";
+import { BackButton } from "../components/BackButton";
 
 export default function StudentJoinClassScreen() {
   useRoleGuard(["center_student", "free_student"]);
   const router = useRouter();
+  const goBack = useBack("/");
   const [classCode, setClassCode] = useState("");
   const [joinedClass, setJoinedClass] = useState<any | null>(null);
   const [teacher, setTeacher] = useState<any | null>(null);
@@ -33,9 +36,7 @@ export default function StudentJoinClassScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.navigate("/")}>
-          <Text style={styles.backText}>Quay lại</Text>
-        </TouchableOpacity>
+        <BackButton label="Lớp học" onPress={goBack} />
         <Text style={styles.headerTitle}>Tham gia lớp</Text>
         <View style={{ width: 60 }} />
       </View>
@@ -90,7 +91,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   headerTitle: { ...Typography.heading3 },
   content: { padding: Spacing.lg },
   label: { ...Typography.label, marginBottom: Spacing.xs },

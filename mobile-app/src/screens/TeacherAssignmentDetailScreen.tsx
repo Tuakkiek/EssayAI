@@ -10,6 +10,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { assignmentApi, getErrorMessage } from "../services/api";
 import { Assignment } from "../types";
+import { BackButton } from "../components/BackButton";
 import { useRoleGuard } from "../hooks/useRoleGuard";
 import { useBack } from "../hooks/useBack";
 
@@ -23,8 +24,12 @@ export default function TeacherAssignmentDetailScreen() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const res = await assignmentApi.getById(id);
-    setAssignment(res.data?.data?.assignment ?? null);
+    try {
+      const res = await assignmentApi.getById(id);
+      setAssignment(res.data?.data?.assignment ?? null);
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
+    }
   }, [id]);
 
   useEffect(() => {
@@ -54,9 +59,7 @@ export default function TeacherAssignmentDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={goBack}>
-          <Text style={styles.backText}>Quay lại</Text>
-        </TouchableOpacity>
+        <BackButton label="Bài tập" onPress={goBack} />
         <Text style={styles.headerTitle}>Chi tiết bài tập</Text>
         <View style={{ width: 60 }} />
       </View>
@@ -130,7 +133,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   headerTitle: { ...Typography.heading3 },
   content: { padding: Spacing.lg },
   title: { ...Typography.heading3, marginBottom: Spacing.sm },
@@ -153,6 +155,5 @@ const styles = StyleSheet.create({
   },
   actionBtnText: { ...Typography.body, fontWeight: "700" },
 });
-
 
 

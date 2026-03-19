@@ -12,6 +12,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
 import { assignmentApi, classApi, getErrorMessage } from "../services/api";
 import { Assignment, ClassAnalytics, Class } from "../types";
+import { BackButton } from "../components/BackButton";
 import { useRoleGuard } from "../hooks/useRoleGuard";
 
 const TABS = [
@@ -99,9 +100,7 @@ export default function TeacherClassDetailScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={handleBack}>
-          <Text style={styles.backText}>Quay lại</Text>
-        </TouchableOpacity>
+        <BackButton label="Lớp học" onPress={handleBack} />
         <Text style={styles.headerTitle}>{cls?.name ?? "Lớp học"}</Text>
         <View style={{ width: 60 }} />
       </View>
@@ -230,7 +229,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   headerTitle: { ...Typography.heading3 },
   tabRow: {
     flexDirection: "row",

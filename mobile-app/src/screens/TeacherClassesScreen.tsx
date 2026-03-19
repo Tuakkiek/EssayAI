@@ -7,10 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Alert,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Colors, Spacing, Typography, Radius, Shadow } from "@/constants/theme";
-import { classApi, assignmentApi } from "../services/api";
+import { classApi, assignmentApi, getErrorMessage } from "../services/api";
 import { Assignment, Class } from "../types";
 import { useRoleGuard } from "../hooks/useRoleGuard";
 
@@ -35,6 +36,8 @@ export default function TeacherClassesScreen() {
       const asg = assignRes.data?.data?.assignments ?? assignRes.data?.data ?? [];
       setClasses(cls);
       setAssignments(asg);
+    } catch (err) {
+      Alert.alert("Error", getErrorMessage(err));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -162,7 +165,7 @@ const styles = StyleSheet.create({
   fab: {
     position: "absolute",
     right: Spacing.lg,
-    bottom: Spacing.lg,
+    bottom: Spacing.xxxl * 2 + Spacing.lg,
     backgroundColor: Colors.primary,
     borderRadius: Radius.full,
     paddingHorizontal: Spacing.lg,

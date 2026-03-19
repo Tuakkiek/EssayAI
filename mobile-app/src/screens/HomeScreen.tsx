@@ -18,7 +18,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { Colors, Radius, Shadow, Spacing, Typography } from "../constants/theme";
 import { AppButton } from "../components/AppButton";
-import { studentApi } from "../services/api";
+import { studentApi, getErrorMessage } from "../services/api";
 import { Assignment } from "../types";
 import { formatDate } from "../utils/bandColor";
 import { useAuth } from "../context/AuthContext";
@@ -98,6 +98,8 @@ export default function HomeScreen() {
       const res = await studentApi.getAssignments();
       const data = res.data?.data?.assignments ?? res.data?.data ?? [];
       setAssignments(data);
+    } catch (err) {
+      console.warn("[HomeScreen] Failed to load assignments:", getErrorMessage(err));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -106,7 +108,7 @@ export default function HomeScreen() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  const firstName = user?.name?.trim().split(" ").pop() ?? "there";
+  const name = user?.name;
   const isCenterStudent = user?.role === "center_student";
 
   const { nextAssignment, pendingCount, dueSoonCount } = useMemo(() => {
@@ -124,7 +126,7 @@ export default function HomeScreen() {
   }, [assignments]);
 
   const primaryAction = {
-    label: nextAssignment ? "Start Assignment" : "Write an Essay",
+    label: nextAssignment ? "Làm bài tập" : "Viết bài luận",
     onPress: () => {
       if (nextAssignment) router.push(`/student/assignments/${nextAssignment._id}`);
       else router.push("/essay/input");
@@ -158,7 +160,7 @@ export default function HomeScreen() {
         {/* ── Section 1: Greeting — max 1 ── */}
         <View style={styles.greeting}>
           <Text style={styles.greetingLabel}>{getGreeting()}</Text>
-          <Text style={styles.greetingName}>{firstName}</Text>
+          <Text style={styles.greetingName}>{name}</Text>
         </View>
 
         {/* ── Section 2: Primary action card — single CTA per spec ── */}
@@ -246,11 +248,11 @@ export default function HomeScreen() {
           onPress={() => router.push("/history")}
           style={({ pressed }) => [styles.shortcut, Shadow.xs, pressed && { opacity: 0.75 }]}
         >
-          <Text style={styles.shortcutText}>View essay history</Text>
+          <Text style={styles.shortcutText}>Xem lịch sử bài viết</Text>
           <ChevronRight size={16} color={Colors.primary} strokeWidth={2.5} />
         </Pressable>
 
-        <View style={{ height: Spacing.xxxl }} />
+        <View style={{ height: Spacing.xxxl * 2 }} />
       </ScrollView>
     </SafeAreaView>
   );
