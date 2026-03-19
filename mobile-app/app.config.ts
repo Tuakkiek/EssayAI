@@ -13,7 +13,7 @@ const PROD_API_URL =
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: "Essay AI",
-  slug: "essay-ai",
+  slug: "essayai",
   version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
@@ -43,7 +43,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   extra: {
     apiUrl: IS_PRODUCTION ? PROD_API_URL : DEV_API_URL,
     eas: {
-      projectId: process.env.EAS_PROJECT_ID || "dummy-project-id",
+      projectId: process.env.EAS_PROJECT_ID || "94bed8a4-570d-40ed-9121-350a130737d1",
     },
   },
 });
