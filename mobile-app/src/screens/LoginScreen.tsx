@@ -62,6 +62,7 @@ export default function LoginScreen() {
           centerValue || undefined,
         )
       }
+      router.replace("/")
     } catch (err) {
       Alert.alert("Error", getErrorMessage(err))
     } finally {
