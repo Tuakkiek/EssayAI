@@ -1,0 +1,49 @@
+. Trang Chung (Tất cả vai trò)
+/login - Trang đăng nhập (số điện thoại/mật khẩu).
+/register - Trang đăng ký (học sinh/giáo viên, tên trung tâm cho GV).
+/essay/input - Viết bài luận (Task1/Task2).
+/essay/result/:id - Kết quả chấm bài (điểm số, lỗi ngữ pháp, gợi ý cải thiện).
+/essay/history - Lịch sử bài viết (bảng với bộ lọc ngày/tháng/class).
+/essay/improvement/:id - Cải thiện bài viết (viết lại/từ vựng/giải thích ngữ pháp).
+/profile - Hồ sơ cá nhân (ảnh đại diện, thống kê, gói tự do).
+/subscription - Quản lý gói cá nhân (nâng cấp pro/free, lịch sử TT).
+2. Học Sinh (free_student / center_student)
+/ (trang chủ) - Bảng điều khiển: Bài tập sắp tới, bài gần đây, biểu đồ tiến độ.
+/assignments - Danh sách bài tập (bảng: tiêu đề/lớp/GV/hạn nộp/trạng thái/filter).
+/assignments/:id - Chi tiết bài tập + form nộp essay.
+/my-class - Lớp học hiện tại + form tham gia lớp (nhập mã).
+/progress - Tiến độ cá nhân (biểu đồ band score, số bài/tháng).
+3. Giáo Viên (teacher)
+/teacher/dashboard - Tổng quan trung tâm: Thống kê lớp/HS/essay, biểu đồ nộp bài theo thời gian.
+/teacher/assignments - Quản lý bài tập (bảng CRUD: tạo/sửa/xóa/công bố/đóng).
+/teacher/assignments/:id - Chi tiết bài + submissions (bảng essays của HS).
+/teacher/classes - Danh sách lớp học (bảng với stats HS).
+/teacher/classes/:id - Chi tiết lớp: Roster HS, stats, thêm/xóa/mời/bulk import CSV.
+/teacher/classes/create - Form tạo lớp mới (tên/mô tả).
+/teacher/students - Danh sách HS (bảng tìm kiếm theo tên/class/active).
+/teacher/students/:id - Chi tiết HS (stats, lịch sử essays table).
+/teacher/essays - Tất cả essays (bảng lớn: filter class/HS/status/reviewed).
+/teacher/essays/:id - Xem chi tiết/review essay + nút "Đã xem".
+/teacher/progress - Tiến độ toàn lớp/top HS (biểu đồ so sánh).
+/center/profile - Cấu hình trung tâm (logo, bio, danh sách GV).
+/center/subscription - Gói trung tâm (chọn plan, thanh toán, lịch sử).
+4. Quản lý Trung tâm (center admin - teacher có centerId)
+Như Giáo viên +:
+/center/teachers - Quản lý GV (tạo/xóa danh sách GV).
+/center/profile - Chỉnh sửa thông tin trung tâm.
+/center/subscription - Quản lý gói trung tâm riêng.
+5. Quản trị Hệ thống (admin/superAdmin)
+/admin/dashboard - Tổng quan hệ thống (growth charts, tổng essays/users/centers).
+/admin/users - Toàn bộ users (DataTable lớn: filter role/center/active, toggle/xóa).
+/admin/centers - Danh sách trung tâm (CRUD: kích hoạt/vô hiệu/impersonate/tặng plan).
+/admin/analytics/essays - Phân tích chi tiết essays (filters thời gian/type).
+/admin/analytics/users - Thống kê users/tăng trưởng theo role/center.
+/admin/tasks - Công việc hệ thống (bulk import/export, cron logs).
+Triển khai chi tiết:
+Routing: React Router v6.4+ với data loaders, role-based guards (useAuth hook).
+State Management: Zustand store cho user/role/center data.
+API Calls: Axios instance với auth interceptor (JWT from localStorage).
+Components: shadcn/ui (DataTable, Card, Dialog, Chart), Tailwind responsive.
+Auth Flow: Login → Kiểm tra role → Redirect (/student, /teacher/dashboard, /admin/dashboard).
+Responsive: Mobile-first như app, desktop với sidebar thay tabs.
+Danh sách này đầy đủ, bao quát toàn bộ tính năng backend + UX mobile. Có thể bắt đầu thiết kế Figma hoặc code ngay! Nhiệm vụ hoàn thành.
