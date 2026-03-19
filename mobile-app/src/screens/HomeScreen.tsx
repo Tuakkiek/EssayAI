@@ -157,8 +157,8 @@ export default function HomeScreen() {
       >
         {/* ── Section 1: Greeting — max 1 ── */}
         <View style={styles.greeting}>
-          <Text style={styles.greetingLabel}>{getGreeting()},</Text>
-          <Text style={styles.greetingName}>{firstName} 👋</Text>
+          <Text style={styles.greetingLabel}>{getGreeting()}</Text>
+          <Text style={styles.greetingName}>{firstName}</Text>
         </View>
 
         {/* ── Section 2: Primary action card — single CTA per spec ── */}
@@ -233,7 +233,7 @@ export default function HomeScreen() {
                 style={({ pressed }) => [styles.seeAll, pressed && { opacity: 0.7 }]}
               >
                 <Text style={styles.seeAllText}>
-                  See all {assignments.length} assignments
+                  Xem tất cả {assignments.length} bài tập
                 </Text>
                 <ChevronRight size={14} color={Colors.primary} strokeWidth={2.5} />
               </Pressable>
