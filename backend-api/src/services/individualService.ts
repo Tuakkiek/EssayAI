@@ -4,28 +4,28 @@ import { AppError } from "../middlewares/errorHandler";
 // ── Individual subscription management ──────────────────────────────
 export const getIndividualSubscription = async (userId: string) => {
   const user = await User.findById(userId).select(
-    "individualSubscription accountType",
+    "selfSubscription role",
   );
 
-  if (user?.accountType !== "INDIVIDUAL_USER") {
+  if (user?.role !== "free_student") {
     throw new AppError("Individual account required", 403);
   }
 
-  return user.individualSubscription;
+  return user.selfSubscription;
 };
 
 export const upgradeSubscription = async (
   userId: string,
-  plan: "individual_pro" | "individual_premium",
+  plan: "individual_pro",
 ) => {
   const user = await User.findById(userId);
 
-  if (!user || user.accountType !== "INDIVIDUAL_USER") {
+  if (!user || user.role !== "free_student") {
     throw new AppError("Individual account required", 403);
   }
 
-  user.individualSubscription = {
-    ...user.individualSubscription,
+  user.selfSubscription = {
+    ...user.selfSubscription,
     plan,
     startDate: new Date(),
     endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
@@ -33,5 +33,5 @@ export const upgradeSubscription = async (
   };
 
   await user.save();
-  return user.individualSubscription;
+  return user.selfSubscription;
 };
