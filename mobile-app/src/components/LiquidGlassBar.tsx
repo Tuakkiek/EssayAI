@@ -241,7 +241,6 @@ interface TabBtnProps {
   onPress:      () => void;
   lift:         Animated.SharedValue<number>;
   scale:        Animated.SharedValue<number>;
-  capsuleWidth: Animated.SharedValue<number>;
 }
 
 const TabBtn = memo(function TabBtn({
@@ -251,8 +250,9 @@ const TabBtn = memo(function TabBtn({
   onPress,
   lift,
   scale,
-  capsuleWidth,
 }: TabBtnProps) {
+  const [capsuleW, setCapsuleW] = React.useState(0);
+
   // Icon + label rise and scale
   const contentStyle = useAnimatedStyle(() => ({
     transform: [
@@ -289,11 +289,10 @@ const TabBtn = memo(function TabBtn({
 
   const onLayout = useCallback(
     (e: any) => {
-      if (focused) {
-        capsuleWidth.value = e.nativeEvent.layout.width;
-      }
+      const nextWidth = e.nativeEvent.layout.width;
+      setCapsuleW((prev) => (prev === nextWidth ? prev : nextWidth));
     },
-    [focused, capsuleWidth],
+    [],
   );
 
   return (
@@ -309,7 +308,7 @@ const TabBtn = memo(function TabBtn({
       {/* ── Active glass capsule ──────────────────────────────────────────── */}
       <GlassCapsule
         capsuleStyle={capsuleAnim}
-        capsuleW={capsuleWidth.value}
+        capsuleW={capsuleW}
       />
 
       {/* ── Icon + label ──────────────────────────────────────────────────── */}
@@ -345,7 +344,6 @@ export function LiquidGlassBar({ state, descriptors, navigation }: any) {
   /* eslint-disable react-hooks/rules-of-hooks */
   const lifts        = [useSharedValue(0), useSharedValue(0), useSharedValue(0), useSharedValue(0), useSharedValue(0)];
   const scales       = [useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1), useSharedValue(1)];
-  const capsuleWidths = [useSharedValue(0), useSharedValue(0), useSharedValue(0), useSharedValue(0), useSharedValue(0)];
   /* eslint-enable react-hooks/rules-of-hooks */
 
   const prevIdx = useRef(-1);
@@ -464,7 +462,6 @@ export function LiquidGlassBar({ state, descriptors, navigation }: any) {
                 onPress={onPress}
                 lift={lifts[i]        ?? lifts[0]}
                 scale={scales[i]      ?? scales[0]}
-                capsuleWidth={capsuleWidths[i] ?? capsuleWidths[0]}
               />
             );
           })}
