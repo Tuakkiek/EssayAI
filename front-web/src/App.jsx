@@ -1,121 +1,180 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import HomePage from "./pages/HomePage";
+import HistoryPage from "./pages/HistoryPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import ProfilePage from "./pages/ProfilePage";
+import ProgressPage from "./pages/ProgressPage";
+import EssayInputPage from "./pages/EssayInputPage";
+import EssayResultPage from "./pages/EssayResultPage";
+import AssignmentsPage from "./pages/AssignmentsPage";
+import SubscriptionPage from "./pages/SubscriptionPage";
+import TeacherDashboardPage from "./pages/teacher/TeacherDashboardPage";
+import TeacherClassesPage from "./pages/teacher/TeacherClassesPage";
+import TeacherClassDetailPage from "./pages/teacher/TeacherClassDetailPage";
+import TeacherAssignmentsPage from "./pages/teacher/TeacherAssignmentsPage";
+import TeacherAssignmentFormPage from "./pages/teacher/TeacherAssignmentFormPage";
+import TeacherAssignmentDetailPage from "./pages/teacher/TeacherAssignmentDetailPage";
+import TeacherSubmissionReviewPage from "./pages/teacher/TeacherSubmissionReviewPage";
+import TeacherClassStudentAddPage from "./pages/teacher/TeacherClassStudentAddPage";
+import ProtectedRoute from "./routes/ProtectedRoute";
+import { isAuthenticated } from "./services/api";
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <BrowserRouter>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <Navigate to={isAuthenticated() ? "/home" : "/login"} replace />
+          }
+        />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/home"
+          element={
+            <ProtectedRoute>
+              <HomePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/essay/history"
+          element={
+            <ProtectedRoute>
+              <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/essay/input"
+          element={
+            <ProtectedRoute>
+              <EssayInputPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/assignments"
+          element={
+            <ProtectedRoute>
+              <AssignmentsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/essay/result"
+          element={
+            <ProtectedRoute>
+              <EssayResultPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/progress"
+          element={
+            <ProtectedRoute>
+              <ProgressPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/subscription"
+          element={
+            <ProtectedRoute>
+              <SubscriptionPage />
+            </ProtectedRoute>
+          }
+        />
 
-      <div className="ticks"></div>
+        {/* Teacher Routes */}
+        <Route
+          path="/teacher/dashboard"
+          element={
+            <ProtectedRoute roles={["teacher", "admin"]}>
+              <TeacherDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/classes"
+          element={
+            <ProtectedRoute roles={["teacher", "admin"]}>
+              <TeacherClassesPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/classes/:classId"
+          element={
+            <ProtectedRoute roles={["teacher", "admin"]}>
+              <TeacherClassDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/classes/:classId/add-students"
+          element={
+            <ProtectedRoute roles={["teacher", "admin"]}>
+              <TeacherClassStudentAddPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/assignments"
+          element={
+            <ProtectedRoute roles={["teacher", "admin"]}>
+              <TeacherAssignmentsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/assignments/:id"
+          element={
+            <ProtectedRoute roles={["teacher", "admin"]}>
+              <TeacherAssignmentDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/assignments/create"
+          element={
+            <ProtectedRoute roles={["teacher", "admin"]}>
+              <TeacherAssignmentFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/assignments/:id/edit"
+          element={
+            <ProtectedRoute roles={["teacher", "admin"]}>
+              <TeacherAssignmentFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/teacher/submissions/:id"
+          element={
+            <ProtectedRoute roles={["teacher", "admin"]}>
+              <TeacherSubmissionReviewPage />
+            </ProtectedRoute>
+          }
+        />
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
