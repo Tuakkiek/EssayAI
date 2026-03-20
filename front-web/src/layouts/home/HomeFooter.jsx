@@ -21,6 +21,7 @@ import {
   Mail,
   LayoutDashboard,
   Users,
+  CreditCard,
 } from "lucide-react";
 import { getAuthUser } from "../../services/api";
 
@@ -33,11 +34,15 @@ export default function HomeFooter() {
     { label: "Lớp học", to: "/teacher/classes", icon: Users },
     { label: "Bài tập", to: "/teacher/assignments", icon: BookOpen },
     { label: "Tiến độ", to: "/progress", icon: TrendingUp },
+    { label: "Gói dịch vụ", to: "/subscription", icon: CreditCard },
   ] : [
     { label: "Trang chủ", to: "/home", icon: Home },
     { label: "Bài tập", to: "/assignments", icon: BookOpen },
     { label: "Lịch sử", to: "/essay/history", icon: History },
     { label: "Tiến độ", to: "/progress", icon: TrendingUp },
+    ...(user?.role !== "center_student"
+      ? [{ label: "Gói dịch vụ", to: "/subscription", icon: CreditCard }]
+      : []),
     { label: "Tài khoản", to: "/profile", icon: UserCircle },
   ];
 

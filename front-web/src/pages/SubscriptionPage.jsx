@@ -27,12 +27,17 @@ const ROLE_PLAN_PREFIXES = {
 const PLAN_DISPLAY_MAP = {
   individual_free: { name: "Trải nghiệm", price: 0 },
   individual_standard: { name: "Tiêu chuẩn", price: 299000 },
-  individual_pro: { name: "Tiêu chuẩn", price: 299000 }, // Mapping existing pro to Standard if needed
+  individual_pro: { name: "Tiêu chuẩn", price: 299000 }, 
   individual_premium: { name: "Cao cấp", price: 499000 },
+  // Teacher/Center plans
+  free: { name: "Trải nghiệm", price: 0 },
+  starter: { name: "Tiêu chuẩn", price: 299000 },
+  pro: { name: "Cao cấp", price: 699000 },
 };
 
 const fmtVND = (n) => {
   if (n === 0) return "0 VNĐ";
+  if (!n) return "Liên hệ";
   return n.toLocaleString('vi-VN').replace(/,/g, '.') + " VNĐ";
 };
 
@@ -66,7 +71,10 @@ const SubscriptionPage = () => {
         : normalized;
 
       // Ensure the 3 tiers from the table are present
-      const requiredTiers = ["individual_free", "individual_standard", "individual_premium"];
+      const requiredTiers = (role === "teacher" || role === "admin")
+        ? ["free", "starter", "pro"]
+        : ["individual_free", "individual_standard", "individual_premium"];
+
       requiredTiers.forEach(tierId => {
         if (!visiblePlans.find(p => p.id === tierId || (tierId === 'individual_standard' && p.id === 'individual_pro'))) {
           // Add a mock plan if missing from API
@@ -75,12 +83,18 @@ const SubscriptionPage = () => {
             id: tierId,
             name: display.name,
             priceVND: display.price,
-            essaysPerMonth: tierId === 'individual_free' ? 5 : -1,
-            features: tierId === 'individual_free' 
-              ? ["5 bài chấm AI / tháng", "Phân tích từ vựng cơ bản", "Gợi ý sửa lỗi ngữ pháp"]
-              : tierId === 'individual_standard'
-                ? ["Không giới hạn bài Essay", "Phân tích chuyên sâu chuẩn VSTEP", "Gợi ý nâng cấp từ vựng B2/C1", "Lưu trữ lịch sử không giới hạn"]
-                : ["Tất cả tính năng bản Tiêu chuẩn", "Ưu tiên phản hồi AI nhanh nhất", "Hỗ trợ 1-1 từ đội ngũ học thuật", "Cập nhật sớm các tính năng mới"],
+            essaysPerMonth: (tierId.includes('free') ? 5 : -1),
+            features: (role === "teacher" || role === "admin")
+              ? (tierId === 'free' 
+                  ? ["Quản lý 1 lớp học", "Tối đa 10 học sinh", "Chấm 5 bài AI / tháng / học sinh"]
+                  : tierId === 'starter'
+                    ? ["Quản lý 3 lớp học", "Tối đa 50 học sinh", "Chấm AI không giới hạn", "Phân tích tiến độ học sinh"]
+                    : ["Không giới hạn lớp học", "Không giới hạn học sinh", "Tính năng AI cao cấp nhất", "Hỗ trợ ưu tiên 24/7"])
+              : (tierId === 'individual_free' 
+                  ? ["5 bài chấm AI / tháng", "Phân tích từ vựng cơ bản", "Gợi ý sửa lỗi ngữ pháp"]
+                  : tierId === 'individual_standard'
+                    ? ["Không giới hạn bài Essay", "Phân tích chuyên sâu chuẩn VSTEP", "Gợi ý nâng cấp từ vựng B2/C1", "Lưu trữ lịch sử không giới hạn"]
+                    : ["Tất cả tính năng bản Tiêu chuẩn", "Ưu tiên phản hồi AI nhanh nhất", "Hỗ trợ 1-1 từ đội ngũ học thuật", "Cập nhật sớm các tính năng mới"]),
             isMock: true
           });
         }
@@ -190,7 +204,10 @@ const SubscriptionPage = () => {
         {/* Pricing Cards */}
         <div className="flex flex-wrap justify-center gap-10 mb-24 items-stretch">
           {plans.filter(p => p.id !== "enterprise").map((plan, idx) => {
-            const display = PLAN_DISPLAY_MAP[plan.id] || { name: plan.name, price: plan.priceVND };
+            const display = PLAN_DISPLAY_MAP[plan.id] || { 
+              name: plan.name, 
+              price: plan.priceVND ?? plan.price ?? 0 
+            };
             const isStandard = plan.id.includes("standard") || plan.id === "individual_pro";
             const isPremium = plan.id.includes("premium");
             const isCurrent = status?.plan === plan.id;
@@ -267,30 +284,6 @@ const SubscriptionPage = () => {
             );
           })}
         </div>
-
-        {/* Enterprise Card */}
-        {(role === "teacher" || role === "admin") && (
-          <div className="max-w-5xl mx-auto rounded-[64px] bg-neutral-900 p-12 lg:p-20 text-white flex flex-col lg:flex-row items-center gap-12 relative overflow-hidden group shadow-2xl">
-              <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-600/20 rounded-full -mr-48 -mt-48 blur-[120px] transition-all group-hover:bg-emerald-600/40" />
-              
-              <div className="flex-1 space-y-6 relative z-10 text-center lg:text-left">
-                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/20 mb-4">
-                    <Building2 size={14} />
-                    <span>Dành cho trung tâm & trường học</span>
-                 </div>
-                 <h2 className="text-4xl lg:text-6xl font-black tracking-tight leading-tight">Gói tùy chỉnh <br/> cho doanh nghiệp</h2>
-                 <p className="text-neutral-400 text-lg font-medium leading-relaxed max-w-xl">
-                    Quản lý hàng ngàn học sinh, giáo viên với bảng điều khiển riêng biệt, báo cáo chuyên sâu và tích hợp API tùy biến.
-                 </p>
-              </div>
-
-              <div className="relative z-10 shrink-0 w-full lg:w-auto">
-                 <Button className="w-full lg:w-auto bg-emerald-600 hover:bg-white hover:text-neutral-900 h-20 px-12 rounded-[32px] font-black uppercase tracking-widest transition-all active:scale-95 shadow-2xl shadow-emerald-900/40">
-                    Liên hệ ngay với Sale
-                 </Button>
-              </div>
-          </div>
-        )}
       </main>
 
       <HomeFooter />

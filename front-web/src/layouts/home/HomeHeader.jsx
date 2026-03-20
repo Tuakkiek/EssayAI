@@ -38,6 +38,7 @@ export default function HomeHeader() {
         { label: "Lớp học", to: "/teacher/classes", icon: Users },
         { label: "Bài tập", to: "/teacher/assignments", icon: BookOpen },
         { label: "Tiến độ", to: "/progress", icon: TrendingUp },
+        { label: "Gói dịch vụ", to: "/subscription", icon: CreditCard },
       ];
     }
 
@@ -46,7 +47,9 @@ export default function HomeHeader() {
       { label: "Bài tập", to: "/assignments", icon: BookOpen },
       { label: "Lịch sử", to: "/essay/history", icon: History },
       { label: "Tiến độ", to: "/progress", icon: TrendingUp },
-      { label: "Gói dịch vụ", to: "/subscription", icon: CreditCard },
+      ...(user?.role !== "center_student"
+        ? [{ label: "Gói dịch vụ", to: "/subscription", icon: CreditCard }]
+        : []),
     ];
   }, [user?.role]);
 
