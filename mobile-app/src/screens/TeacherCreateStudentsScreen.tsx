@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     ...Typography.bodySmall,
   },
-  stickyBtn: { marginHorizontal: Spacing.lg, marginBottom: Spacing.lg },
+  stickyBtn: { marginHorizontal: Spacing.lg, marginBottom: Spacing.xxxl * 2 + Spacing.lg},
   resultWrap: { padding: Spacing.lg },
   resultTitle: { ...Typography.heading3, marginBottom: Spacing.md },
   resultRow: {
