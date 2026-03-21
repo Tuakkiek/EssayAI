@@ -12,7 +12,7 @@ import {
   RefreshCw,
   Trophy,
 } from "lucide-react";
-import apiClient, { api, getErrorMessage } from "../services/api";
+import apiClient, { api, getErrorMessage, getAuthUser } from "../services/api";
 import HomeHeader from "../layouts/home/HomeHeader";
 import HomeFooter from "../layouts/home/HomeFooter";
 
