@@ -34,6 +34,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundColor: "#E6F4FE",
     },
+    softwareKeyboardLayoutMode: "resize",
     package: "com.essayai.app",
     scheme: "essayai",
   },

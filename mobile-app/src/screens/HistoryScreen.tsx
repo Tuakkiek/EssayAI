@@ -15,7 +15,13 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { PenLine, Wifi, Clock, FileText } from "lucide-react-native";
-import { Colors, Radius, Shadow, Spacing, Typography } from "../constants/theme";
+import {
+  Colors,
+  Radius,
+  Shadow,
+  Spacing,
+  Typography,
+} from "../constants/theme";
 import { AppButton } from "../components/AppButton";
 import { essayApi, getErrorMessage } from "../services/api";
 import { HistoryItem } from "../types";
@@ -25,12 +31,40 @@ import { useAuth } from "../context/AuthContext";
 const PAGE_SIZE = 20;
 
 // ── Status config with encouraging labels ─────────────────────────────────────
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; emoji: string }> = {
-  scored:  { label: "Đã chấm điểm",  color: Colors.primary,   bg: Colors.primaryLight, emoji: "✅" },
-  graded:  { label: "Đã chấm điểm",  color: Colors.primary,   bg: Colors.primaryLight, emoji: "✅" },
-  grading: { label: "Đang chấm...",  color: Colors.warning,   bg: Colors.warningLight, emoji: "⏳" },
-  pending: { label: "Đang chờ",      color: Colors.textMuted, bg: Colors.surfaceAlt,   emoji: "⏳" },
-  error:   { label: "Thử lại",       color: Colors.errorSoft, bg: Colors.errorLight,   emoji: "🔄" },
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bg: string; emoji: string }
+> = {
+  scored: {
+    label: "Đã chấm điểm",
+    color: Colors.primary,
+    bg: Colors.primaryLight,
+    emoji: "✅",
+  },
+  graded: {
+    label: "Đã chấm điểm",
+    color: Colors.primary,
+    bg: Colors.primaryLight,
+    emoji: "✅",
+  },
+  grading: {
+    label: "Đang chấm...",
+    color: Colors.warning,
+    bg: Colors.warningLight,
+    emoji: "⏳",
+  },
+  pending: {
+    label: "Đang chờ",
+    color: Colors.textMuted,
+    bg: Colors.surfaceAlt,
+    emoji: "⏳",
+  },
+  error: {
+    label: "Thử lại",
+    color: Colors.errorSoft,
+    bg: Colors.errorLight,
+    emoji: "🔄",
+  },
 };
 
 function getBandColor(score: number): string {
@@ -55,8 +89,18 @@ function EssayCard({
   React.useEffect(() => {
     const delay = Math.min(index * 60, 300);
     Animated.parallel([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 300, delay, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 300, delay, useNativeDriver: true }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        delay,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        delay,
+        useNativeDriver: true,
+      }),
     ]).start();
   }, []);
 
@@ -161,7 +205,10 @@ export default function HistoryScreen() {
       else setLoadingMore(true);
 
       try {
-        const res = await essayApi.getHistory({ page: nextPage, limit: PAGE_SIZE });
+        const res = await essayApi.getHistory({
+          page: nextPage,
+          limit: PAGE_SIZE,
+        });
         const payload = res.data?.data;
         const list = payload?.essays ?? payload ?? [];
         const pagination = payload?.pagination ?? null;
@@ -232,13 +279,14 @@ export default function HistoryScreen() {
         <View style={styles.iconCircle}>
           <PenLine size={28} color={Colors.primary} strokeWidth={1.5} />
         </View>
-        <Text style={styles.emptyTitle}>No essays yet!</Text>
+        <Text style={styles.emptyTitle}>Chưa có bài essay nào cả!</Text>
         <Text style={styles.emptyBody}>
-          Write your first essay and see your AI-graded results here.
+          Hãy viết bài luận đầu tiên của bạn và xem kết quả được chấm điểm bằng
+          AI tại đây.
         </Text>
         <AppButton
-          label="Write an Essay"
-          onPress={() => router.push("/essay/input" as any)}
+          label="Viết một bài essay mới"
+          onPress={() => router.push("/student/assignments")}
           style={{ marginTop: Spacing.lg }}
           fullWidth={false}
         />
@@ -248,7 +296,7 @@ export default function HistoryScreen() {
 
   return (
     <View style={styles.container}>
-      <View style={{ height: Spacing.xxxl}} />
+      <View style={{ height: Spacing.xxxl }} />
       <FlatList
         data={essays}
         keyExtractor={(item, i) => getEssayId(item) ?? String(i)}
@@ -276,7 +324,10 @@ export default function HistoryScreen() {
               index={index}
               onPress={() => {
                 if (!id) return;
-                router.push({ pathname: "/essay/detail", params: { essayId: id } });
+                router.push({
+                  pathname: "/essay/detail",
+                  params: { essayId: id },
+                });
               }}
             />
           );

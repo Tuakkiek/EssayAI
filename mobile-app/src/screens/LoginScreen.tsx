@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   KeyboardAvoidingView, Platform, ScrollView, Alert, ActivityIndicator, Keyboard
@@ -21,6 +21,19 @@ export default function LoginScreen() {
   const [role,     setRole]     = useState<"free_student" | "teacher">("free_student")
   const [centerName, setCenterName] = useState("")
   const [loading,  setLoading]  = useState(false)
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false)
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow"
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide"
+    const showSub = Keyboard.addListener(showEvent, () => setIsKeyboardVisible(true))
+    const hideSub = Keyboard.addListener(hideEvent, () => setIsKeyboardVisible(false))
+
+    return () => {
+      showSub.remove()
+      hideSub.remove()
+    }
+  }, [])
 
   const handleSubmit = async () => {
     const phoneValue = phone.trim()
@@ -71,11 +84,22 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? Spacing.md : 0}
+    >
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          isKeyboardVisible && styles.scrollWhenKeyboardVisible,
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
 
         {/* Logo area */}
-        <View style={styles.hero}>
+        <View style={[styles.hero, isKeyboardVisible && styles.heroWhenKeyboardVisible]}>
           <Text style={styles.heroTitle}>Essay AI</Text>
         </View>
 
@@ -216,7 +240,9 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container:       { flex: 1, backgroundColor: Colors.background },
   scroll:          { flexGrow: 1, justifyContent: "center", padding: Spacing.xl },
+  scrollWhenKeyboardVisible: { justifyContent: "flex-start", paddingBottom: Spacing.xxxl },
   hero:            { alignItems: "center", marginBottom: Spacing.xxxl },
+  heroWhenKeyboardVisible: { marginBottom: Spacing.xl, marginTop: Spacing.sm },
   heroIcon:        { fontSize: 60, marginBottom: Spacing.sm },
   heroTitle:       { ...Typography.heading1, color: Colors.primary, fontWeight: "800" },
   heroSub:         { ...Typography.body, color: Colors.textSecondary, marginTop: 4 },

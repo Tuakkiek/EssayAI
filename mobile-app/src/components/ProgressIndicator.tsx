@@ -7,12 +7,12 @@ import { View, Text, StyleSheet, Animated } from "react-native";
 import { Colors, Radius, Shadow, Spacing, Typography } from "../constants/theme";
 
 const MESSAGES = [
-  "Analyzing your ideas...",
-  "Checking grammar patterns...",
-  "Looking for improvements...",
-  "Reviewing your argument...",
-  "Measuring vocabulary range...",
-  "Almost there! Polishing results...",
+  "Đang phân tích ý tưởng của bạn...",
+  "Đang kiểm tra lỗi ngữ pháp...",
+  "Đang tìm điểm cần cải thiện...",
+  "Đang xem lại lập luận của bạn...",
+  "Đang đánh giá vốn từ vựng...",
+  "Sắp xong rồi! Đang hoàn thiện kết quả...",
 ];
 
 interface ProgressIndicatorProps {
@@ -77,9 +77,7 @@ export function ProgressIndicator({ visible = true, elapsed = 0 }: ProgressIndic
           <Text style={styles.elapsed}>{elapsed}s</Text>
         )}
 
-        <Text style={styles.sub}>
-          AI is carefully reading every sentence ✨
-        </Text>
+        <Text style={styles.sub}>AI đang đọc kỹ từng câu ✨</Text>
       </View>
     </Animated.View>
   );

@@ -42,6 +42,26 @@ import { useAuth } from "../context/AuthContext";
 const POLL_MS = 3000;
 const MAX_POLLS = 40;
 
+const VIETNAMESE_DIACRITICS = /[ÀÁÂÃÈÉÊÌÍÒÓÔÕÙÚĂĐĨŨƠƯàáâãèéêìíòóôõùúăđĩũơưẠ-ỹ]/;
+
+function preferNonVietnamese(
+  primary?: string,
+  fallback?: string,
+): string | undefined {
+  const primaryText = typeof primary === "string" ? primary.trim() : "";
+  const fallbackText = typeof fallback === "string" ? fallback.trim() : "";
+
+  if (!primaryText) return fallbackText || undefined;
+  if (!fallbackText) return primaryText;
+
+  const primaryHasVi = VIETNAMESE_DIACRITICS.test(primaryText);
+  const fallbackHasVi = VIETNAMESE_DIACRITICS.test(fallbackText);
+
+  if (primaryHasVi && !fallbackHasVi) return fallbackText;
+  if (!primaryHasVi && fallbackHasVi) return primaryText;
+  return primaryText;
+}
+
 // ── Encouragement messages by score ──────────────────────────────────────────
 function getEncouragementMessage(score: number): string {
   if (score >= 8) return "Xuất sắc! Bạn đang ở nhóm điểm cao nhất.";
@@ -62,18 +82,31 @@ function mapErrors(errors: GrammarError[]): Array<{
   detail?: string;
 }> {
   return errors
-    .filter((e) => e.original || e.message)
+    .filter(
+      (e) =>
+        e.original ||
+        e.message ||
+        e.corrected ||
+        (Array.isArray(e.suggestions) && e.suggestions[0]),
+    )
     .slice(0, 6)
-    .map((e) => ({
-      category: "grammar" as const,
-      problem: e.explanation ?? e.message ?? "Review this phrase.",
-      suggestion: e.corrected
-        ? `Try: "${e.corrected}"`
-        : "Consider rephrasing for clarity.",
-      original: e.original,
-      corrected: e.corrected,
-      detail: e.explanation,
-    }));
+    .map((e) => {
+      const corrected = preferNonVietnamese(
+        e.corrected,
+        Array.isArray(e.suggestions) ? e.suggestions[0] : undefined,
+      );
+
+      return {
+        category: "grammar" as const,
+        problem: e.explanation ?? e.message ?? "Xem lại cụm này.",
+        suggestion: corrected
+          ? `Try: "${corrected}"`
+          : "Cân nhắc diễn đạt lại cho rõ ràng hơn.",
+        original: e.original,
+        corrected,
+        detail: e.explanation,
+      };
+    });
 }
 
 // ── Map suggestions → FeedbackCard props ─────────────────────────────────────
@@ -92,7 +125,7 @@ function mapSuggestions(suggestions: Suggestion[]): Array<{
   };
 
   return suggestions
-    .filter((s) => s.text || s.explanation)
+    .filter((s) => s.text || s.explanation || s.improved)
     .slice(0, 4)
     .map((s) => ({
       category: catMap[s.category ?? s.type ?? "general"] ?? "clarity",
@@ -176,7 +209,7 @@ export default function ResultScreen() {
   const fetchEssay = useCallback(
     async (attempt = 0) => {
       if (!essayId) {
-        setError("Essay ID missing. Please try again from History.");
+        setError("Thiếu mã bài viết. Vui lòng thử lại từ Lịch sử.");
         setLoading(false);
         return;
       }
@@ -195,7 +228,7 @@ export default function ResultScreen() {
             );
           } else {
             setError(
-              "Grading is taking longer than usual. Check History in a moment.",
+              "Việc chấm bài đang lâu hơn bình thường. Vui lòng kiểm tra Lịch sử sau ít phút.",
             );
             setLoading(false);
           }
@@ -212,7 +245,7 @@ export default function ResultScreen() {
           pollRef.current = setTimeout(() => fetchEssay(attempt + 1), POLL_MS);
         } else {
           setLoading(false);
-          setError("Please check History for your results.");
+          setError("Vui lòng kiểm tra Lịch sử để xem kết quả.");
         }
       } catch (err) {
         setError(getErrorMessage(err));
@@ -233,7 +266,7 @@ export default function ResultScreen() {
     const score = essay?.score ?? essay?.overallScore ?? essay?.overallBand;
     if (!score) return;
     await Share.share({
-      message: `I just scored ${score.toFixed(1)} on my IELTS Writing with Essay AI! 🎉`,
+      message: `Mình vừa đạt ${score.toFixed(1)} điểm IELTS Writing với Essay AI! 🎉`,
     });
   };
 
@@ -248,7 +281,9 @@ export default function ResultScreen() {
             label={isTeacher ? "Tiến độ" : "Lịch sử"}
             onPress={() => router.replace(historyRoute as any)}
           />
-          <Text style={styles.headerTitle}>Grading...</Text>
+          <Text style={styles.headerTitle} pointerEvents="none">
+            Đang chấm bài...
+          </Text>
           <View style={{ width: 40 }} />
         </View>
         <ProgressIndicator visible elapsed={elapsed} />
@@ -261,7 +296,7 @@ export default function ResultScreen() {
     const msg =
       essay?.errorMessage ??
       error ??
-      "Something went wrong. Please resubmit your essay.";
+      "Có lỗi xảy ra. Vui lòng gửi lại bài viết.";
 
     return (
       <View style={styles.container}>
@@ -270,7 +305,9 @@ export default function ResultScreen() {
             label={isTeacher ? "Tiến độ" : "Lịch sử"}
             onPress={() => router.replace(historyRoute as any)}
           />
-          <Text style={styles.headerTitle}>Oops!</Text>
+          <Text style={styles.headerTitle} pointerEvents="none">
+            Rất tiếc!
+          </Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.errorWrap}>
@@ -278,17 +315,17 @@ export default function ResultScreen() {
             <Text style={styles.errorEmoji}>😅</Text>
             <Text style={styles.errorTitle}>
               {essay?.status === "error"
-                ? "Grading didn't complete"
-                : "Couldn't load result"}
+                ? "Chấm bài chưa hoàn tất"
+                : "Không thể tải kết quả"}
             </Text>
             <Text style={styles.errorMsg}>{msg}</Text>
             <AppButton
-              label="Try Again"
+              label="Thử lại"
               onPress={() => router.navigate("/essay/input" as any)}
               style={{ marginTop: Spacing.sm }}
             />
             <AppButton
-              label="See History"
+              label="Xem lịch sử"
               onPress={() => router.replace(historyRoute as any)}
               variant="ghost"
               style={{ marginTop: Spacing.xs }}
@@ -305,7 +342,7 @@ export default function ResultScreen() {
   const feedbackText =
     [essay.aiFeedback, essay.feedback].find(
       (v) => typeof v === "string" && v.trim(),
-    ) ?? "No detailed feedback provided.";
+    ) ?? "Chưa có nhận xét chi tiết.";
 
   const grammarFeedback = mapErrors(
     Array.isArray(essay.grammarErrors) ? essay.grammarErrors : [],
@@ -317,16 +354,34 @@ export default function ResultScreen() {
 
   // Score breakdown short insight
   const bd = essay.scoreBreakdown;
+  const criteria = bd
+    ? [
+        {
+          label: "Hoàn thành nhiệm vụ",
+          value: bd.taskAchievement ?? 0,
+          color: "#6366F1",
+        },
+        {
+          label: "Mạch lạc & liên kết",
+          value: bd.coherenceCohesion ?? 0,
+          color: "#8B5CF6",
+        },
+        {
+          label: "Từ vựng",
+          value: bd.lexicalResource ?? 0,
+          color: "#EC4899",
+        },
+        {
+          label: "Ngữ pháp",
+          value: bd.grammaticalRangeAccuracy ?? 0,
+          color: Colors.warning,
+        },
+      ]
+    : [];
   let lowestCriterion = "";
   if (bd) {
-    const scores = [
-      { key: "Task Achievement", val: bd.taskAchievement ?? 0 },
-      { key: "Coherence", val: bd.coherenceCohesion ?? 0 },
-      { key: "Vocabulary", val: bd.lexicalResource ?? 0 },
-      { key: "Grammar", val: bd.grammaticalRangeAccuracy ?? 0 },
-    ];
-    const lowest = scores.sort((a, b) => a.val - b.val)[0];
-    if (lowest.val < finalScore) lowestCriterion = lowest.key;
+    const lowest = criteria.slice().sort((a, b) => a.value - b.value)[0];
+    if (lowest && lowest.value < finalScore) lowestCriterion = lowest.label;
   }
 
   return (
@@ -338,7 +393,9 @@ export default function ResultScreen() {
           label={isTeacher ? "Tiến độ" : "Lịch sử"}
           onPress={() => router.replace(historyRoute as any)}
         />
-        <Text style={styles.headerTitle}>Your Result</Text>
+        <Text style={styles.headerTitle} pointerEvents="none">
+          Kết quả của bạn
+        </Text>
         <TouchableOpacity onPress={handleShare} style={styles.shareBtn}>
           <Share2 size={20} color={Colors.primary} strokeWidth={2.2} />
         </TouchableOpacity>
@@ -361,13 +418,12 @@ export default function ResultScreen() {
           {/* ── 2. Improvement summary (one insight) ── */}
           {lowestCriterion ? (
             <View style={[styles.insightCard, Shadow.xs]}>
-              <Text style={styles.insightEmoji}>💡</Text>
               <View style={styles.insightText}>
-                <Text style={styles.insightTitle}>Focus area</Text>
+                <Text style={styles.insightTitle}>Trọng tâm cải thiện</Text>
                 <Text style={styles.insightBody}>
-                  Work on{" "}
+                  Tập trung vào{" "}
                   <Text style={styles.insightHighlight}>{lowestCriterion}</Text>{" "}
-                  to boost your overall band.
+                  để nâng band tổng thể.
                 </Text>
               </View>
             </View>
@@ -389,28 +445,7 @@ export default function ResultScreen() {
           {bd && (
             <View style={[styles.breakdownCard, Shadow.xs]}>
               <Text style={styles.sectionTitle}>Phân tích điểm số</Text>
-              {[
-                {
-                  label: "Hoàn thành nhiệm vụ",
-                  value: bd.taskAchievement ?? 0,
-                  color: "#6366F1",
-                },
-                {
-                  label: "Mạch lạc & liên kết",
-                  value: bd.coherenceCohesion ?? 0,
-                  color: "#8B5CF6",
-                },
-                {
-                  label: "Từ vựng",
-                  value: bd.lexicalResource ?? 0,
-                  color: "#EC4899",
-                },
-                {
-                  label: "Ngữ pháp",
-                  value: bd.grammaticalRangeAccuracy ?? 0,
-                  color: Colors.warning,
-                },
-              ].map(({ label, value, color }) => (
+              {criteria.map(({ label, value, color }) => (
                 <View key={label} style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>{label}</Text>
                   <View style={styles.breakdownBarTrack}>
@@ -463,13 +498,14 @@ export default function ResultScreen() {
               onPress={() => router.replace(historyRoute as any)}
               variant="ghost"
               size="md"
+              style={{ marginBottom: Spacing.xxxl }}
             />
           </View>
 
           <View style={{ height: Spacing.xxxl }} />
         </Animated.View>
       </ScrollView>
-      <View style={{ height: Spacing.xxxl * 2 }} />
+      {/* <View style={{ height: Spacing.xxxl * 2 }} /> */}
     </View>
   );
 }
@@ -520,6 +556,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: Spacing.sm,
     alignItems: "center",
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+    marginHorizontal: Spacing.md,
   },
   insightEmoji: { fontSize: 28 },
   insightText: { flex: 1 },

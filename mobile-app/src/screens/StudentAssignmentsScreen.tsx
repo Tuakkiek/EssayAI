@@ -15,6 +15,7 @@ import { studentApi, getErrorMessage } from "../services/api";
 import { Assignment } from "../types";
 import { formatDate } from "@/utils/bandColor";
 import { useRoleGuard } from "../hooks/useRoleGuard";
+import { TAB_BAR_BOTTOM_OFFSET } from "../components/LiquidGlassBar";
 
 // ─── Lucide React Native icons ────────────────────────────────────────────────
 import {
@@ -397,7 +398,6 @@ export default function StudentAssignmentsScreen() {
       {/* Navigation bar (Apple Large Title style) */}
       <View style={styles.navbar}>
         <Text style={styles.navTitle}>Bài tập</Text>
-        <Text style={styles.navSub}>được giao</Text>
       </View>
 
       <FlatList
@@ -417,9 +417,10 @@ export default function StudentAssignmentsScreen() {
             onPress={() => router.push(`/student/assignments/${item._id}`)}
           />
         )}
-        
+        ListFooterComponent={
+          <Text style={styles.footer}>Essay AI · v1.0.0</Text>
+        }
       />
-      
     </View>
   );
 }
@@ -465,10 +466,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.1,
     marginTop: 2,
   },
-
   list: {
     padding: 16,
     paddingTop: 12,
-    paddingBottom: 32,
+    paddingBottom: 0, // footer tự xử lý
+  },
+  footer: {
+    fontSize: 12,
+    color: APPLE.labelTertiary,
+    textAlign: "center",
+    paddingTop: 16,
+    paddingBottom: TAB_BAR_BOTTOM_OFFSET + 14, // đẩy nội dung lên trên tab bar
   },
 });

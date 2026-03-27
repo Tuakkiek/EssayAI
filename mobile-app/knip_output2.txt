@@ -1,0 +1,55 @@
+﻿[93m[4mUnused files[24m[39m (23)
+src/components/AppCard.tsx                 
+src/components/AppInput.tsx                
+src/components/GlassContainer.tsx          
+src/components/GrammarErrorCard.tsx        
+src/components/LiquidGlassTabBar.tsx       
+src/components/LiquidGlassTabBarExample.tsx
+src/components/LiquidIndicator.tsx         
+src/components/LiquidTabBar.tsx            
+src/components/LiquidTabBarExample.tsx     
+src/components/LoadingOverlay.tsx          
+src/components/ScoreBadge.tsx              
+src/components/ScoreBreakdownCard.tsx      
+src/components/SuggestionsCard.tsx         
+src/components/TabButton.tsx               
+src/hooks/useLiquidPhysics.ts              
+src/hooks/useLiquidTabAnimation.ts         
+src/hooks/useMagneticTabs.ts               
+src/services/api_fixed.ts                  
+src/services/authApi.ts                    
+src/theme/colors.ts                        
+src/theme/spacing.ts                       
+src/screens/NewHomeScreen.tsx              
+src/screens/TeacherDashboardScreen.tsx     
+[93m[4mUnused dependencies[24m[39m (8)
+@react-navigation/bottom-tabs  package.json:16:6
+@react-navigation/elements     package.json:17:6
+expo-haptics                   package.json:24:6
+expo-image                     package.json:25:6
+expo-image-picker              package.json:26:6
+expo-splash-screen             package.json:30:6
+expo-status-bar                package.json:31:6
+expo-web-browser               package.json:34:6
+[93m[4mUnused devDependencies[24m[39m (2)
+eslint              package.json:49:6
+eslint-config-expo  package.json:50:6
+[93m[4mUnlisted dependencies[24m[39m (1)
+expo-updates  app.config.ts
+[93m[4mUnused exports[24m[39m (8)
+default           variable  src/context/AuthContext.tsx:228:16        
+TAB_THEME                   src/components/DarkCapsuleTabBar.tsx:20:14
+BAR_H                       src/components/LiquidGlassBar.tsx:58:14   
+BOTTOM_FLOAT                src/components/LiquidGlassBar.tsx:60:14   
+useHasRole        function  src/hooks/useRoleGuard.ts:52:17           
+getBandLabel      function  src/utils/bandColor.ts:24:17              
+uploadAttachment            src/services/uploadApi.ts:56:14           
+uploadCenterLogo            src/services/uploadApi.ts:64:14           
+[93m[4mUnused exported types[24m[39m (6)
+User              interface  src/context/AuthContext.tsx:17:18
+UserRole          type       src/types.ts:92:13               
+PaginatedHistory  interface  src/types.ts:162:18              
+ScoreRequest      interface  src/types.ts:172:18              
+ScoreResponse     interface  src/types.ts:179:18              
+UploadResult      interface  src/services/uploadApi.ts:5:18   
+[33m[4mConfiguration hints[24m (2)[39m

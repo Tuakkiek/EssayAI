@@ -198,7 +198,7 @@ export default function HomeScreen() {
           <View style={styles.statsRow}>
             <View style={styles.statChip}>
               <Text style={styles.statVal}>{pendingCount}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statLabel}>Chưa làm</Text>
             </View>
             {dueSoonCount > 0 && (
               <View style={[styles.statChip, styles.statChipWarning]}>
@@ -206,12 +206,12 @@ export default function HomeScreen() {
                 <Text style={[styles.statVal, { color: Colors.warning }]}>
                   {dueSoonCount}
                 </Text>
-                <Text style={styles.statLabel}>Due soon</Text>
+                <Text style={styles.statLabel}>Sắp hết hạn</Text>
               </View>
             )}
             <View style={styles.statChip}>
               <Text style={styles.statVal}>{assignments.length - pendingCount}</Text>
-              <Text style={styles.statLabel}>Done</Text>
+              <Text style={styles.statLabel}>Đã nộp</Text>
             </View>
           </View>
         ) : null}

@@ -14,10 +14,10 @@ interface ScoreCardProps {
 }
 
 const BAND_CONFIG: Record<string, { color: string; bg: string; emoji: string; label: string }> = {
-  excellent: { color: Colors.info,      bg: Colors.infoLight,    emoji: "🌟", label: "Excellent!" },
-  high:      { color: Colors.primary,   bg: Colors.primaryLight, emoji: "🎉", label: "Great job!" },
-  mid:       { color: Colors.warning,   bg: Colors.warningLight, emoji: "💪", label: "Keep going!" },
-  low:       { color: Colors.errorSoft, bg: Colors.errorLight,   emoji: "✨", label: "Nice effort!" },
+  excellent: { color: Colors.info,      bg: Colors.infoLight,    emoji: "🌟", label: "Xuất sắc!" },
+  high:      { color: Colors.primary,   bg: Colors.primaryLight, emoji: "🎉", label: "Tuyệt vời!" },
+  mid:       { color: Colors.warning,   bg: Colors.warningLight, emoji: "💪", label: "Cố lên!" },
+  low:       { color: Colors.errorSoft, bg: Colors.errorLight,   emoji: "✨", label: "Rất cố gắng!" },
 };
 
 function getBand(score: number) {
@@ -95,7 +95,7 @@ export function ScoreCard({ score, label, message, animate = true }: ScoreCardPr
       <Text style={[styles.scoreNum, { color: band.color }]}>
         {displayScore.toFixed(1)}
       </Text>
-      <Text style={styles.scoreSubLabel}>Vstep Band Score</Text>
+      {/* <Text style={styles.scoreSubLabel}>Điểm band VSTEP</Text> */}
 
       {/* Message */}
       {message && (
